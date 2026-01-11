@@ -875,6 +875,45 @@ export type Database = {
         }
         Relationships: []
       }
+      visual_help_images: {
+        Row: {
+          created_at: string
+          description: string | null
+          feature_key: string
+          gif_url: string | null
+          id: string
+          image_url: string | null
+          sort_order: number | null
+          step_key: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          feature_key: string
+          gif_url?: string | null
+          id?: string
+          image_url?: string | null
+          sort_order?: number | null
+          step_key: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          feature_key?: string
+          gif_url?: string | null
+          id?: string
+          image_url?: string | null
+          sort_order?: number | null
+          step_key?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

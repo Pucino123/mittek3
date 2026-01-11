@@ -202,6 +202,12 @@ const BatteryDoctor = () => {
     }
   };
 
+  const handleBack = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(prev => prev - 1);
+    }
+  };
+
   const resetQuiz = () => {
     setCurrentQuestion(0);
     setAnswers({});
@@ -410,24 +416,38 @@ const BatteryDoctor = () => {
               </div>
 
               {/* Answer buttons */}
-              <div className="grid grid-cols-2 gap-4">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-16 text-lg"
-                  onClick={() => handleAnswer(false)}
-                >
-                  Nej
-                </Button>
-                <Button
-                  variant="hero"
-                  size="lg"
-                  className="h-16 text-lg"
-                  onClick={() => handleAnswer(true)}
-                >
-                  Ja
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="h-16 text-lg"
+                    onClick={() => handleAnswer(false)}
+                  >
+                    Nej
+                  </Button>
+                  <Button
+                    variant="hero"
+                    size="lg"
+                    className="h-16 text-lg"
+                    onClick={() => handleAnswer(true)}
+                  >
+                    Ja
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </div>
+
+                {/* Back button to previous question */}
+                {currentQuestion > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBack}
+                    className="w-full text-muted-foreground"
+                  >
+                    ← Tilbage til forrige spørgsmål
+                  </Button>
+                )}
               </div>
             </>
           )}

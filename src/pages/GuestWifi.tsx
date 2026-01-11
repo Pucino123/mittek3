@@ -12,6 +12,10 @@ import {
 import { BackButton } from '@/components/layout/BackButton';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
 
+// Import visual guide images
+import guideIcloudSettings from '@/assets/guide-icloud-settings.png';
+import guideSafariPopups from '@/assets/guide-safari-popups.png';
+
 interface Step {
   id: number;
   title: string;
@@ -19,6 +23,7 @@ interface Step {
   icon: React.ElementType;
   tip?: string;
   visualDescription?: string;
+  visualImage?: string;
 }
 
 const steps: Step[] = [
@@ -29,6 +34,7 @@ const steps: Step[] = [
     icon: Smartphone,
     tip: 'Din Bluetooth skal også være tændt (det plejer den at være).',
     visualDescription: 'Se efter Wi-Fi-ikonet (tre buer) øverst til højre på din skærm. Det viser du er forbundet.',
+    visualImage: guideIcloudSettings,
   },
   {
     id: 2,
@@ -44,6 +50,7 @@ const steps: Step[] = [
     icon: Share2,
     tip: 'Hold telefonerne tæt på hinanden (inden for 1-2 meter).',
     visualDescription: 'En hvid boks popper op midt på din skærm med spørgsmålet og to knapper.',
+    visualImage: guideSafariPopups,
   },
   {
     id: 4,
@@ -186,6 +193,17 @@ const GuestWifi = () => {
                         <p className={`text-muted-foreground ${seniorMode ? 'text-base' : 'text-sm'}`}>
                           {step.instruction}
                         </p>
+                        
+                        {/* Visual guide image */}
+                        {step.visualImage && (
+                          <div className="rounded-xl overflow-hidden border border-border bg-muted/30">
+                            <img 
+                              src={step.visualImage} 
+                              alt={step.title}
+                              className="w-full h-auto object-contain max-h-48"
+                            />
+                          </div>
+                        )}
                         
                         {/* Visual description box */}
                         {step.visualDescription && (
