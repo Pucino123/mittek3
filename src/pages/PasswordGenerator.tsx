@@ -58,8 +58,11 @@ const PasswordGenerator = () => {
           
           <div className="text-center">
             {/* Header */}
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-              <Key className="h-8 w-8 text-primary" />
+            <div className="relative w-16 h-16 mx-auto mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Key className="h-8 w-8 text-primary" />
+              </div>
+              <ToolPageHelpButton />
             </div>
             
             <h1 className="text-2xl font-bold mb-2">Sikker Kode-generator</h1>
@@ -122,7 +125,7 @@ const PasswordGenerator = () => {
         </div>
       </main>
 
-      <ToolPageHelpButton />
+      
     </div>
   );
 };

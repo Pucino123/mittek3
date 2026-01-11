@@ -156,7 +156,7 @@ const Safety = () => {
                 <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center">
                   <Shield className="h-8 w-8 text-success" />
                 </div>
-                <ToolPageHelpButton variant="badge" />
+                <ToolPageHelpButton />
               </div>
               <h1 className="text-3xl font-bold mb-2">Sikkerhedsskjold</h1>
               <p className="text-lg text-muted-foreground">

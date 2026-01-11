@@ -298,8 +298,11 @@ const Panic = () => {
         <div className="max-w-lg mx-auto">
           {/* Header */}
           <div className="text-center mb-5 sm:mb-6">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-3 sm:mb-4">
-              <ShieldCheck className="h-7 w-7 sm:h-8 sm:w-8 text-warning" />
+            <div className="relative w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-warning/10 flex items-center justify-center">
+                <ShieldCheck className="h-7 w-7 sm:h-8 sm:w-8 text-warning" />
+              </div>
+              <ToolPageHelpButton />
             </div>
             <h1 className="text-xl sm:text-2xl font-bold mb-2">Tryghedsknap</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
@@ -534,7 +537,7 @@ const Panic = () => {
         </div>
       </main>
 
-      <ToolPageHelpButton />
+      
     </div>
   );
 };

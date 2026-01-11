@@ -105,8 +105,11 @@ const GuestWifi = () => {
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-20 h-20 rounded-2xl bg-info/10 flex items-center justify-center mx-auto mb-4">
-              <Wifi className="h-10 w-10 text-info" />
+            <div className="relative w-20 h-20 mx-auto mb-4">
+              <div className="w-20 h-20 rounded-2xl bg-info/10 flex items-center justify-center">
+                <Wifi className="h-10 w-10 text-info" />
+              </div>
+              <ToolPageHelpButton />
             </div>
             <h1 className={`font-bold mb-2 ${seniorMode ? 'text-3xl' : 'text-2xl'}`}>
               Del Wi-Fi uden at taste koder
@@ -267,7 +270,7 @@ const GuestWifi = () => {
         </div>
       </main>
 
-      <ToolPageHelpButton />
+      
     </div>
   );
 };
