@@ -19,7 +19,8 @@ export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRo
 
   useEffect(() => {
     if (!isLoading && user && requiredPlan !== 'basic' && !hasAccess(requiredPlan)) {
-      navigate('/pricing');
+      // Redirect to settings subscription section instead of pricing
+      navigate('/settings/subscription');
     }
   }, [user, isLoading, requiredPlan, hasAccess, navigate]);
 
