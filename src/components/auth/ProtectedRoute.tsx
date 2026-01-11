@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -19,7 +20,13 @@ export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRo
 
   useEffect(() => {
     if (!isLoading && user && requiredPlan !== 'basic' && !hasAccess(requiredPlan)) {
-      // Redirect to settings subscription section instead of pricing
+      // Show toast explaining why they're being redirected
+      const planName = requiredPlan === 'plus' ? 'Plus' : 'Pro';
+      toast.info(`Denne funktion kræver ${planName}-planen`, {
+        description: 'Opgradér dit abonnement for at få adgang.',
+        duration: 5000,
+      });
+      // Redirect to settings subscription section
       navigate('/settings/subscription');
     }
   }, [user, isLoading, requiredPlan, hasAccess, navigate]);
