@@ -138,7 +138,7 @@ const SubscriptionManagement = () => {
       .from('subscriptions')
       .select('*')
       .eq('user_id', user.id)
-      .eq('status', 'active')
+      .in('status', ['active', 'trialing'])
       .order('created_at', { ascending: false })
       .maybeSingle();
     
