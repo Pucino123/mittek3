@@ -375,13 +375,32 @@
     animation: sparkle 0.8s ease-out forwards;
   }
 
-  /* Floating widget */
+  /* Floating widget - AI Chat */
   .floating-widget {
     @apply fixed bottom-6 right-6 z-50;
   }
 
+  /* Mobile: closer to corner with curved design */
+  @media (max-width: 768px) {
+    .floating-widget {
+      @apply bottom-3 right-3;
+    }
+  }
+
   .floating-widget-button {
     @apply w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center transition-all duration-200;
+  }
+
+  /* Mobile: smaller button with curved corner effect */
+  @media (max-width: 768px) {
+    .floating-widget-button {
+      @apply w-12 h-12;
+      border-radius: 24px;
+    }
+    
+    .floating-widget-button svg {
+      @apply h-5 w-5;
+    }
   }
 
   /* Only apply hover effects on devices with hover capability */

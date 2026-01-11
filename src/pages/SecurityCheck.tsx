@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/layout/BackButton';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 import { DeviceSelector, DeviceType } from '@/components/ui/DeviceSelector';
 import { 
   Shield, 
@@ -543,6 +544,8 @@ const SecurityCheck = () => {
           )}
         </div>
       </main>
+
+      <ToolPageHelpButton />
     </div>
   );
 };

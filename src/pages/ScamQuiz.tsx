@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BackButton } from '@/components/layout/BackButton';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -359,6 +360,8 @@ const ScamQuiz = () => {
           </Button>
         </DialogContent>
       </Dialog>
+
+      <ToolPageHelpButton />
     </div>
   );
 };

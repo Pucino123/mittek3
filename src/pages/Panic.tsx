@@ -27,6 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 
 const incidentTypes = [
   { id: 'sms', label: 'Mistænkelig SMS', icon: MessageSquare, description: 'Link eller besked du ikke stoler på' },
@@ -532,6 +533,8 @@ const Panic = () => {
           )}
         </div>
       </main>
+
+      <ToolPageHelpButton />
     </div>
   );
 };

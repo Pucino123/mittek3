@@ -4,6 +4,7 @@ import { BackButton } from '@/components/layout/BackButton';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { RefreshCw, Copy, Check, Key } from 'lucide-react';
 import { toast } from 'sonner';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 
 // Danish friendly nouns for passphrase generation
 const danishNouns = [
@@ -120,6 +121,8 @@ const PasswordGenerator = () => {
           </div>
         </div>
       </main>
+
+      <ToolPageHelpButton />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BackButton } from '@/components/layout/BackButton';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 import { Button } from '@/components/ui/button';
 import {
   Accordion,
@@ -358,6 +359,8 @@ const CleaningGuide = () => {
           </div>
         </div>
       </main>
+
+      <ToolPageHelpButton />
     </div>
   );
 };

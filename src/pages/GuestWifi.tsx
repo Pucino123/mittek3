@@ -12,6 +12,7 @@ import {
 import { BackButton } from '@/components/layout/BackButton';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 
 // Import visual guide images
 import guideIcloudSettings from '@/assets/guide-icloud-settings.png';
@@ -265,6 +266,8 @@ const GuestWifi = () => {
           </div>
         </div>
       </main>
+
+      <ToolPageHelpButton />
     </div>
   );
 };
