@@ -9,17 +9,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30",
-        destructive: "bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90",
-        outline: "border-2 border-primary bg-background text-primary hover:bg-primary hover:text-primary-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/40 text-lg font-semibold",
-        success: "bg-success text-success-foreground shadow-md hover:bg-success/90",
-        warning: "bg-warning text-warning-foreground shadow-md hover:bg-warning/90",
-        trust: "bg-trust-soft text-primary border-2 border-primary/20 hover:bg-primary hover:text-primary-foreground",
-        panic: "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/30 hover:bg-destructive/90 text-lg font-semibold",
+        default: "bg-primary text-primary-foreground shadow-md shadow-primary/20 [@media(hover:hover)]:hover:bg-primary/90 [@media(hover:hover)]:hover:shadow-lg [@media(hover:hover)]:hover:shadow-primary/30",
+        destructive: "bg-destructive text-destructive-foreground shadow-md [@media(hover:hover)]:hover:bg-destructive/90",
+        outline: "border-2 border-primary bg-background text-primary [@media(hover:hover)]:hover:bg-primary [@media(hover:hover)]:hover:text-primary-foreground",
+        secondary: "bg-secondary text-secondary-foreground [@media(hover:hover)]:hover:bg-secondary/80",
+        ghost: "[@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 [@media(hover:hover)]:hover:underline",
+        hero: "bg-primary text-primary-foreground shadow-lg shadow-primary/30 [@media(hover:hover)]:hover:bg-primary/90 [@media(hover:hover)]:hover:shadow-xl [@media(hover:hover)]:hover:shadow-primary/40 text-lg font-semibold",
+        success: "bg-success text-success-foreground shadow-md [@media(hover:hover)]:hover:bg-success/90",
+        warning: "bg-warning text-warning-foreground shadow-md [@media(hover:hover)]:hover:bg-warning/90",
+        trust: "bg-trust-soft text-primary border-2 border-primary/20 [@media(hover:hover)]:hover:bg-primary [@media(hover:hover)]:hover:text-primary-foreground",
+        panic: "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/30 [@media(hover:hover)]:hover:bg-destructive/90 text-lg font-semibold",
       },
       size: {
         default: "h-12 px-6 py-3",

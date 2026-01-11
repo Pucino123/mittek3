@@ -659,7 +659,7 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
                   <div className="card-elevated p-5 sm:p-6 w-full max-w-md animate-scale-in max-h-[90vh] overflow-y-auto">
                     <div className="flex items-center justify-between mb-4 sm:mb-6">
                       <h2 className="text-lg sm:text-xl font-semibold">Nulstil Kode-mappe</h2>
-                      <button onClick={handleCloseReset} className="p-2 hover:bg-muted rounded-lg">
+                      <button onClick={handleCloseReset} className="p-2 [@media(hover:hover)]:hover:bg-muted rounded-lg">
                         <X className="h-5 w-5" />
                       </button>
                     </div>
@@ -844,7 +844,7 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
               <div className="card-elevated p-5 sm:p-6 w-full max-w-md animate-scale-in max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-semibold">Tilføj ny kode</h2>
-                  <button onClick={() => setShowAddItem(false)} className="p-2 hover:bg-muted rounded-lg">
+                  <button onClick={() => setShowAddItem(false)} className="p-2 [@media(hover:hover)]:hover:bg-muted rounded-lg">
                     <X className="h-5 w-5" />
                   </button>
                 </div>
@@ -917,7 +917,7 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
                         </p>
                         <button
                           onClick={() => toggleShowSecret(item.id)}
-                          className="p-1.5 hover:bg-muted rounded flex-shrink-0"
+                          className="p-1.5 [@media(hover:hover)]:hover:bg-muted rounded flex-shrink-0"
                         >
                           {showSecret[item.id] ? (
                             <EyeOff className="h-4 w-4 text-muted-foreground" />
