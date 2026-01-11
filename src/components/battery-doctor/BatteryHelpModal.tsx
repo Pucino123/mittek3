@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,11 +7,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Eye, Sun, AppWindow, Clock, RotateCcw, MapPin, BellOff, BatteryWarning, Play, Pause, Volume2, VolumeX } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { useVisualHelp } from '@/hooks/useVisualHelp';
 
-// Import visual guide images
+// Import visual guide images as fallbacks
 import guideBatterySettings from '@/assets/guide-battery-settings.png';
-import guideIcloudSettings from '@/assets/guide-icloud-settings.png';
 
 type HelpType = 'brightness' | 'close-apps' | 'old-phone' | 'background-refresh' | 'location-services' | 'low-power-mode' | 'notifications' | null;
 
@@ -19,13 +18,6 @@ interface BatteryHelpModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   helpType: HelpType;
-}
-
-interface VisualHelpData {
-  image_url: string | null;
-  gif_url: string | null;
-  video_url: string | null;
-  description: string | null;
 }
 
 const helpContent = {
@@ -247,36 +239,22 @@ function VideoPlayer({ src }: { src: string }) {
 }
 
 export function BatteryHelpModal({ open, onOpenChange, helpType }: BatteryHelpModalProps) {
-  const [dbVisualHelp, setDbVisualHelp] = useState<VisualHelpData | null>(null);
-
-  // Fetch visual help from database
-  useEffect(() => {
-    if (open && helpType) {
-      const fetchVisualHelp = async () => {
-        const { data } = await supabase
-          .from('visual_help_images')
-          .select('image_url, gif_url, video_url, description')
-          .eq('feature_key', 'battery-doctor')
-          .eq('step_key', helpType)
-          .maybeSingle();
-        
-        if (data) {
-          setDbVisualHelp(data);
-        }
-      };
-      fetchVisualHelp();
-    }
-  }, [open, helpType]);
+  // Use the visual help hook with fallback support
+  const { data: visualHelp } = useVisualHelp({
+    featureKey: 'battery-doctor',
+    stepKey: helpType || '',
+    enabled: open && !!helpType,
+  });
 
   if (!helpType) return null;
   
   const content = helpContent[helpType];
   const Icon = content.icon;
 
-  // Determine which visual to show (prioritize database content)
-  const videoUrl = dbVisualHelp?.video_url;
-  const gifUrl = dbVisualHelp?.gif_url;
-  const imageUrl = dbVisualHelp?.image_url || ('visualImage' in content ? content.visualImage : null);
+  // Determine which visual to show (prioritize database content, then fallback)
+  const videoUrl = visualHelp?.video_url;
+  const gifUrl = visualHelp?.gif_url;
+  const imageUrl = visualHelp?.image_url || ('visualImage' in content ? content.visualImage : null);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
