@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BackButton } from '@/components/layout/BackButton';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Button } from '@/components/ui/button';
 import {
   Accordion,
@@ -210,6 +211,8 @@ const allCleaningTasks: CleaningTask[] = [
 ];
 
 const CleaningGuide = () => {
+  useScrollRestoration();
+
   const [device, setDevice] = useState<DeviceType>('iphone');
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
 

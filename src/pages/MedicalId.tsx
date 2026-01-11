@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 // Import visual guide images
 import guideFindMy from '@/assets/guide-find-my.png';
@@ -85,6 +86,8 @@ const steps: Step[] = [
 ];
 
 const MedicalId = () => {
+  useScrollRestoration();
+
   const { seniorMode } = useSeniorMode();
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [expandedStep, setExpandedStep] = useState<number | null>(1);

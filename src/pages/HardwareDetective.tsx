@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BackButton } from '@/components/layout/BackButton';
 import { DeviceSelector } from '@/components/ui/DeviceSelector';
 import { DeviceType } from '@/data/hardcodedGuides';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Accordion,
@@ -458,6 +459,8 @@ const troubleshootingItems: TroubleshootingItem[] = [
 ];
 
 const HardwareDetective = () => {
+  useScrollRestoration();
+
   const [device, setDevice] = useState<DeviceType>('iphone');
   const [activeTab, setActiveTab] = useState('interactive');
 

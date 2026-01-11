@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/layout/BackButton';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { 
   Heart,
   Tv,
@@ -56,6 +57,8 @@ const wishlistItems: WishlistItem[] = [
 ];
 
 const Wishlist = () => {
+  useScrollRestoration();
+
   const { user } = useAuth();
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);

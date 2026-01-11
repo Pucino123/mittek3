@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BackButton } from '@/components/layout/BackButton';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -114,6 +115,8 @@ const scenarios: Scenario[] = [
 ];
 
 const ScamQuiz = () => {
+  useScrollRestoration();
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
