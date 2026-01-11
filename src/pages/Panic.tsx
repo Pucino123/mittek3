@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
@@ -64,6 +65,8 @@ interface PanicData {
 }
 
 const Panic = () => {
+  useScrollRestoration();
+
   const [currentStep, setCurrentStep] = useState(0);
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [data, setData] = useState<PanicData>({

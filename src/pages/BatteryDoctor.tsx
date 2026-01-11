@@ -19,6 +19,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { trackToolUsage } from '@/utils/analytics';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 interface Question {
   id: 'brightness' | 'close-apps' | 'old-phone' | 'chrome' | 'battery-health' | 'background-refresh' | 'location-services' | 'low-power-mode' | 'notifications';
@@ -181,6 +182,8 @@ const allQuestions: Question[] = [
 ];
 
 const BatteryDoctor = () => {
+  useScrollRestoration();
+
   const [device, setDevice] = useState<DeviceType>('iphone');
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, boolean>>({});

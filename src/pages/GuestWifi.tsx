@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 // Import visual guide images
 import guideIcloudSettings from '@/assets/guide-icloud-settings.png';
@@ -62,6 +63,8 @@ const steps: Step[] = [
 ];
 
 const GuestWifi = () => {
+  useScrollRestoration();
+
   const { seniorMode } = useSeniorMode();
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [expandedStep, setExpandedStep] = useState<number | null>(1);

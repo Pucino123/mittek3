@@ -108,7 +108,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
 
   const handleBreadcrumbClick = () => {
     // Save current scroll position before navigating
-    saveScrollPosition(location.pathname);
+    saveScrollPosition(location.pathname + location.search + location.hash);
   };
 
   return (

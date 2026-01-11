@@ -2,8 +2,11 @@ import { Link } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { DeviceCheckinWizard } from '@/components/checkin/DeviceCheckinWizard';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 const Checkin = () => {
+  useScrollRestoration();
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">

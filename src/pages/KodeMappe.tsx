@@ -26,6 +26,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { 
   generateSalt, 
   deriveKey, 
@@ -51,6 +52,8 @@ const folderIcons: Record<string, typeof Wifi> = {
 };
 
 const KodeMappe = () => {
+  useScrollRestoration();
+
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isSetup, setIsSetup] = useState<boolean | null>(null);
   const [passphrase, setPassphrase] = useState('');

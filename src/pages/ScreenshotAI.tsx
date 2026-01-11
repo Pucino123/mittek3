@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { PublicLayout } from '@/components/layout/PublicLayout';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Camera, Loader2, ImageIcon, X } from 'lucide-react';
@@ -9,6 +10,8 @@ import { toast } from 'sonner';
 import { ScreenshotHelpModal } from '@/components/ui/ScreenshotHelpModal';
 
 const ScreenshotAI = () => {
+  useScrollRestoration();
+
   const [image, setImage] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);

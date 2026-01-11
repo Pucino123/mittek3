@@ -1,69 +1,82 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
-// Store scroll positions keyed by pathname
+// Store scroll positions keyed by route (pathname + search + hash)
 const scrollPositions: Record<string, number> = {};
 
 /**
- * Save current scroll position for the current route
+ * Save current scroll position for a given route key
  */
-export function saveScrollPosition(pathname: string) {
-  scrollPositions[pathname] = window.scrollY;
+export function saveScrollPosition(routeKey: string) {
+  scrollPositions[routeKey] = window.scrollY;
 }
 
 /**
- * Get saved scroll position for a route
+ * Get saved scroll position for a route key
  */
-export function getSavedScrollPosition(pathname: string): number | null {
-  return scrollPositions[pathname] ?? null;
+export function getSavedScrollPosition(routeKey: string): number | null {
+  return scrollPositions[routeKey] ?? null;
 }
 
 /**
- * Clear scroll position for a route
+ * Clear scroll position for a route key
  */
-export function clearScrollPosition(pathname: string) {
-  delete scrollPositions[pathname];
+export function clearScrollPosition(routeKey: string) {
+  delete scrollPositions[routeKey];
 }
 
-/**
- * Show a subtle visual indicator when scroll is restored
- */
+function getRouteKey(location: { pathname: string; search?: string; hash?: string }) {
+  return `${location.pathname}${location.search ?? ''}${location.hash ?? ''}`;
+}
+
 function showScrollRestoredIndicator() {
-  // Create a subtle pulse overlay at the top of the viewport
-  const indicator = document.createElement('div');
-  indicator.className = 'scroll-restored-indicator';
-  indicator.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.6), transparent);
-    z-index: 9999;
-    pointer-events: none;
-    animation: scrollIndicatorFade 0.6s ease-out forwards;
-  `;
-  
-  // Add keyframes if not already present
-  if (!document.getElementById('scroll-indicator-styles')) {
-    const style = document.createElement('style');
-    style.id = 'scroll-indicator-styles';
-    style.textContent = `
-      @keyframes scrollIndicatorFade {
-        0% { opacity: 0; transform: scaleX(0); }
-        30% { opacity: 1; transform: scaleX(1); }
-        100% { opacity: 0; transform: scaleX(1); }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-  
-  document.body.appendChild(indicator);
-  
-  // Remove after animation
-  setTimeout(() => {
-    indicator.remove();
-  }, 600);
+  const root = document.createElement('div');
+  root.setAttribute('aria-live', 'polite');
+  root.className = 'fixed left-1/2 top-4 -translate-x-1/2 z-[9999] pointer-events-none';
+
+  const bubble = document.createElement('div');
+  bubble.className =
+    'rounded-full bg-primary text-primary-foreground shadow-lg px-4 py-2 text-sm font-medium animate-enter animate-pulse';
+  bubble.textContent = 'Tilbage til din position';
+
+  root.appendChild(bubble);
+  document.body.appendChild(root);
+
+  // Fade out + remove
+  window.setTimeout(() => {
+    bubble.classList.remove('animate-enter', 'animate-pulse');
+    bubble.classList.add('animate-exit');
+  }, 900);
+
+  window.setTimeout(() => {
+    root.remove();
+  }, 1150);
+}
+
+function restoreScrollTo(targetY: number, opts?: { maxAttempts?: number; intervalMs?: number }) {
+  const maxAttempts = opts?.maxAttempts ?? 16;
+  const intervalMs = opts?.intervalMs ?? 50;
+
+  let attempts = 0;
+
+  const tryRestore = () => {
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const canReachTarget = maxScroll >= targetY - 2;
+
+    // Scroll as far as possible right now
+    const desired = Math.min(targetY, maxScroll);
+    window.scrollTo({ top: desired, behavior: 'auto' });
+
+    const closeEnough = Math.abs(window.scrollY - targetY) < 2;
+
+    // If the page isn't tall enough yet, keep trying until it is (or we time out)
+    if ((!canReachTarget || !closeEnough) && attempts < maxAttempts) {
+      attempts += 1;
+      window.setTimeout(tryRestore, intervalMs);
+    }
+  };
+
+  tryRestore();
 }
 
 /**
@@ -72,34 +85,31 @@ function showScrollRestoredIndicator() {
  */
 export function useScrollRestoration(options?: { showIndicator?: boolean }) {
   const location = useLocation();
-  const hasRestored = useRef(false);
+  const hasShownIndicator = useRef(false);
   const showIndicator = options?.showIndicator ?? true;
 
   useEffect(() => {
-    // Reset the restored flag when location changes
-    hasRestored.current = false;
-    
-    // On mount, check if we have a saved position for this route
-    const savedPosition = getSavedScrollPosition(location.pathname);
-    
+    hasShownIndicator.current = false;
+
+    const routeKey = getRouteKey(location);
+    const savedPosition =
+      getSavedScrollPosition(routeKey) ?? getSavedScrollPosition(location.pathname) ?? null;
+
     if (savedPosition !== null && savedPosition > 0) {
-      // Use requestAnimationFrame to ensure DOM is ready
       requestAnimationFrame(() => {
-        window.scrollTo({ top: savedPosition, behavior: 'instant' });
-        
-        // Show visual feedback that scroll was restored
-        if (showIndicator && !hasRestored.current) {
-          hasRestored.current = true;
+        restoreScrollTo(savedPosition);
+
+        if (showIndicator && !hasShownIndicator.current) {
+          hasShownIndicator.current = true;
           showScrollRestoredIndicator();
         }
       });
     }
 
-    // Save scroll position when navigating away
     return () => {
-      saveScrollPosition(location.pathname);
+      saveScrollPosition(routeKey);
     };
-  }, [location.pathname, showIndicator]);
+  }, [location.pathname, location.search, location.hash, showIndicator]);
 }
 
 /**
@@ -109,9 +119,12 @@ export function useSaveScrollOnNavigate() {
   const location = useLocation();
 
   const saveAndNavigate = (callback: () => void) => {
-    saveScrollPosition(location.pathname);
+    saveScrollPosition(getRouteKey(location));
     callback();
   };
 
-  return { saveAndNavigate, saveScrollPosition: () => saveScrollPosition(location.pathname) };
+  return {
+    saveAndNavigate,
+    saveScrollPosition: () => saveScrollPosition(getRouteKey(location)),
+  };
 }

@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { saveScrollPosition, getSavedScrollPosition } from '@/hooks/useScrollRestoration';
+import { saveScrollPosition } from '@/hooks/useScrollRestoration';
 
 interface BackButtonProps {
   fallbackPath?: string;
@@ -25,18 +25,12 @@ export function BackButton({ fallbackPath = '/dashboard' }: BackButtonProps) {
     // Can go back if we have more than 1 item in our stack
     setCanGoBack(navigationStack.length > 1);
     
-    // Restore scroll position if we have one saved for this path
-    const savedPosition = getSavedScrollPosition(location.pathname);
-    if (savedPosition !== null) {
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: savedPosition, behavior: 'instant' });
-      });
-    }
+    // Note: scroll restoration happens via useScrollRestoration on the destination page
   }, [location]);
 
   const handleBack = () => {
     // Save current scroll position before navigating
-    saveScrollPosition(location.pathname);
+    saveScrollPosition(location.pathname + location.search + location.hash);
     
     // For subscription page, always go back to settings
     if (location.pathname === '/settings/subscription') {
