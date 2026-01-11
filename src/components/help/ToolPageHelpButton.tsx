@@ -221,7 +221,7 @@ export function ToolPageHelpButton({ variant = 'floating' }: ToolPageHelpButtonP
       <>
         <button
           onClick={() => setIsOpen(true)}
-          className="absolute -top-1 -right-1 z-40 w-6 h-6 aspect-square p-0 rounded-full bg-secondary text-secondary-foreground shadow-md border border-border inline-flex items-center justify-center transition-all duration-200 hover:scale-110"
+          className="absolute -top-1 -right-1 z-40 w-6 h-6 min-h-0 min-w-0 p-0 rounded-full bg-secondary text-secondary-foreground shadow-md border border-border inline-flex items-center justify-center leading-none transition-all duration-200 hover:scale-110"
           aria-label="Hjælp om denne side"
         >
           <HelpCircle className="h-3.5 w-3.5" />
