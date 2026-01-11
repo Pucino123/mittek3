@@ -24,17 +24,25 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasPlanSelected, setHasPlanSelected] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: string } | null>(null);
   
   const { signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // Plan details for display
+  const planDetails: Record<string, { name: string; price: string }> = {
+    plus: { name: 'Plus', price: '79' },
+    pro: { name: 'Pro', price: '99' },
+  };
+
   // Check if user has selected a plan (via URL param from pricing page)
   useEffect(() => {
     const plan = searchParams.get('plan');
     if (plan && ['plus', 'pro'].includes(plan)) {
       setHasPlanSelected(true);
+      setSelectedPlan({ id: plan, ...planDetails[plan] });
     }
   }, [searchParams]);
 
@@ -141,17 +149,31 @@ const Signup = () => {
           )}
 
           {/* Plan selected confirmation */}
-          {hasPlanSelected && (
+          {hasPlanSelected && selectedPlan && (
             <div className="mb-5 md:mb-6 p-3 md:p-4 rounded-lg bg-success/10 border border-success/20">
-              <div className="flex items-center gap-3">
-                <Check className="h-5 w-5 text-success flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-success">
-                    Plan valgt – opret din konto
-                  </p>
-                  <p className="text-xs text-muted-foreground">
+              <div className="flex items-start gap-3">
+                <Check className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-success">
+                      {selectedPlan.name}-plan valgt
+                    </p>
+                    <span className="text-xs font-semibold bg-success/20 text-success px-2 py-0.5 rounded-full">
+                      {selectedPlan.price} kr./md
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
                     14 dages gratis prøve, derefter betales automatisk.
                   </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate('/pricing?signup=true')}
+                    className="h-6 px-0 text-xs text-muted-foreground hover:text-foreground mt-1"
+                  >
+                    Skift plan
+                  </Button>
                 </div>
               </div>
             </div>
