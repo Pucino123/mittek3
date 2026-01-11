@@ -4,6 +4,9 @@ import { useLocation } from 'react-router-dom';
 // Store scroll positions keyed by route (pathname + search + hash)
 const scrollPositions: Record<string, number> = {};
 
+// Store anchor IDs for element-based restoration
+const scrollAnchors: Record<string, string> = {};
+
 /**
  * Save current scroll position for a given route key
  */
@@ -25,8 +28,34 @@ export function clearScrollPosition(routeKey: string) {
   delete scrollPositions[routeKey];
 }
 
-function getRouteKey(location: { pathname: string; search?: string; hash?: string }) {
+/**
+ * Save anchor ID for element-based restoration
+ */
+export function saveScrollAnchor(routeKey: string, anchorId: string) {
+  scrollAnchors[routeKey] = anchorId;
+}
+
+/**
+ * Get saved anchor ID for a route key
+ */
+export function getSavedScrollAnchor(routeKey: string): string | null {
+  return scrollAnchors[routeKey] ?? null;
+}
+
+/**
+ * Clear anchor for a route key
+ */
+export function clearScrollAnchor(routeKey: string) {
+  delete scrollAnchors[routeKey];
+}
+
+export function getRouteKey(location: { pathname: string; search?: string; hash?: string }) {
   return `${location.pathname}${location.search ?? ''}${location.hash ?? ''}`;
+}
+
+// Check if user prefers reduced motion
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 function showScrollRestoredIndicator() {
@@ -46,11 +75,80 @@ function showScrollRestoredIndicator() {
   window.setTimeout(() => {
     bubble.classList.remove('animate-enter', 'animate-pulse');
     bubble.classList.add('animate-exit');
-  }, 900);
+  }, 1800);
 
   window.setTimeout(() => {
     root.remove();
-  }, 1150);
+  }, 2100);
+}
+
+/**
+ * Scroll to a specific element by anchor ID, accounting for sticky header
+ */
+function scrollToAnchor(
+  anchorId: string,
+  opts?: { smooth?: boolean; headerOffset?: number }
+): boolean {
+  const smooth = opts?.smooth ?? !prefersReducedMotion();
+  const headerOffset = opts?.headerOffset ?? 80; // Account for sticky header
+
+  const element = document.querySelector(`[data-scroll-anchor="${anchorId}"]`);
+  if (!element) return false;
+
+  const elementRect = element.getBoundingClientRect();
+  const absoluteTop = window.scrollY + elementRect.top - headerOffset;
+
+  window.scrollTo({
+    top: Math.max(0, absoluteTop),
+    behavior: smooth ? 'smooth' : 'auto',
+  });
+
+  return true;
+}
+
+/**
+ * Stabilize scroll position after initial restore
+ * Re-aligns if content shifts due to async loading
+ */
+function stabilizeScrollPosition(
+  anchorId: string,
+  opts?: { durationMs?: number; intervalMs?: number; headerOffset?: number }
+) {
+  const durationMs = opts?.durationMs ?? 1500;
+  const intervalMs = opts?.intervalMs ?? 200;
+  const headerOffset = opts?.headerOffset ?? 80;
+
+  let elapsed = 0;
+  let lastTop: number | null = null;
+
+  const checkInterval = window.setInterval(() => {
+    elapsed += intervalMs;
+
+    const element = document.querySelector(`[data-scroll-anchor="${anchorId}"]`);
+    if (!element) {
+      window.clearInterval(checkInterval);
+      return;
+    }
+
+    const elementRect = element.getBoundingClientRect();
+    const currentVisibleTop = elementRect.top;
+
+    // If element has moved significantly from expected position, re-align
+    const expectedTop = headerOffset;
+    const drift = Math.abs(currentVisibleTop - expectedTop);
+
+    if (drift > 20 && lastTop !== null && Math.abs(currentVisibleTop - lastTop) > 5) {
+      // Content shifted, re-align without smooth scroll to avoid jank
+      const absoluteTop = window.scrollY + elementRect.top - headerOffset;
+      window.scrollTo({ top: Math.max(0, absoluteTop), behavior: 'auto' });
+    }
+
+    lastTop = currentVisibleTop;
+
+    if (elapsed >= durationMs) {
+      window.clearInterval(checkInterval);
+    }
+  }, intervalMs);
 }
 
 function restoreScrollTo(targetY: number, opts?: { maxAttempts?: number; intervalMs?: number }) {
@@ -92,10 +190,39 @@ export function useScrollRestoration(options?: { showIndicator?: boolean }) {
     hasShownIndicator.current = false;
 
     const routeKey = getRouteKey(location);
+    const savedAnchor = getSavedScrollAnchor(routeKey) ?? getSavedScrollAnchor(location.pathname);
     const savedPosition =
       getSavedScrollPosition(routeKey) ?? getSavedScrollPosition(location.pathname) ?? null;
 
-    if (savedPosition !== null && savedPosition > 0) {
+    // Try anchor-based restoration first (more reliable)
+    if (savedAnchor) {
+      requestAnimationFrame(() => {
+        // Small delay to let DOM render
+        window.setTimeout(() => {
+          const success = scrollToAnchor(savedAnchor, { smooth: !prefersReducedMotion() });
+          
+          if (success) {
+            if (showIndicator && !hasShownIndicator.current) {
+              hasShownIndicator.current = true;
+              showScrollRestoredIndicator();
+            }
+            // Start stabilization to handle async content loading
+            stabilizeScrollPosition(savedAnchor);
+          } else if (savedPosition !== null && savedPosition > 0) {
+            // Fallback to position-based if anchor not found
+            restoreScrollTo(savedPosition);
+            if (showIndicator && !hasShownIndicator.current) {
+              hasShownIndicator.current = true;
+              showScrollRestoredIndicator();
+            }
+          }
+
+          // Clear anchor after restoration attempt
+          clearScrollAnchor(routeKey);
+          clearScrollAnchor(location.pathname);
+        }, 50);
+      });
+    } else if (savedPosition !== null && savedPosition > 0) {
       requestAnimationFrame(() => {
         restoreScrollTo(savedPosition);
 
@@ -118,13 +245,18 @@ export function useScrollRestoration(options?: { showIndicator?: boolean }) {
 export function useSaveScrollOnNavigate() {
   const location = useLocation();
 
-  const saveAndNavigate = (callback: () => void) => {
-    saveScrollPosition(getRouteKey(location));
+  const saveAndNavigate = (callback: () => void, anchorId?: string) => {
+    const routeKey = getRouteKey(location);
+    saveScrollPosition(routeKey);
+    if (anchorId) {
+      saveScrollAnchor(routeKey, anchorId);
+    }
     callback();
   };
 
   return {
     saveAndNavigate,
     saveScrollPosition: () => saveScrollPosition(getRouteKey(location)),
+    saveScrollAnchor: (anchorId: string) => saveScrollAnchor(getRouteKey(location), anchorId),
   };
 }

@@ -8,6 +8,11 @@ import { initWebVitals } from "./utils/webVitals";
 // Redirect non-www to www for consistent SEO
 enforceWwwRedirect();
 
+// Disable browser's own scroll restoration - we handle it ourselves
+if ('scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual';
+}
+
 // Initialize GA4 if user has already consented
 initGA4OnLoad();
 
