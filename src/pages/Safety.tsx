@@ -152,8 +152,11 @@ const Safety = () => {
             <Breadcrumb className="mb-4" />
             
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="h-8 w-8 text-success" />
+              <div className="relative w-16 h-16 mx-auto mb-4">
+                <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center">
+                  <Shield className="h-8 w-8 text-success" />
+                </div>
+                <ToolPageHelpButton variant="badge" />
               </div>
               <h1 className="text-3xl font-bold mb-2">Sikkerhedsskjold</h1>
               <p className="text-lg text-muted-foreground">
