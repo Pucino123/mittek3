@@ -215,10 +215,10 @@ const MedicalId = () => {
                         
                         {/* Visual description box */}
                         {step.visualDescription && (
-                          <div className="p-3 rounded-lg bg-info/10 border border-info/20">
-                            <p className="text-sm text-info-foreground flex items-start gap-2">
-                              <span className="text-info text-lg leading-none">👁️</span>
-                              <span><strong>Hvad skal du kigge efter:</strong> {step.visualDescription}</span>
+                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                            <p className="text-sm flex items-start gap-2">
+                              <span className="text-primary text-lg leading-none">👁️</span>
+                              <span><strong className="text-foreground">Hvad skal du kigge efter:</strong> <span className="text-muted-foreground">{step.visualDescription}</span></span>
                             </p>
                           </div>
                         )}
