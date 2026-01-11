@@ -26,7 +26,7 @@ const recommendations: Recommendation[] = [
     title: 'Opdater din enhed',
     description: 'Sørg for at din iPhone/iPad er opdateret',
     icon: ArrowUpCircle,
-    href: '/guides/update-ios',
+    href: '/guides?guide=update-ios',
     color: 'bg-info/10 text-info',
   },
   {
@@ -34,7 +34,7 @@ const recommendations: Recommendation[] = [
     title: 'Stop irriterende popups',
     description: 'Lær at blokere uønskede beskeder',
     icon: XCircle,
-    href: '/guides/stop-popups',
+    href: '/guides?guide=stop-popups',
     color: 'bg-warning/10 text-warning',
   },
   {
