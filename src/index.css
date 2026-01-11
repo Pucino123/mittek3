@@ -380,11 +380,11 @@
     @apply fixed bottom-6 right-6 z-50;
   }
 
-  /* Mobile: lower and closer to corner with curved design */
+  /* Mobile: curved into corner */
   @media (max-width: 768px) {
     .floating-widget {
-      bottom: 1rem;
-      right: 0.75rem;
+      bottom: -0.5rem;
+      right: -0.5rem;
     }
   }
 
@@ -392,11 +392,11 @@
     @apply w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center transition-all duration-200;
   }
 
-  /* Mobile: smaller button with curved corner effect */
+  /* Mobile: curved corner effect - arc into bottom right */
   @media (max-width: 768px) {
     .floating-widget-button {
-      @apply w-11 h-11;
-      border-radius: 22px;
+      @apply w-14 h-14 pr-3 pb-3;
+      border-radius: 28px 0 0 0;
     }
     
     .floating-widget-button svg {
