@@ -7,6 +7,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Eye, Sun, AppWindow, Clock, RotateCcw, MapPin, BellOff, BatteryWarning } from 'lucide-react';
 
+// Import visual guide images
+import guideBatterySettings from '@/assets/guide-battery-settings.png';
+import guideIcloudSettings from '@/assets/guide-icloud-settings.png';
+
 type HelpType = 'brightness' | 'close-apps' | 'old-phone' | 'background-refresh' | 'location-services' | 'low-power-mode' | 'notifications' | null;
 
 interface BatteryHelpModalProps {
@@ -19,6 +23,8 @@ const helpContent = {
   brightness: {
     icon: Sun,
     title: 'Find lysstyrken',
+    visualImage: guideBatterySettings,
+    visualAlt: 'Kontrolcenter med lysstyrke-slider',
     steps: [
       {
         instruction: 'Træk ned fra det øverste højre hjørne af skærmen',
@@ -57,6 +63,8 @@ const helpContent = {
   'old-phone': {
     icon: Clock,
     title: 'Tjek batterisundheden',
+    visualImage: guideBatterySettings,
+    visualAlt: 'Batteriindstillinger på iPhone',
     steps: [
       {
         instruction: 'Åbn Indstillinger (det grå tandhjul)',
@@ -126,6 +134,8 @@ const helpContent = {
   'low-power-mode': {
     icon: BatteryWarning,
     title: 'Aktivér strømbesparelse',
+    visualImage: guideBatterySettings,
+    visualAlt: 'Batteriindstillinger med strømbesparelse',
     steps: [
       {
         instruction: 'Træk ned fra øverste højre hjørne',
@@ -175,7 +185,7 @@ export function BatteryHelpModal({ open, onOpenChange, helpType }: BatteryHelpMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5 text-primary" />
@@ -184,6 +194,17 @@ export function BatteryHelpModal({ open, onOpenChange, helpType }: BatteryHelpMo
         </DialogHeader>
         
         <div className="space-y-4 py-4">
+          {/* Visual guide image if available */}
+          {'visualImage' in content && content.visualImage && (
+            <div className="rounded-xl overflow-hidden border border-border bg-muted/30">
+              <img 
+                src={content.visualImage} 
+                alt={content.visualAlt || content.title}
+                className="w-full h-auto object-contain max-h-48"
+              />
+            </div>
+          )}
+          
           {content.steps.map((step, index) => (
             <div key={index} className="card-elevated p-4">
               <div className="flex items-start gap-3">
