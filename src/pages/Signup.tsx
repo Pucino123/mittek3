@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PasswordStrengthIndicator } from '@/components/ui/PasswordStrengthIndicator';
 import { PasswordInput } from '@/components/ui/PasswordInput';
-import { Shield, Mail, Lock, User, ArrowRight, AlertCircle } from 'lucide-react';
+import { Shield, Mail, Lock, User, ArrowRight, AlertCircle, CreditCard, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { SEOHead } from '@/components/seo/SEOHead';
@@ -112,6 +112,50 @@ const Signup = () => {
               Kom i gang med MitTek på få sekunder
             </p>
           </div>
+
+          {/* Plan selection info box */}
+          {!hasPlanSelected && (
+            <div className="mb-5 md:mb-6 p-3 md:p-4 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="flex items-start gap-3">
+                <CreditCard className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    Vælg en plan først
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Start med 14 dages gratis prøveperiode. Derefter fortsætter betalingen automatisk.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/pricing?signup=true')}
+                    className="h-8"
+                  >
+                    Se planer og priser
+                    <ArrowRight className="ml-2 h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Plan selected confirmation */}
+          {hasPlanSelected && (
+            <div className="mb-5 md:mb-6 p-3 md:p-4 rounded-lg bg-success/10 border border-success/20">
+              <div className="flex items-center gap-3">
+                <Check className="h-5 w-5 text-success flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-success">
+                    Plan valgt – opret din konto
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    14 dages gratis prøve, derefter betales automatisk.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-5 md:mb-6 p-3 md:p-4 rounded-lg bg-destructive/10 text-destructive flex items-start gap-2 md:gap-3">
