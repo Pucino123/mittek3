@@ -15,7 +15,7 @@ interface BreadcrumbProps {
 // Route to label mapping for automatic breadcrumb generation
 const routeLabels: Record<string, string> = {
   '/': 'Forside',
-  '/dashboard': 'Dashboard',
+  '/dashboard': 'Værktøjer',
   '/guides': 'Guides',
   '/faq': 'FAQ',
   '/pricing': 'Priser',
@@ -38,28 +38,48 @@ const routeLabels: Record<string, string> = {
   '/panic': 'Panikknap',
   '/checkin': 'Månedstjek',
   '/wishlist': 'Ønskeseddel',
-  '/medical-id': 'Læge-ID',
+  '/medical-id': 'Nød-ID',
   '/guest-wifi': 'Gæste-WiFi',
   '/cleaning-guide': 'Rengøringsguide',
   '/device-setup': 'Enhedsopsætning',
 };
 
+// Tools that should show "Værktøjer" as parent instead of "Forside"
+const toolRoutes = [
+  '/tools/',
+  '/safety',
+  '/security-check',
+  '/panic',
+  '/kode-mappe',
+  '/screenshot-ai',
+  '/checkin',
+];
+
 /**
  * Generate breadcrumb items from current route
  */
 function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
-  if (pathname === '/') {
-    return [{ label: 'Forside' }];
+  if (pathname === '/' || pathname === '/dashboard') {
+    return [{ label: 'Værktøjer' }];
   }
 
+  // Check if this is a tool route (should show Værktøjer as parent)
+  const isToolRoute = toolRoutes.some(route => pathname.startsWith(route));
+
   const segments = pathname.split('/').filter(Boolean);
-  const items: BreadcrumbItem[] = [{ label: 'Forside', href: '/' }];
+  const items: BreadcrumbItem[] = [{ label: 'Værktøjer', href: '/dashboard' }];
 
   let currentPath = '';
   segments.forEach((segment, index) => {
     currentPath += `/${segment}`;
     const isLast = index === segments.length - 1;
-    const label = routeLabels[currentPath] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+    
+    // Skip "tools" segment in breadcrumb display
+    if (segment === 'tools') {
+      return;
+    }
+    
+    const label = routeLabels[currentPath] || routeLabels[`/${segment}`] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
 
     items.push({
       label,
