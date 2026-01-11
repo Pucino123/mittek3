@@ -9,31 +9,46 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRouteProps) {
-  const { user, isLoading, hasAccess } = useAuth();
+  const { user, isLoading, hasAccess, isSubscriptionActive } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/login');
     }
   }, [user, isLoading, navigate]);
 
+  // Redirect to pricing if no active subscription (must complete Stripe checkout)
   useEffect(() => {
-    if (!isLoading && user && requiredPlan !== 'basic' && !hasAccess(requiredPlan)) {
-      // Show toast explaining why they're being redirected with CTA button
+    if (!isLoading && user && !isSubscriptionActive) {
+      toast.info('Du skal have et aktivt abonnement for at fortsætte', {
+        description: 'Start din 14 dages gratis prøve ved at vælge en plan.',
+        duration: 6000,
+        action: {
+          label: 'Vælg plan',
+          onClick: () => navigate('/pricing?signup=true'),
+        },
+      });
+      navigate('/pricing?signup=true');
+    }
+  }, [user, isLoading, isSubscriptionActive, navigate]);
+
+  // Redirect to pricing if plan tier too low (for Plus/Pro features)
+  useEffect(() => {
+    if (!isLoading && user && isSubscriptionActive && !hasAccess(requiredPlan)) {
       const planName = requiredPlan === 'plus' ? 'Plus' : 'Pro';
       toast.info(`Denne funktion kræver ${planName}-planen`, {
         description: 'Opgradér dit abonnement for at få adgang.',
         duration: 6000,
         action: {
           label: 'Opgradér nu',
-          onClick: () => navigate('/settings/subscription'),
+          onClick: () => navigate('/pricing'),
         },
       });
-      // Redirect to settings subscription section
-      navigate('/settings/subscription');
+      navigate('/pricing');
     }
-  }, [user, isLoading, requiredPlan, hasAccess, navigate]);
+  }, [user, isLoading, isSubscriptionActive, requiredPlan, hasAccess, navigate]);
 
   if (isLoading) {
     return (
@@ -46,7 +61,7 @@ export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRo
     );
   }
 
-  if (!user) {
+  if (!user || !isSubscriptionActive) {
     return null;
   }
 

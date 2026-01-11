@@ -118,17 +118,19 @@ const Signup = () => {
         console.error('Checkout error:', checkoutErr);
         toast({
           title: 'Kunne ikke starte betaling',
-          description: 'Gå til indstillinger for at opgradere.',
+          description: 'Prøv venligst igen ved at vælge en plan.',
           variant: 'destructive',
         });
-        navigate('/dashboard');
+        // Redirect to pricing instead of dashboard - user needs to complete checkout
+        navigate('/pricing?signup=true');
       }
     } else {
+      // No plan selected - redirect to pricing (user must complete Stripe checkout)
       toast({
-        title: 'Konto oprettet!',
-        description: 'Du er nu logget ind.',
+        title: 'Vælg en plan',
+        description: 'Du skal gennemføre betaling for at få adgang.',
       });
-      navigate('/dashboard');
+      navigate('/pricing?signup=true');
     }
     
     setIsLoading(false);

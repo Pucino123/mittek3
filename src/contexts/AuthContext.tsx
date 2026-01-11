@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from('subscriptions')
       .select('*')
       .eq('user_id', userId)
-      .eq('status', 'active')
+      .in('status', ['active', 'trialing'])
       .order('created_at', { ascending: false })
       .maybeSingle();
     
@@ -172,15 +172,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const hasAccess = (minPlan: 'basic' | 'plus' | 'pro'): boolean => {
-    if (!subscription || subscription.status !== 'active') {
-      return minPlan === 'basic'; // Give basic access if no active subscription
+    // No subscription = no access (must complete Stripe checkout first)
+    if (!subscription) {
+      return false;
     }
+    
+    // Check if subscription is active or trialing (both require completed checkout)
+    if (subscription.status !== 'active' && subscription.status !== 'trialing') {
+      return false;
+    }
+    
     const userLevel = planHierarchy[subscription.plan_tier];
     const requiredLevel = planHierarchy[minPlan];
     return userLevel >= requiredLevel;
   };
 
-  const isSubscriptionActive = subscription?.status === 'active';
+  const isSubscriptionActive = subscription?.status === 'active' || subscription?.status === 'trialing';
 
   const refetchProfile = async () => {
     if (user) {
