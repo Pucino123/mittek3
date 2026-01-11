@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PasswordStrengthIndicator } from '@/components/ui/PasswordStrengthIndicator';
 import { PasswordInput } from '@/components/ui/PasswordInput';
-import { Shield, Mail, Lock, User, ArrowRight, AlertCircle, CreditCard, Check } from 'lucide-react';
+import { Shield, Mail, Lock, User, ArrowRight, AlertCircle, CreditCard, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { trackSignup } from '@/utils/analytics';
+import { supabase } from '@/integrations/supabase/client';
 
 // Allowed email that can sign up without selecting a plan first
 const ALLOWED_DIRECT_SIGNUP_EMAIL = 'kevin.therkildsen@icloud.com';
@@ -89,15 +90,46 @@ const Signup = () => {
         description: error.message,
         variant: 'destructive',
       });
+      setIsLoading(false);
+      return;
+    }
+    
+    trackSignup('email');
+    
+    // If a plan was selected, start Stripe checkout
+    if (selectedPlan && selectedPlan.id !== 'basic') {
+      toast({
+        title: 'Konto oprettet!',
+        description: 'Du sendes nu til betaling...',
+      });
+      
+      try {
+        const { data, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
+          body: { planTier: selectedPlan.id, email },
+        });
+        
+        if (checkoutError) throw checkoutError;
+        
+        if (data?.url) {
+          window.location.href = data.url;
+          return;
+        }
+      } catch (checkoutErr) {
+        console.error('Checkout error:', checkoutErr);
+        toast({
+          title: 'Kunne ikke starte betaling',
+          description: 'Gå til indstillinger for at opgradere.',
+          variant: 'destructive',
+        });
+      }
     } else {
-      trackSignup('email');
       toast({
         title: 'Konto oprettet!',
         description: 'Du er nu logget ind.',
       });
-      navigate('/dashboard');
     }
     
+    navigate('/dashboard');
     setIsLoading(false);
   };
 
@@ -276,8 +308,17 @@ const Signup = () => {
               className="w-full min-h-[48px] md:min-h-[52px]"
               disabled={isLoading || !acceptedTerms}
             >
-              {isLoading ? 'Opretter konto...' : 'Opret konto'}
-              <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 md:h-5 md:w-5 animate-spin" />
+                  Opretter konto...
+                </>
+              ) : (
+                <>
+                  Opret konto
+                  <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
+                </>
+              )}
             </Button>
           </form>
 

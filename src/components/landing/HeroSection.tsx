@@ -48,7 +48,7 @@ export function HeroSection() {
             aria-label="Primære handlinger"
           >
             <div className="flex flex-col items-center">
-              <Link to="/pricing" className="w-full sm:w-auto" onClick={() => trackCTAClick('pricing', 'hero')}>
+              <Link to="/pricing?signup=true" className="w-full sm:w-auto" onClick={() => trackCTAClick('pricing', 'hero')}>
                 <Button variant="hero" size="xl" className="w-full min-h-[56px]">
                   Prøv Gratis
                   <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />

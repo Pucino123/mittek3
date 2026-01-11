@@ -20,11 +20,15 @@ export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRo
 
   useEffect(() => {
     if (!isLoading && user && requiredPlan !== 'basic' && !hasAccess(requiredPlan)) {
-      // Show toast explaining why they're being redirected
+      // Show toast explaining why they're being redirected with CTA button
       const planName = requiredPlan === 'plus' ? 'Plus' : 'Pro';
       toast.info(`Denne funktion kræver ${planName}-planen`, {
         description: 'Opgradér dit abonnement for at få adgang.',
-        duration: 5000,
+        duration: 6000,
+        action: {
+          label: 'Opgradér nu',
+          onClick: () => navigate('/settings/subscription'),
+        },
       });
       // Redirect to settings subscription section
       navigate('/settings/subscription');
