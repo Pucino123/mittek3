@@ -107,6 +107,62 @@ function scrollToAnchor(
 }
 
 /**
+ * Smooth scroll to a Y position with proper easing
+ */
+function smoothScrollTo(targetY: number, duration: number = 600): Promise<void> {
+  return new Promise((resolve) => {
+    if (prefersReducedMotion()) {
+      window.scrollTo({ top: targetY, behavior: 'auto' });
+      resolve();
+      return;
+    }
+
+    const startY = window.scrollY;
+    const difference = targetY - startY;
+    const startTime = performance.now();
+
+    // Easing function for smooth deceleration
+    const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
+
+    const animateScroll = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = easeOutCubic(progress);
+
+      window.scrollTo(0, startY + difference * easedProgress);
+
+      if (progress < 1) {
+        requestAnimationFrame(animateScroll);
+      } else {
+        resolve();
+      }
+    };
+
+    requestAnimationFrame(animateScroll);
+  });
+}
+
+/**
+ * Smooth scroll to element with custom easing
+ */
+async function smoothScrollToAnchor(
+  anchorId: string,
+  opts?: { duration?: number; headerOffset?: number }
+): Promise<boolean> {
+  const headerOffset = opts?.headerOffset ?? 80;
+  const duration = opts?.duration ?? 600;
+
+  const element = document.querySelector(`[data-scroll-anchor="${anchorId}"]`);
+  if (!element) return false;
+
+  const elementRect = element.getBoundingClientRect();
+  const absoluteTop = window.scrollY + elementRect.top - headerOffset;
+
+  await smoothScrollTo(Math.max(0, absoluteTop), duration);
+  return true;
+}
+
+/**
  * Stabilize scroll position after initial restore
  * Re-aligns if content shifts due to async loading
  */
@@ -198,8 +254,8 @@ export function useScrollRestoration(options?: { showIndicator?: boolean }) {
     if (savedAnchor) {
       requestAnimationFrame(() => {
         // Small delay to let DOM render
-        window.setTimeout(() => {
-          const success = scrollToAnchor(savedAnchor, { smooth: !prefersReducedMotion() });
+        window.setTimeout(async () => {
+          const success = await smoothScrollToAnchor(savedAnchor, { duration: 700 });
           
           if (success) {
             if (showIndicator && !hasShownIndicator.current) {
@@ -210,7 +266,7 @@ export function useScrollRestoration(options?: { showIndicator?: boolean }) {
             stabilizeScrollPosition(savedAnchor);
           } else if (savedPosition !== null && savedPosition > 0) {
             // Fallback to position-based if anchor not found
-            restoreScrollTo(savedPosition);
+            await smoothScrollTo(savedPosition, 700);
             if (showIndicator && !hasShownIndicator.current) {
               hasShownIndicator.current = true;
               showScrollRestoredIndicator();
@@ -220,16 +276,18 @@ export function useScrollRestoration(options?: { showIndicator?: boolean }) {
           // Clear anchor after restoration attempt
           clearScrollAnchor(routeKey);
           clearScrollAnchor(location.pathname);
-        }, 50);
+        }, 80);
       });
     } else if (savedPosition !== null && savedPosition > 0) {
       requestAnimationFrame(() => {
-        restoreScrollTo(savedPosition);
+        window.setTimeout(async () => {
+          await smoothScrollTo(savedPosition, 700);
 
-        if (showIndicator && !hasShownIndicator.current) {
-          hasShownIndicator.current = true;
-          showScrollRestoredIndicator();
-        }
+          if (showIndicator && !hasShownIndicator.current) {
+            hasShownIndicator.current = true;
+            showScrollRestoredIndicator();
+          }
+        }, 80);
       });
     }
 
