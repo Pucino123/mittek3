@@ -1,13 +1,29 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface BackButtonProps {
   fallbackPath?: string;
 }
 
+// Track navigation history within the app
+const navigationStack: string[] = [];
+
 export function BackButton({ fallbackPath = '/dashboard' }: BackButtonProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [canGoBack, setCanGoBack] = useState(false);
+
+  useEffect(() => {
+    // Add current path to navigation stack if it's not already the last item
+    const currentPath = location.pathname + location.search + location.hash;
+    if (navigationStack[navigationStack.length - 1] !== currentPath) {
+      navigationStack.push(currentPath);
+    }
+    
+    // Can go back if we have more than 1 item in our stack
+    setCanGoBack(navigationStack.length > 1);
+  }, [location]);
 
   const handleBack = () => {
     // For subscription page, always go back to settings
@@ -15,16 +31,34 @@ export function BackButton({ fallbackPath = '/dashboard' }: BackButtonProps) {
       navigate('/settings');
       return;
     }
+
+    // Check if we came from within the app (referrer check)
+    const referrer = document.referrer;
+    const isInternalReferrer = referrer && referrer.includes(window.location.origin);
     
-    // Check if we have browser history to go back to
-    // window.history.length > 2 means we have actual navigation history
-    // (1 is initial, 2 is current page)
-    if (window.history.length > 2) {
-      navigate(-1);
-    } else {
-      // Fallback to dashboard if no history
-      navigate(fallbackPath);
+    // Use our navigation stack to determine if we can go back
+    if (navigationStack.length > 1) {
+      // Remove current page from stack
+      navigationStack.pop();
+      // Navigate to previous page
+      const previousPath = navigationStack[navigationStack.length - 1];
+      
+      if (previousPath) {
+        // Remove the previous page too (as we're navigating there)
+        navigationStack.pop();
+        navigate(previousPath);
+        return;
+      }
     }
+    
+    // Try browser history if we have internal referrer
+    if (isInternalReferrer && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    
+    // Fallback to dashboard
+    navigate(fallbackPath);
   };
 
   return (
