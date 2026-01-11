@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { IOSSwitch } from '@/components/ui/ios-switch';
@@ -24,7 +24,8 @@ import {
   Wifi,
   HeartPulse,
   ShieldAlert,
-  Smartphone
+  Smartphone,
+  Clock
 } from 'lucide-react';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,7 +33,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { MonthlyCheckinPrompt } from '@/components/dashboard/MonthlyCheckinPrompt';
-
+import { differenceInDays } from 'date-fns';
 
 import { CheckinRecommendations } from '@/components/dashboard/CheckinRecommendations';
 import { SecurityCheckWidget } from '@/components/dashboard/SecurityCheckWidget';
@@ -229,8 +230,17 @@ const Dashboard = () => {
   const [checkinData, setCheckinData] = useState<any>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
-  const { user, profile, hasAccess, signOut, isSubscriptionActive } = useAuth();
+  const { user, profile, hasAccess, signOut, isSubscriptionActive, subscription } = useAuth();
   const navigate = useNavigate();
+
+  // Calculate trial days remaining
+  const trialDaysRemaining = useMemo(() => {
+    if (subscription?.status !== 'trialing' || !subscription?.trial_end) {
+      return null;
+    }
+    const daysLeft = differenceInDays(new Date(subscription.trial_end), new Date());
+    return Math.max(0, daysLeft);
+  }, [subscription]);
 
   // Check if onboarding should be shown
   useEffect(() => {
@@ -293,6 +303,14 @@ const Dashboard = () => {
               <Shield className="h-6 w-6" />
             </div>
             <span className="text-xl font-semibold">MitTek</span>
+            
+            {/* Trial Indicator */}
+            {trialDaysRemaining !== null && (
+              <div className="ml-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning/15 text-warning text-xs font-medium">
+                <Clock className="h-3.5 w-3.5" />
+                <span>{trialDaysRemaining} dage tilbage</span>
+              </div>
+            )}
           </Link>
 
           <div className="flex items-center gap-4">

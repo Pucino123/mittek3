@@ -19,6 +19,7 @@ interface Subscription {
   plan_tier: 'basic' | 'plus' | 'pro';
   status: 'active' | 'past_due' | 'canceled' | 'incomplete' | 'trialing';
   current_period_end: string | null;
+  trial_end: string | null;
 }
 
 interface AuthContextType {
