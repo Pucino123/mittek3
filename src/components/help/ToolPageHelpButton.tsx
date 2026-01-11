@@ -148,7 +148,11 @@ const defaultHelp: HelpContent = {
   ],
 };
 
-export function ToolPageHelpButton() {
+interface ToolPageHelpButtonProps {
+  inline?: boolean;
+}
+
+export function ToolPageHelpButton({ inline = false }: ToolPageHelpButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   
@@ -160,7 +164,7 @@ export function ToolPageHelpButton() {
       {/* Badge button - small notification-style on icon */}
       <button
         onClick={() => setIsOpen(true)}
-        className="absolute -top-1 -right-1 z-40 w-6 h-6 min-h-0 min-w-0 p-0 rounded-full bg-secondary text-secondary-foreground shadow-md border border-border inline-flex items-center justify-center leading-none transition-all duration-200 hover:scale-110"
+        className={`${inline ? 'relative' : 'absolute -top-1 -right-1'} z-40 w-6 h-6 min-h-0 min-w-0 p-0 rounded-full bg-secondary text-secondary-foreground shadow-md border border-border inline-flex items-center justify-center leading-none transition-all duration-200 hover:scale-110`}
         aria-label="Hjælp om denne side"
       >
         <HelpCircle className="h-3.5 w-3.5" />

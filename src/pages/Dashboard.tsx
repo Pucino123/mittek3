@@ -441,7 +441,7 @@ const Dashboard = () => {
           <div>
             <h2 className="text-xl sm:text-2xl font-bold">Dine værktøjer</h2>
           </div>
-          <ToolPageHelpButton />
+          <ToolPageHelpButton inline />
         </div>
 
         {/* Categories with Cards */}
