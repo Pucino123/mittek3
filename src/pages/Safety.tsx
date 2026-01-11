@@ -180,8 +180,8 @@ const Safety = () => {
                   <TabsContent value="text" className="mt-0">
                     <div className="space-y-4">
                       <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm text-muted-foreground">
+                        <div className="flex flex-col items-center text-center mb-3">
+                          <p className="text-sm text-muted-foreground mb-2">
                             Kopiér og indsæt den mistænkelige besked herunder:
                           </p>
                           <CopyHelpModal />
