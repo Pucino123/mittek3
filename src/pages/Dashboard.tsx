@@ -436,19 +436,22 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Tools Section Header */}
+        <div className="flex items-center justify-between mb-6 sm:mb-8">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold">Dine værktøjer</h2>
+          </div>
+          <ToolPageHelpButton />
+        </div>
+
         {/* Categories with Cards */}
         <div className="space-y-10 sm:space-y-12">
           {cardCategories.map((category) => (
             <section key={category.id}>
               {/* Category Header - Large and clear */}
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold">
-                  {category.title}
-                </h2>
-                {category.id === 'start' && (
-                  <ToolPageHelpButton />
-                )}
-              </div>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">
+                {category.title}
+              </h2>
               
               {/* Cards Grid - 4 per row on desktop */}
               <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
