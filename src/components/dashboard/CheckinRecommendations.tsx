@@ -22,49 +22,109 @@ interface CheckinRecommendationsProps {
 const getGuideForRecommendation = (rec: string): { guideId: string; label: string } | null => {
   const lowerRec = rec.toLowerCase();
   
-  // Update/opdatering related
-  if (lowerRec.includes('opdater') || lowerRec.includes('software') || lowerRec.includes('version')) {
+  // Update/opdatering related - software & system
+  if (lowerRec.includes('opdater') || lowerRec.includes('software') || lowerRec.includes('version') || lowerRec.includes('ios') || lowerRec.includes('macos')) {
     return { guideId: 'update-ios', label: 'Se guide til opdatering' };
   }
   
-  // Storage/plads related
-  if (lowerRec.includes('plads') || lowerRec.includes('lagerplads') || lowerRec.includes('storage') || lowerRec.includes('ryd') || lowerRec.includes('slet')) {
-    return { guideId: 'free-up-storage', label: 'Se guide til at frigøre plads' };
+  // App updates
+  if (lowerRec.includes('app-opdatering') || lowerRec.includes('apps opdater')) {
+    return { guideId: 'update-apps', label: 'Se guide til app-opdateringer' };
+  }
+  
+  // Storage/plads related - use icloud-cleanup or delete-apps
+  if (lowerRec.includes('plads') || lowerRec.includes('lagerplads') || lowerRec.includes('storage') || lowerRec.includes('fyldt')) {
+    return { guideId: 'icloud-cleanup', label: 'Se guide til at frigøre plads' };
+  }
+  
+  // Cleanup/delete related
+  if (lowerRec.includes('ryd op') || lowerRec.includes('dublet') || lowerRec.includes('slet gamle')) {
+    return { guideId: 'icloud-cleanup', label: 'Se guide til at rydde op' };
+  }
+  
+  // Delete apps
+  if (lowerRec.includes('slet app') || lowerRec.includes('fjern app') || lowerRec.includes('afinstaller')) {
+    return { guideId: 'delete-apps', label: 'Se guide til at slette apps' };
   }
   
   // Popup related
-  if (lowerRec.includes('popup') || lowerRec.includes('vinduer') || lowerRec.includes('reklamer')) {
+  if (lowerRec.includes('popup') || lowerRec.includes('vinduer') || lowerRec.includes('reklamer') || lowerRec.includes('irriterende')) {
     return { guideId: 'stop-popups', label: 'Se guide til at stoppe popups' };
   }
   
   // Scam/spam/message related
-  if (lowerRec.includes('svindel') || lowerRec.includes('scam') || lowerRec.includes('beskeder') || lowerRec.includes('spam') || lowerRec.includes('mistænkelig')) {
-    return { guideId: 'recognize-scam-sms', label: 'Lær at genkende svindel' };
+  if (lowerRec.includes('svindel') || lowerRec.includes('scam') || lowerRec.includes('mistænkelig') || lowerRec.includes('falsk')) {
+    return { guideId: 'recognize-scam-messages', label: 'Lær at genkende svindel' };
   }
   
-  // iCloud/backup related
-  if (lowerRec.includes('icloud') || lowerRec.includes('backup') || lowerRec.includes('sikkerhedskopi')) {
-    return { guideId: 'setup-icloud', label: 'Se guide til iCloud' };
+  // Spam messages
+  if (lowerRec.includes('spam') || lowerRec.includes('uønsket besked') || lowerRec.includes('blokér besked')) {
+    return { guideId: 'block-spam-messages', label: 'Se guide til at blokere spam' };
+  }
+  
+  // iCloud backup related
+  if (lowerRec.includes('backup') || lowerRec.includes('sikkerhedskopi') || lowerRec.includes('sikkerhedskopier')) {
+    return { guideId: 'icloud-backup', label: 'Se guide til iCloud backup' };
+  }
+  
+  // iCloud general
+  if (lowerRec.includes('icloud')) {
+    return { guideId: 'icloud-backup', label: 'Se guide til iCloud' };
+  }
+  
+  // iCloud photos
+  if (lowerRec.includes('billeder i sky') || lowerRec.includes('fotos i icloud') || lowerRec.includes('gem billeder')) {
+    return { guideId: 'icloud-photos', label: 'Se guide til iCloud Fotos' };
   }
   
   // Battery related
-  if (lowerRec.includes('batteri') || lowerRec.includes('strøm') || lowerRec.includes('opladning')) {
+  if (lowerRec.includes('batteri') || lowerRec.includes('strøm') || lowerRec.includes('opladning') || lowerRec.includes('holder ikke')) {
     return { guideId: 'extend-battery-life', label: 'Se guide til bedre batteritid' };
   }
   
   // Security/password related
-  if (lowerRec.includes('kodeord') || lowerRec.includes('password') || lowerRec.includes('adgangskode') || lowerRec.includes('to-faktor') || lowerRec.includes('2fa')) {
+  if (lowerRec.includes('kodeord') || lowerRec.includes('password') || lowerRec.includes('adgangskode')) {
+    return { guideId: 'enable-2fa', label: 'Se guide til sikkerhed' };
+  }
+  
+  // Two-factor authentication
+  if (lowerRec.includes('to-faktor') || lowerRec.includes('2fa') || lowerRec.includes('godkendelse') || lowerRec.includes('sikkerhed')) {
     return { guideId: 'enable-2fa', label: 'Se guide til to-faktor' };
   }
   
   // Find My related
-  if (lowerRec.includes('find min') || lowerRec.includes('find my') || lowerRec.includes('tabt') || lowerRec.includes('mistet')) {
-    return { guideId: 'find-my-device', label: 'Se guide til Find Min' };
+  if (lowerRec.includes('find min') || lowerRec.includes('find my') || lowerRec.includes('tabt') || lowerRec.includes('mistet') || lowerRec.includes('stjålet')) {
+    return { guideId: 'find-my-iphone', label: 'Se guide til Find Min' };
   }
   
   // Calls related
-  if (lowerRec.includes('opkald') || lowerRec.includes('ukendte') || lowerRec.includes('ring')) {
+  if (lowerRec.includes('opkald') || lowerRec.includes('ukendte') || lowerRec.includes('telefon') || lowerRec.includes('ring')) {
     return { guideId: 'block-unknown-calls', label: 'Se guide til at blokere opkald' };
+  }
+  
+  // iMessage setup
+  if (lowerRec.includes('imessage') || lowerRec.includes('beskeder opsætning')) {
+    return { guideId: 'imessage-setup', label: 'Se guide til iMessage' };
+  }
+  
+  // Text size / accessibility
+  if (lowerRec.includes('tekst') || lowerRec.includes('læse') || lowerRec.includes('skriftstørrelse') || lowerRec.includes('større')) {
+    return { guideId: 'bigger-text', label: 'Se guide til større tekst' };
+  }
+  
+  // Hard reset / frozen device
+  if (lowerRec.includes('frossen') || lowerRec.includes('hænger') || lowerRec.includes('genstart') || lowerRec.includes('reagerer ikke')) {
+    return { guideId: 'hard-reset', label: 'Se guide til genstart' };
+  }
+  
+  // Organize apps
+  if (lowerRec.includes('ryd op') && lowerRec.includes('app')) {
+    return { guideId: 'organize-apps', label: 'Se guide til at organisere apps' };
+  }
+  
+  // Download apps
+  if (lowerRec.includes('hent app') || lowerRec.includes('installer app') || lowerRec.includes('download app')) {
+    return { guideId: 'download-apps', label: 'Se guide til at hente apps' };
   }
   
   return null;
