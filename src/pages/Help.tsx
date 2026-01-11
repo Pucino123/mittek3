@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -43,6 +44,9 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 };
 
 const Help = () => {
+  // Enable scroll restoration
+  useScrollRestoration();
+  
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [category, setCategory] = useState('');
   const [subject, setSubject] = useState('');
