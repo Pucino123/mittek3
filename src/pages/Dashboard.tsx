@@ -44,6 +44,7 @@ import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { ContextualHelpButton } from '@/components/help/ContextualHelpButton';
 import { OnboardingTracker } from '@/components/dashboard/OnboardingTracker';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 // Kategorier med kort - simpelt og overskueligt
 const cardCategories = [
@@ -228,6 +229,9 @@ const adminCard = {
 };
 
 const Dashboard = () => {
+  // Enable scroll restoration for dashboard
+  useScrollRestoration();
+  
   const [isFixingAccount, setIsFixingAccount] = useState(false);
   const [checkinData, setCheckinData] = useState<any>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
