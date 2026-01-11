@@ -242,6 +242,29 @@ const Dashboard = () => {
     return Math.max(0, daysLeft);
   }, [subscription]);
 
+  // Show trial expiration warning when 3 days or less remaining
+  const [hasShownTrialWarning, setHasShownTrialWarning] = useState(false);
+  
+  useEffect(() => {
+    if (trialDaysRemaining !== null && trialDaysRemaining <= 3 && !hasShownTrialWarning) {
+      setHasShownTrialWarning(true);
+      const daysText = trialDaysRemaining === 0 
+        ? 'i dag' 
+        : trialDaysRemaining === 1 
+          ? 'i morgen' 
+          : `om ${trialDaysRemaining} dage`;
+      
+      toast.warning(`Din prøveperiode udløber ${daysText}`, {
+        description: 'Herefter trækkes dit første beløb automatisk.',
+        duration: 10000,
+        action: {
+          label: 'Se abonnement',
+          onClick: () => navigate('/settings/subscription'),
+        },
+      });
+    }
+  }, [trialDaysRemaining, hasShownTrialWarning, navigate]);
+
   // Check if onboarding should be shown
   useEffect(() => {
     if (profile && !profile.onboarding_completed) {

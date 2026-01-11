@@ -8,9 +8,15 @@ interface ProtectedRouteProps {
   requiredPlan?: 'basic' | 'plus' | 'pro';
 }
 
+// Owner email that can bypass subscription requirements
+const OWNER_EMAIL = 'kevin.therkildsen@icloud.com';
+
 export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRouteProps) {
   const { user, isLoading, hasAccess, isSubscriptionActive } = useAuth();
   const navigate = useNavigate();
+
+  // Check if user is the owner (bypasses subscription requirement)
+  const isOwner = user?.email === OWNER_EMAIL;
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -20,8 +26,9 @@ export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRo
   }, [user, isLoading, navigate]);
 
   // Redirect to pricing if no active subscription (must complete Stripe checkout)
+  // Owner bypasses this check
   useEffect(() => {
-    if (!isLoading && user && !isSubscriptionActive) {
+    if (!isLoading && user && !isSubscriptionActive && !isOwner) {
       toast.info('Du skal have et aktivt abonnement for at fortsætte', {
         description: 'Start din 14 dages gratis prøve ved at vælge en plan.',
         duration: 6000,
@@ -32,11 +39,12 @@ export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRo
       });
       navigate('/pricing?signup=true');
     }
-  }, [user, isLoading, isSubscriptionActive, navigate]);
+  }, [user, isLoading, isSubscriptionActive, isOwner, navigate]);
 
   // Redirect to pricing if plan tier too low (for Plus/Pro features)
+  // Owner bypasses this check
   useEffect(() => {
-    if (!isLoading && user && isSubscriptionActive && !hasAccess(requiredPlan)) {
+    if (!isLoading && user && !isOwner && isSubscriptionActive && !hasAccess(requiredPlan)) {
       const planName = requiredPlan === 'plus' ? 'Plus' : 'Pro';
       toast.info(`Denne funktion kræver ${planName}-planen`, {
         description: 'Opgradér dit abonnement for at få adgang.',
@@ -48,7 +56,7 @@ export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRo
       });
       navigate('/pricing');
     }
-  }, [user, isLoading, isSubscriptionActive, requiredPlan, hasAccess, navigate]);
+  }, [user, isLoading, isSubscriptionActive, isOwner, requiredPlan, hasAccess, navigate]);
 
   if (isLoading) {
     return (
@@ -61,7 +69,8 @@ export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRo
     );
   }
 
-  if (!user || !isSubscriptionActive) {
+  // Allow access if user is owner OR has active subscription
+  if (!user || (!isSubscriptionActive && !isOwner)) {
     return null;
   }
 
