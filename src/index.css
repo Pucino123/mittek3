@@ -395,11 +395,13 @@
   /* Mobile: curved corner effect - arc into bottom right */
   @media (max-width: 768px) {
     .floating-widget-button {
-      @apply w-14 h-14 pr-3 pb-3;
+      @apply w-14 h-14;
       border-radius: 28px 0 0 0;
     }
     
     .floating-widget-button svg {
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
       @apply h-5 w-5;
     }
   }
