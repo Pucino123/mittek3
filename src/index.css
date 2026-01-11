@@ -230,7 +230,14 @@
   }
 
   .card-interactive {
-    @apply card-elevated transition-all duration-200 hover:shadow-xl hover:shadow-black/10 hover:-translate-y-0.5;
+    @apply card-elevated transition-all duration-200;
+  }
+
+  /* Only apply hover effects on devices with hover capability (not touch) */
+  @media (hover: hover) and (pointer: fine) {
+    .card-interactive:hover {
+      @apply shadow-xl shadow-black/10 -translate-y-0.5;
+    }
   }
 
   /* Trust badge */
@@ -374,9 +381,26 @@
   }
 
   .floating-widget-button {
-    @apply w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-primary/40;
+    @apply w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center transition-all duration-200;
   }
 
+  /* Only apply hover effects on devices with hover capability */
+  @media (hover: hover) and (pointer: fine) {
+    .floating-widget-button:hover {
+      @apply scale-105 shadow-2xl shadow-primary/40;
+    }
+  }
+
+  /* Remove hover background on touch devices for buttons and interactive elements */
+  @media (hover: none) {
+    button:hover,
+    a:hover,
+    .hover\:bg-muted:hover,
+    .hover\:bg-secondary:hover,
+    .hover\:bg-accent:hover {
+      background-color: inherit;
+    }
+  }
 }
 
 /* Custom scrollbar - subtle */
