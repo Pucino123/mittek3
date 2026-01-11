@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 // Store scroll positions keyed by route (pathname + search + hash)
@@ -54,7 +54,7 @@ export function getRouteKey(location: { pathname: string; search?: string; hash?
 }
 
 /**
- * Instant scroll to a specific element by anchor ID, accounting for sticky header
+ * Scroll to a specific element by anchor ID, accounting for sticky header
  */
 function scrollToAnchorInstant(anchorId: string, headerOffset: number = 80): boolean {
   const element = document.querySelector(`[data-scroll-anchor="${anchorId}"]`);
@@ -63,15 +63,8 @@ function scrollToAnchorInstant(anchorId: string, headerOffset: number = 80): boo
   const elementRect = element.getBoundingClientRect();
   const absoluteTop = window.scrollY + elementRect.top - headerOffset;
 
-  window.scrollTo({ top: Math.max(0, absoluteTop), behavior: 'auto' });
+  window.scrollTo(0, Math.max(0, absoluteTop));
   return true;
-}
-
-/**
- * Instant scroll to Y position
- */
-function scrollToPositionInstant(targetY: number) {
-  window.scrollTo({ top: targetY, behavior: 'auto' });
 }
 
 /**
@@ -82,12 +75,11 @@ function stabilizeScrollPosition(
   anchorId: string,
   opts?: { durationMs?: number; intervalMs?: number; headerOffset?: number }
 ) {
-  const durationMs = opts?.durationMs ?? 1500;
-  const intervalMs = opts?.intervalMs ?? 200;
+  const durationMs = opts?.durationMs ?? 1200;
+  const intervalMs = opts?.intervalMs ?? 150;
   const headerOffset = opts?.headerOffset ?? 80;
 
   let elapsed = 0;
-  let lastTop: number | null = null;
 
   const checkInterval = window.setInterval(() => {
     elapsed += intervalMs;
@@ -101,17 +93,14 @@ function stabilizeScrollPosition(
     const elementRect = element.getBoundingClientRect();
     const currentVisibleTop = elementRect.top;
 
-    // If element has moved significantly from expected position, re-align
+    // If element has drifted from expected position, re-align
     const expectedTop = headerOffset;
     const drift = Math.abs(currentVisibleTop - expectedTop);
 
-    if (drift > 20 && lastTop !== null && Math.abs(currentVisibleTop - lastTop) > 5) {
-      // Content shifted, re-align instantly
+    if (drift > 30) {
       const absoluteTop = window.scrollY + elementRect.top - headerOffset;
-      window.scrollTo({ top: Math.max(0, absoluteTop), behavior: 'auto' });
+      window.scrollTo(0, Math.max(0, absoluteTop));
     }
-
-    lastTop = currentVisibleTop;
 
     if (elapsed >= durationMs) {
       window.clearInterval(checkInterval);
@@ -120,46 +109,39 @@ function stabilizeScrollPosition(
 }
 
 /**
- * Hook to automatically save scroll position when leaving a page
- * and restore it instantly when returning (no animation, no indicator)
+ * Hook to restore scroll position BEFORE paint (useLayoutEffect)
+ * Page loads at the exact position - no visible scrolling
  */
 export function useScrollRestoration() {
   const location = useLocation();
 
-  useEffect(() => {
+  // useLayoutEffect runs synchronously before browser paint
+  useLayoutEffect(() => {
     const routeKey = getRouteKey(location);
     const savedAnchor = getSavedScrollAnchor(routeKey) ?? getSavedScrollAnchor(location.pathname);
     const savedPosition =
       getSavedScrollPosition(routeKey) ?? getSavedScrollPosition(location.pathname) ?? null;
 
-    // Try anchor-based restoration first (more reliable)
+    // Try anchor-based restoration first (more reliable for dynamic content)
     if (savedAnchor) {
-      // Small delay to let DOM render
-      requestAnimationFrame(() => {
-        window.setTimeout(() => {
-          const success = scrollToAnchorInstant(savedAnchor);
-          
-          if (success) {
-            // Start stabilization to handle async content loading
-            stabilizeScrollPosition(savedAnchor);
-          } else if (savedPosition !== null && savedPosition > 0) {
-            // Fallback to position-based if anchor not found
-            scrollToPositionInstant(savedPosition);
-          }
+      const success = scrollToAnchorInstant(savedAnchor);
+      
+      if (success) {
+        // Stabilize in case content loads async and shifts layout
+        stabilizeScrollPosition(savedAnchor);
+      } else if (savedPosition !== null && savedPosition > 0) {
+        // Fallback to position-based if anchor not found yet
+        window.scrollTo(0, savedPosition);
+      }
 
-          // Clear anchor after restoration attempt
-          clearScrollAnchor(routeKey);
-          clearScrollAnchor(location.pathname);
-        }, 50);
-      });
+      // Clear anchor after restoration
+      clearScrollAnchor(routeKey);
+      clearScrollAnchor(location.pathname);
     } else if (savedPosition !== null && savedPosition > 0) {
-      requestAnimationFrame(() => {
-        window.setTimeout(() => {
-          scrollToPositionInstant(savedPosition);
-        }, 50);
-      });
+      window.scrollTo(0, savedPosition);
     }
 
+    // Save position when leaving
     return () => {
       saveScrollPosition(routeKey);
     };
