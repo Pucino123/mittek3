@@ -8,6 +8,7 @@ import { Upload, Camera, Loader2, ImageIcon, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ScreenshotHelpModal } from '@/components/ui/ScreenshotHelpModal';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 
 const ScreenshotAI = () => {
   useScrollRestoration();
@@ -186,6 +187,7 @@ const ScreenshotAI = () => {
             )}
           </div>
         </div>
+        <ToolPageHelpButton />
       </PublicLayout>
     </ProtectedRoute>
   );

@@ -3,6 +3,7 @@ import { Shield } from 'lucide-react';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { DeviceCheckinWizard } from '@/components/checkin/DeviceCheckinWizard';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 
 const Checkin = () => {
   useScrollRestoration();
@@ -24,6 +25,8 @@ const Checkin = () => {
         <Breadcrumb className="mb-4 max-w-lg mx-auto" />
         <DeviceCheckinWizard />
       </main>
+
+      <ToolPageHelpButton />
     </div>
   );
 };

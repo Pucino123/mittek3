@@ -13,6 +13,7 @@ import {
 import { BackButton } from '@/components/layout/BackButton';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 
 // Import visual guide images
 import guideFindMy from '@/assets/guide-find-my.png';
@@ -265,6 +266,8 @@ const MedicalId = () => {
           )}
         </div>
       </main>
+
+      <ToolPageHelpButton />
     </div>
   );
 };

@@ -1,0 +1,224 @@
+import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { HelpCircle, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+
+interface HelpContent {
+  title: string;
+  description: string;
+  tips: string[];
+  link?: { label: string; href: string };
+}
+
+const helpContentMap: Record<string, HelpContent> = {
+  '/tools/medical-id': {
+    title: 'Dit Nød-ID',
+    description: 'Sæt dine helbredsoplysninger op så reddere kan se dem.',
+    tips: [
+      'Tilføj din medicin og allergier',
+      'Vælg en nødkontakt fra din telefonbog',
+      'Husk at slå "Vis på låst skærm" til',
+    ],
+  },
+  '/panic': {
+    title: 'Tryghedsknappen',
+    description: 'Få hurtig hjælp hvis du er udsat for svindel.',
+    tips: [
+      'Vælg hvad der er sket for at få den rigtige hjælp',
+      'Du kan ringe direkte til bank, politi eller din hjælper',
+      'Du får en handlingsplan med præcise trin',
+    ],
+  },
+  '/tools/cleaning-guide': {
+    title: 'Rengøringsguide',
+    description: 'Hold din enhed hurtig og ryddelig.',
+    tips: [
+      'Start med de opgaver der frigør mest plads',
+      'Sæt flueben når du har gjort en opgave færdig',
+      'Gentag rengøringen hver 2-3 måned',
+    ],
+  },
+  '/tools/guest-wifi': {
+    title: 'Del WiFi med gæster',
+    description: 'Lær at dele din WiFi nemt med Apple-deling.',
+    tips: [
+      'Din gæst skal stå tæt ved dig',
+      'Begge enheder skal have WiFi og Bluetooth slået til',
+      'Det virker kun mellem Apple-enheder',
+    ],
+  },
+  '/tools/password-generator': {
+    title: 'Adgangskode-generator',
+    description: 'Opret stærke adgangskoder du kan huske.',
+    tips: [
+      'De tre ord danner en sætning du kan visualisere',
+      'Tallet gør koden unik for hver side',
+      'Gem koden i din kode-mappe bagefter',
+    ],
+    link: { label: 'Åbn kode-mappe', href: '/kode-mappe' },
+  },
+  '/battery-doctor': {
+    title: 'Batteri-Doktor',
+    description: 'Tjek og forbedr dit batteris sundhed.',
+    tips: [
+      'Batterikapacitet under 80% kan betyde det er tid til udskiftning',
+      'Undgå at lade til 100% hver gang - 80% er bedre',
+      'Hold telefonen kølig for at bevare batteriet',
+    ],
+  },
+  '/hardware-detective': {
+    title: 'Hardware-Detektiv',
+    description: 'Find og løs problemer med din enhed.',
+    tips: [
+      'Vælg din enhed først for relevante løsninger',
+      'Prøv de nemme løsninger først',
+      'Genstart din enhed som første forsøg',
+    ],
+  },
+  '/checkin': {
+    title: 'Månedligt tjek',
+    description: 'Hold din enhed sund med regelmæssige tjek.',
+    tips: [
+      'Svar ærligt på spørgsmålene for bedste resultat',
+      'Det tager kun 2-3 minutter',
+      'Du får personlige anbefalinger bagefter',
+    ],
+  },
+  '/security-check': {
+    title: 'Sikkerhedstjek',
+    description: 'Tjek om dine indstillinger er sikre.',
+    tips: [
+      'Grønne flueben betyder alt er godt',
+      'Følg vejledningen for at rette problemer',
+      'Kør tjekket igen efter du har ændret indstillinger',
+    ],
+  },
+  '/kode-mappe': {
+    title: 'Din krypterede kode-mappe',
+    description: 'Gem alle dine adgangskoder sikkert ét sted.',
+    tips: [
+      'Alt er krypteret - kun du kan se det',
+      'Brug en adgangskode du kan huske',
+      'Organiser i mapper for nemmere overblik',
+    ],
+  },
+  '/safety': {
+    title: 'Sikkerhedsskjoldet',
+    description: 'Få tjekket mistænkelige beskeder.',
+    tips: [
+      'Upload et screenshot af beskeden',
+      'AI\'en analyserer om det er svindel',
+      'Du får en klar vurdering: trygt eller farligt',
+    ],
+  },
+  '/tools/scam-quiz': {
+    title: 'Svindel-Quiz',
+    description: 'Test din evne til at spotte svindel.',
+    tips: [
+      'Læs scenariet grundigt før du svarer',
+      'Tænk over om afsenderen virker ægte',
+      'Banker beder aldrig om din kode via SMS',
+    ],
+  },
+  '/tools/screenshot-ai': {
+    title: 'Skærmbillede-AI',
+    description: 'Få forklaret hvad du ser på skærmen.',
+    tips: [
+      'Tag et screenshot af det du vil have forklaret',
+      'Upload billedet her',
+      'AI\'en forklarer hvad du ser i simple ord',
+    ],
+  },
+};
+
+const defaultHelp: HelpContent = {
+  title: 'Brug for hjælp?',
+  description: 'Vi er her for at hjælpe dig.',
+  tips: [
+    'Følg trinene på skærmen',
+    'Brug AI-chatten i højre hjørne for spørgsmål',
+    'Gå tilbage til dashboard hvis du vil prøve noget andet',
+  ],
+};
+
+export function ToolPageHelpButton() {
+  const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
+  
+  // Get help content for current path
+  const helpContent = helpContentMap[location.pathname] || defaultHelp;
+
+  return (
+    <>
+      {/* Floating Help Button - bottom left, curved design */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 left-6 z-40 w-12 h-12 rounded-full bg-secondary text-secondary-foreground shadow-lg flex items-center justify-center border border-border transition-all duration-200 md:bottom-6 md:left-6 max-md:bottom-3 max-md:left-3 max-md:w-11 max-md:h-11 max-md:rounded-[22px]"
+        aria-label="Hjælp"
+      >
+        <HelpCircle className="h-5 w-5 md:h-6 md:w-6" />
+      </button>
+
+      {/* Help Dialog */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-primary" />
+              {helpContent.title}
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              {helpContent.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Tips List */}
+            <ul className="space-y-3">
+              {helpContent.tips.map((tip, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium">
+                    {index + 1}
+                  </span>
+                  <span className="text-foreground">{tip}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-2 pt-2">
+              {helpContent.link && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setIsOpen(false);
+                    window.location.href = helpContent.link!.href;
+                  }}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  {helpContent.link.label}
+                </Button>
+              )}
+              
+              <Button
+                variant="ghost"
+                className="w-full text-muted-foreground"
+                onClick={() => setIsOpen(false)}
+              >
+                Luk
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

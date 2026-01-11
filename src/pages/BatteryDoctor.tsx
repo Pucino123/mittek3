@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { trackToolUsage } from '@/utils/analytics';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 
 interface Question {
   id: 'brightness' | 'close-apps' | 'old-phone' | 'chrome' | 'battery-health' | 'background-refresh' | 'location-services' | 'low-power-mode' | 'notifications';
@@ -463,6 +464,8 @@ const BatteryDoctor = () => {
         onOpenChange={setHelpModalOpen}
         helpType={helpType}
       />
+
+      <ToolPageHelpButton />
     </div>
   );
 };

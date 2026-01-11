@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ScreenshotHelpModal } from '@/components/ui/ScreenshotHelpModal';
 import { CopyHelpModal } from '@/components/safety/CopyHelpModal';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 
 interface SafetyResult {
   risk: 'LAV' | 'MELLEM' | 'HØJ';
@@ -326,6 +327,7 @@ const Safety = () => {
             )}
           </div>
         </div>
+        <ToolPageHelpButton />
       </PublicLayout>
     </ProtectedRoute>
   );

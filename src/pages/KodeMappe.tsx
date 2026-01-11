@@ -27,6 +27,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 import { 
   generateSalt, 
   deriveKey, 
@@ -937,6 +938,8 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
           )}
         </div>
       </main>
+
+      <ToolPageHelpButton />
     </div>
   );
 };
