@@ -330,7 +330,7 @@ const Safety = () => {
             )}
           </div>
         </div>
-        <ToolPageHelpButton />
+        
       </PublicLayout>
     </ProtectedRoute>
   );
