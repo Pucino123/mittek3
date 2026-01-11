@@ -26,7 +26,7 @@ const Checkin = () => {
         <DeviceCheckinWizard />
       </main>
 
-      <ToolPageHelpButton />
+      
     </div>
   );
 };

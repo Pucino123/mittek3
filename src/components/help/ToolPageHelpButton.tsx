@@ -148,100 +148,77 @@ const defaultHelp: HelpContent = {
   ],
 };
 
-interface ToolPageHelpButtonProps {
-  variant?: 'floating' | 'badge';
-}
-
-export function ToolPageHelpButton({ variant = 'floating' }: ToolPageHelpButtonProps) {
+export function ToolPageHelpButton() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   
   // Get help content for current path
   const helpContent = helpContentMap[location.pathname] || defaultHelp;
 
-  // Shared dialog content
-  const dialogContent = (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl flex items-center gap-2">
-            <HelpCircle className="h-5 w-5 text-primary" />
-            {helpContent.title}
-          </DialogTitle>
-          <DialogDescription className="text-base">
-            {helpContent.description}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 pt-2">
-          {/* Tips List */}
-          <ul className="space-y-3">
-            {helpContent.tips.map((tip, index) => (
-              <li key={index} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium">
-                  {index + 1}
-                </span>
-                <span className="text-foreground">{tip}</span>
-              </li>
-            ))}
-          </ul>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-2 pt-2">
-            {helpContent.link && (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  setIsOpen(false);
-                  window.location.href = helpContent.link!.href;
-                }}
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                {helpContent.link.label}
-              </Button>
-            )}
-            
-            <Button
-              variant="ghost"
-              className="w-full text-muted-foreground"
-              onClick={() => setIsOpen(false)}
-            >
-              Luk
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-
-  // Badge variant - small notification-style button
-  if (variant === 'badge') {
-    return (
-      <>
-        <button
-          onClick={() => setIsOpen(true)}
-          className="absolute -top-1 -right-1 z-40 w-6 h-6 min-h-0 min-w-0 p-0 rounded-full bg-secondary text-secondary-foreground shadow-md border border-border inline-flex items-center justify-center leading-none transition-all duration-200 hover:scale-110"
-          aria-label="Hjælp om denne side"
-        >
-          <HelpCircle className="h-3.5 w-3.5" />
-        </button>
-        {dialogContent}
-      </>
-    );
-  }
-
-  // Floating variant (default) - bottom left corner button
   return (
     <>
+      {/* Badge button - small notification-style on icon */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 left-6 z-40 w-12 h-12 rounded-full bg-secondary text-secondary-foreground shadow-lg flex items-center justify-center border border-border transition-all duration-200 md:bottom-6 md:left-6 max-md:-bottom-2 max-md:-left-2 max-md:w-14 max-md:h-14 max-md:rounded-tr-[28px] max-md:rounded-tl-none max-md:rounded-bl-none max-md:rounded-br-none max-md:border-l-0 max-md:border-b-0"
-        aria-label="Hjælp"
+        className="absolute -top-1 -right-1 z-40 w-6 h-6 min-h-0 min-w-0 p-0 rounded-full bg-secondary text-secondary-foreground shadow-md border border-border inline-flex items-center justify-center leading-none transition-all duration-200 hover:scale-110"
+        aria-label="Hjælp om denne side"
       >
-        <HelpCircle className="h-5 w-5 md:h-6 md:w-6 max-md:mr-2 max-md:mb-2 max-md:ml-[10px]" />
+        <HelpCircle className="h-3.5 w-3.5" />
       </button>
-      {dialogContent}
+
+      {/* Help Dialog */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-primary" />
+              {helpContent.title}
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              {helpContent.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Tips List */}
+            <ul className="space-y-3">
+              {helpContent.tips.map((tip, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium">
+                    {index + 1}
+                  </span>
+                  <span className="text-foreground">{tip}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-2 pt-2">
+              {helpContent.link && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setIsOpen(false);
+                    window.location.href = helpContent.link!.href;
+                  }}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  {helpContent.link.label}
+                </Button>
+              )}
+              
+              <Button
+                variant="ghost"
+                className="w-full text-muted-foreground"
+                onClick={() => setIsOpen(false)}
+              >
+                Luk
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

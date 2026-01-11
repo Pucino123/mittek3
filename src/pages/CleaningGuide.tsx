@@ -254,8 +254,11 @@ const CleaningGuide = () => {
         <div className="max-w-xl mx-auto">
           {/* Header */}
           <div className="text-center mb-6">
-            <div className="w-20 h-20 rounded-full bg-primary/10 mx-auto mb-4 flex items-center justify-center">
-              <Sparkles className="h-10 w-10 text-primary" />
+            <div className="relative w-20 h-20 mx-auto mb-4">
+              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+                <Sparkles className="h-10 w-10 text-primary" />
+              </div>
+              <ToolPageHelpButton />
             </div>
             <h1 className="text-2xl font-bold mb-2">Oprydnings-assistent</h1>
             <p className="text-muted-foreground">
@@ -360,7 +363,7 @@ const CleaningGuide = () => {
         </div>
       </main>
 
-      <ToolPageHelpButton />
+      
     </div>
   );
 };

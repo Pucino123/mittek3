@@ -512,8 +512,11 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
         <main className="container py-8 sm:py-12 px-4">
           <div className="max-w-md mx-auto">
             <div className="text-center mb-6 sm:mb-8">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                <Lock className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+              <div className="relative w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Lock className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+                </div>
+                <ToolPageHelpButton />
               </div>
               <h1 className="text-xl sm:text-2xl font-bold mb-2">Opsæt Kode-mappe</h1>
               <p className="text-sm sm:text-base text-muted-foreground">
@@ -604,8 +607,11 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
         <main className="container py-8 sm:py-12 px-4">
           <div className="max-w-md mx-auto">
             <div className="text-center mb-6 sm:mb-8">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                <Lock className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+              <div className="relative w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Lock className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+                </div>
+                <ToolPageHelpButton />
               </div>
               <h1 className="text-xl sm:text-2xl font-bold mb-2">Kode-mappe</h1>
               <p className="text-sm sm:text-base text-muted-foreground">
@@ -939,7 +945,7 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
         </div>
       </main>
 
-      <ToolPageHelpButton />
+      
     </div>
   );
 };
