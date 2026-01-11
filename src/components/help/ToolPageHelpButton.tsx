@@ -157,10 +157,10 @@ export function ToolPageHelpButton() {
 
   return (
     <>
-      {/* Floating Help Button - bottom left, curved design, lower on mobile */}
+      {/* Floating Help Button - bottom left, curved into corner on mobile */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 left-6 z-40 w-12 h-12 rounded-full bg-secondary text-secondary-foreground shadow-lg flex items-center justify-center border border-border transition-all duration-200 md:bottom-6 md:left-6 max-md:bottom-4 max-md:left-3 max-md:w-11 max-md:h-11 max-md:rounded-[22px]"
+        className="fixed bottom-6 left-6 z-40 w-12 h-12 rounded-full bg-secondary text-secondary-foreground shadow-lg flex items-center justify-center border border-border transition-all duration-200 md:bottom-6 md:left-6 max-md:-bottom-2 max-md:-left-2 max-md:w-14 max-md:h-14 max-md:rounded-tr-[28px] max-md:rounded-tl-none max-md:rounded-bl-none max-md:rounded-br-none max-md:border-l-0 max-md:border-b-0 max-md:pl-3 max-md:pt-3"
         aria-label="Hjælp"
       >
         <HelpCircle className="h-5 w-5 md:h-6 md:w-6" />
