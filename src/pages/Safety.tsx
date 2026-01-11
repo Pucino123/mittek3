@@ -164,13 +164,13 @@ const Safety = () => {
             <Card>
               <Tabs defaultValue="text" className="w-full">
                 <CardHeader>
-                  <TabsList className="grid w-full grid-cols-2 h-14">
-                    <TabsTrigger value="text" className="text-lg h-12">
-                      <FileText className="mr-2 h-5 w-5" />
+                  <TabsList className="grid w-full grid-cols-2 h-14 max-md:h-12">
+                    <TabsTrigger value="text" className="text-lg h-12 max-md:text-sm max-md:h-10">
+                      <FileText className="mr-2 h-5 w-5 max-md:h-4 max-md:w-4 max-md:mr-1" />
                       Tekst-tjek
                     </TabsTrigger>
-                    <TabsTrigger value="image" className="text-lg h-12">
-                      <Image className="mr-2 h-5 w-5" />
+                    <TabsTrigger value="image" className="text-lg h-12 max-md:text-sm max-md:h-10">
+                      <Image className="mr-2 h-5 w-5 max-md:h-4 max-md:w-4 max-md:mr-1" />
                       Billede-tjek
                     </TabsTrigger>
                   </TabsList>
