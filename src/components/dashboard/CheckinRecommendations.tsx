@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, Sparkles, Loader2 } from 'lucide-react';
+import { CheckCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 
 interface CheckinData {
   id: string;
@@ -21,8 +20,6 @@ interface CheckinRecommendationsProps {
 export function CheckinRecommendations({ checkinData }: CheckinRecommendationsProps) {
   const { user } = useAuth();
   const [completedItems, setCompletedItems] = useState<string[]>([]);
-  const [aiRecommendations, setAiRecommendations] = useState<string[]>([]);
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
 
   // Load completed items from localStorage
   useEffect(() => {
@@ -39,72 +36,13 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
     }
   }, [user, checkinData]);
 
-  // Generate AI recommendations based on checkin data
-  useEffect(() => {
-    const generateAIRecommendations = async () => {
-      if (!checkinData || !user) return;
-      
-      // Check if we already have AI recommendations cached
-      const cacheKey = `ai-recs-${checkinData.id}`;
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        try {
-          setAiRecommendations(JSON.parse(cached));
-          return;
-        } catch {
-          // Continue to generate new ones
-        }
-      }
-
-      setIsLoadingAI(true);
-      
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          // Use fallback recommendations
-          setAiRecommendations(checkinData.recommendations || []);
-          return;
-        }
-
-        const response = await supabase.functions.invoke('generate-recommendations', {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: {
-            checkinData: {
-              storage_free_gb: checkinData.storage_free_gb,
-              has_pending_update: checkinData.has_pending_update,
-              sees_annoying_popups: checkinData.sees_annoying_popups,
-              unsure_about_messages: checkinData.unsure_about_messages,
-            },
-          },
-        });
-
-        if (response.data?.recommendations && response.data.recommendations.length > 0) {
-          setAiRecommendations(response.data.recommendations);
-          localStorage.setItem(cacheKey, JSON.stringify(response.data.recommendations));
-        } else {
-          // Fall back to standard recommendations
-          setAiRecommendations(checkinData.recommendations || []);
-        }
-      } catch (error) {
-        console.error('Error generating AI recommendations:', error);
-        // Fall back to the standard recommendations
-        setAiRecommendations(checkinData.recommendations || []);
-      } finally {
-        setIsLoadingAI(false);
-      }
-    };
-
-    generateAIRecommendations();
-  }, [checkinData, user]);
-
   if (!checkinData) return null;
   
   // Don't show this section if score is 100/100 (perfect)
   if (checkinData.score === 100) return null;
 
-  const recommendations = aiRecommendations.length > 0 ? aiRecommendations : (checkinData.recommendations || []);
+  // Use the recommendations stored in the database from the checkin
+  const recommendations = checkinData.recommendations || [];
 
   const toggleItem = (rec: string) => {
     if (!user || !checkinData) return;
@@ -136,10 +74,9 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
         )}
       </div>
 
-      {isLoadingAI ? (
-        <div className="flex items-center justify-center py-8 gap-3">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <span className="text-sm text-muted-foreground">Analyserer dine resultater...</span>
+      {recommendations.length === 0 ? (
+        <div className="text-center py-4 text-muted-foreground">
+          <p className="text-sm">Ingen anbefalinger - din enhed ser fin ud! ✨</p>
         </div>
       ) : (
         <ul className="space-y-3">
