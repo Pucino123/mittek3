@@ -44,7 +44,7 @@ import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { ContextualHelpButton } from '@/components/help/ContextualHelpButton';
 import { OnboardingTracker } from '@/components/dashboard/OnboardingTracker';
-import { useScrollRestoration, saveScrollPosition, saveScrollAnchor, getRouteKey } from '@/hooks/useScrollRestoration';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 // Kategorier med kort - simpelt og overskueligt
 const cardCategories = [
@@ -449,19 +449,10 @@ const Dashboard = () => {
                 {category.cards.map((card) => {
                   const hasCardAccess = hasAccess(card.minPlan);
                   
-                  const handleCardClick = () => {
-                    // Save current scroll position and anchor for this card
-                    const routeKey = '/dashboard';
-                    saveScrollPosition(routeKey);
-                    saveScrollAnchor(routeKey, card.id);
-                  };
-                  
                   return (
                     <Link
                       key={card.id}
                       to={hasCardAccess ? card.href : '/settings/subscription'}
-                      data-scroll-anchor={card.id}
-                      onClick={handleCardClick}
                       className={`card-interactive p-4 sm:p-5 flex flex-col ${!hasCardAccess ? 'opacity-60 grayscale-[20%]' : ''}`}
                     >
                       <div className="flex items-start justify-between mb-3">
