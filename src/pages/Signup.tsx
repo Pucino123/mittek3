@@ -96,11 +96,11 @@ const Signup = () => {
     
     trackSignup('email');
     
-    // If a plan was selected, start Stripe checkout
-    if (selectedPlan && selectedPlan.id !== 'basic') {
+    // If a plan was selected, start Stripe checkout (all plans get 14-day trial)
+    if (selectedPlan) {
       toast({
         title: 'Konto oprettet!',
-        description: 'Du sendes nu til betaling...',
+        description: 'Du sendes nu til betaling for at starte din 14 dages gratis prøve...',
       });
       
       try {
@@ -121,15 +121,16 @@ const Signup = () => {
           description: 'Gå til indstillinger for at opgradere.',
           variant: 'destructive',
         });
+        navigate('/dashboard');
       }
     } else {
       toast({
         title: 'Konto oprettet!',
         description: 'Du er nu logget ind.',
       });
+      navigate('/dashboard');
     }
     
-    navigate('/dashboard');
     setIsLoading(false);
   };
 
