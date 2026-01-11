@@ -43,6 +43,7 @@ import { AIChatTooltip } from '@/components/dashboard/AIChatTooltip';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { ContextualHelpButton } from '@/components/help/ContextualHelpButton';
+import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 import { OnboardingTracker } from '@/components/dashboard/OnboardingTracker';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
@@ -440,9 +441,14 @@ const Dashboard = () => {
           {cardCategories.map((category) => (
             <section key={category.id}>
               {/* Category Header - Large and clear */}
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">
-                {category.title}
-              </h2>
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold">
+                  {category.title}
+                </h2>
+                {category.id === 'start' && (
+                  <ToolPageHelpButton />
+                )}
+              </div>
               
               {/* Cards Grid - 4 per row on desktop */}
               <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
