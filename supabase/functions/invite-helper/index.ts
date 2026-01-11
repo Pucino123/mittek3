@@ -1,0 +1,189 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface InviteRequest {
+  helper_email: string;
+  can_view_dashboard: boolean;
+  can_view_checkins: boolean;
+  can_view_tickets: boolean;
+  can_view_notes: boolean;
+}
+
+serve(async (req: Request) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "No authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create Supabase client with user's auth
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Get current user
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    
+    if (authError || !user) {
+      console.error("Auth error:", authError);
+      return new Response(
+        JSON.stringify({ error: "Not authenticated" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { helper_email, can_view_dashboard, can_view_checkins, can_view_tickets, can_view_notes }: InviteRequest = await req.json();
+
+    if (!helper_email) {
+      return new Response(
+        JSON.stringify({ error: "helper_email is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Inviting helper:", helper_email, "for user:", user.id);
+
+    // Use service role client for insert
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Get user profile for display name
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("display_name, email")
+      .eq("user_id", user.id)
+      .single();
+
+    const senderName = profile?.display_name || profile?.email?.split('@')[0] || 'En bruger';
+
+    // Generate invitation token
+    const invitationToken = crypto.randomUUID();
+
+    // Insert helper record
+    const { data: helper, error: insertError } = await supabaseAdmin
+      .from("trusted_helpers")
+      .insert({
+        user_id: user.id,
+        helper_email,
+        invitation_token: invitationToken,
+        can_view_dashboard,
+        can_view_checkins,
+        can_view_tickets,
+        can_view_notes,
+        invitation_accepted: false,
+        permissions: {
+          can_view_dashboard,
+          can_view_checkins,
+          can_view_tickets,
+          can_view_notes,
+        }
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      throw insertError;
+    }
+
+    console.log("Helper record created:", helper.id);
+
+    // Send email via Resend
+    const appUrl = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovable.app') || 'https://mittek.lovable.app';
+    const inviteLink = `${appUrl}/helper-invite?token=${invitationToken}`;
+
+    const emailResponse = await resend.emails.send({
+      from: "MitTek <noreply@mittek.dk>",
+      to: [helper_email],
+      subject: `Hjælp ${senderName} med IT-tryghed`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="width: 60px; height: 60px; background: #3B82F6; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;">
+              <span style="color: white; font-size: 28px;">🛡️</span>
+            </div>
+            <h1 style="color: #1a1a1a; margin-top: 16px;">MitTek</h1>
+          </div>
+          
+          <h2 style="color: #1a1a1a;">Hej!</h2>
+          
+          <p><strong>${senderName}</strong> har inviteret dig som deres trygheds-hjælper på MitTek.</p>
+          
+          <p>Som hjælper kan du:</p>
+          <ul>
+            ${can_view_dashboard ? '<li>Se deres oversigt og status</li>' : ''}
+            ${can_view_checkins ? '<li>Se deres månedlige tjek-resultater</li>' : ''}
+            ${can_view_tickets ? '<li>Se deres support-sager</li>' : ''}
+            ${can_view_notes ? '<li>Se deres noter</li>' : ''}
+          </ul>
+          
+          <p>På den måde kan du hjælpe dem med at holde øje med deres digitale sikkerhed.</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${inviteLink}" style="display: inline-block; background: #3B82F6; color: white; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 16px;">
+              Accepter invitation
+            </a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px;">
+            Hvis knappen ikke virker, kan du kopiere dette link:<br>
+            <a href="${inviteLink}" style="color: #3B82F6;">${inviteLink}</a>
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            Du modtager denne email fordi ${senderName} har inviteret dig som hjælper på MitTek.
+          </p>
+        </body>
+        </html>
+      `,
+    });
+
+    console.log("Email sent:", emailResponse);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        helper_id: helper.id,
+        message: "Invitation sent successfully" 
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
+  } catch (error: any) {
+    console.error("Error:", error);
+    return new Response(
+      JSON.stringify({ error: error.message || "Internal server error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

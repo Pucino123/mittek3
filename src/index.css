@@ -1,0 +1,383 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MitTek Design System
+   Calm, premium, accessible
+   Danish SaaS for device safety & help
+*/
+
+/* Font loaded via index.html with font-display: swap for performance */
+
+@layer base {
+  :root {
+    /* Calm ocean blues - trust & safety */
+    --background: 210 40% 98%;
+    --foreground: 215 25% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 20%;
+
+    /* Primary - Soft ocean blue */
+    --primary: 210 60% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Warm sand */
+    --secondary: 35 30% 94%;
+    --secondary-foreground: 215 25% 25%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 20% 40%;
+
+    /* Accent - Sage green for success/safety */
+    --accent: 160 35% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 210 60% 45%;
+
+    --radius: 1rem;
+
+    /* Senior-friendly spacing */
+    --spacing-xs: 0.5rem;
+    --spacing-sm: 1rem;
+    --spacing-md: 1.5rem;
+    --spacing-lg: 2rem;
+    --spacing-xl: 3rem;
+
+    /* Custom colors */
+    --success: 160 50% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 40 90% 50%;
+    --warning-foreground: 0 0% 10%;
+    --info: 200 80% 50%;
+    --info-foreground: 0 0% 100%;
+
+    /* Trust badge */
+    --trust: 210 60% 45%;
+    --trust-soft: 210 40% 95%;
+
+    /* Sidebar */
+    --sidebar-background: 210 30% 97%;
+    --sidebar-foreground: 215 25% 25%;
+    --sidebar-primary: 210 60% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 30% 92%;
+    --sidebar-accent-foreground: 215 25% 25%;
+    --sidebar-border: 210 20% 90%;
+    --sidebar-ring: 210 60% 45%;
+
+    /* Floating widget */
+    --widget-bg: 210 60% 45%;
+    --widget-hover: 210 60% 40%;
+  }
+
+  .dark {
+    --background: 220 25% 10%;
+    --foreground: 210 30% 95%;
+
+    --card: 220 25% 13%;
+    --card-foreground: 210 30% 95%;
+
+    --popover: 220 25% 13%;
+    --popover-foreground: 210 30% 95%;
+
+    --primary: 210 55% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 210 30% 90%;
+
+    --muted: 220 20% 18%;
+    --muted-foreground: 215 15% 60%;
+
+    --accent: 160 40% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 210 55% 55%;
+
+    --success: 160 50% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --trust: 210 55% 55%;
+    --trust-soft: 220 25% 18%;
+
+    --sidebar-background: 220 25% 12%;
+    --sidebar-foreground: 210 30% 90%;
+    --sidebar-primary: 210 55% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 18%;
+    --sidebar-accent-foreground: 210 30% 90%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 210 55% 55%;
+
+    --widget-bg: 210 55% 50%;
+    --widget-hover: 210 55% 45%;
+  }
+
+  /* Senior Mode - Bigger text, more spacing, higher contrast */
+  .senior-mode {
+    /* High contrast colors - pure black on white */
+    --foreground: 0 0% 0%;
+    --muted-foreground: 0 0% 20%;
+    --background: 0 0% 100%;
+    --card: 0 0% 100%;
+  }
+
+  .senior-mode body,
+  .senior-mode html {
+    font-size: 21.6px; /* 18px * 1.2 = 20% increase */
+    line-height: 2;
+  }
+
+  .senior-mode .card-elevated,
+  .senior-mode .card-interactive {
+    padding: 1.5rem; /* 15% more spacing */
+  }
+
+  .senior-mode button,
+  .senior-mode a,
+  .senior-mode input,
+  .senior-mode select,
+  .senior-mode textarea {
+    min-height: 52px; /* Larger touch targets */
+  }
+
+  /* Exception: Small icon buttons and circles should keep their size */
+  .senior-mode button.aspect-square,
+  .senior-mode .w-5.h-5,
+  .senior-mode .w-6.h-6 {
+    min-height: auto;
+  }
+
+  .senior-mode .senior-text-boost {
+    font-size: 1.35rem;
+  }
+
+  .senior-mode .senior-spacing {
+    padding: 2rem;
+    gap: 1.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-size: 18px;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* Prevent horizontal overflow on mobile */
+  #root {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+    line-height: 1.3;
+  }
+
+  h1 {
+    @apply text-3xl md:text-4xl lg:text-5xl;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl;
+  }
+
+  h3 {
+    @apply text-xl md:text-2xl;
+  }
+
+  /* Senior-friendly focus states */
+  :focus-visible {
+    @apply outline-none ring-4 ring-primary/50 ring-offset-2 ring-offset-background;
+  }
+
+  /* Large touch targets */
+  button, a, input, select, textarea {
+    min-height: 44px;
+  }
+}
+
+@layer utilities {
+  /* Card styles */
+  .card-elevated {
+    @apply bg-card rounded-2xl shadow-lg shadow-black/5 border border-border/50;
+  }
+
+  .card-interactive {
+    @apply card-elevated transition-all duration-200 hover:shadow-xl hover:shadow-black/10 hover:-translate-y-0.5;
+  }
+
+  /* Trust badge */
+  .trust-badge {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-full bg-trust-soft text-primary font-medium text-sm;
+  }
+
+  /* Safe/warning states */
+  .status-safe {
+    @apply bg-success/10 text-success border-success/20;
+  }
+
+  .status-warning {
+    @apply bg-warning/10 text-warning border-warning/20;
+  }
+
+  .status-danger {
+    @apply bg-destructive/10 text-destructive border-destructive/20;
+  }
+
+  /* Calm animations */
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  .animate-pulse-soft {
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { 
+      opacity: 0; 
+      transform: translateY(20px); 
+    }
+    to { 
+      opacity: 1; 
+      transform: translateY(0); 
+    }
+  }
+
+  @keyframes pulseSoft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  @keyframes confetti {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-confetti {
+    animation: confetti 2s ease-out forwards;
+  }
+
+  /* Stamp card animations */
+  @keyframes stampPop {
+    0% {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-stamp-pop {
+    animation: stampPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+
+  @keyframes starBurst {
+    0% {
+      transform: scale(0) rotate(-180deg);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.3) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+  }
+
+  .animate-star-burst {
+    animation: starBurst 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+
+  @keyframes sparkle {
+    0%, 100% {
+      opacity: 0;
+      transform: rotate(var(--rotate, 0deg)) translateY(-40px) scale(0);
+    }
+    50% {
+      opacity: 1;
+      transform: rotate(var(--rotate, 0deg)) translateY(-50px) scale(1);
+    }
+  }
+
+  .animate-sparkle {
+    animation: sparkle 0.8s ease-out forwards;
+  }
+
+  /* Floating widget */
+  .floating-widget {
+    @apply fixed bottom-6 right-6 z-50;
+  }
+
+  .floating-widget-button {
+    @apply w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center justify-center transition-all duration-200 hover:scale-105 hover:shadow-2xl hover:shadow-primary/40;
+  }
+}
+
+/* Custom scrollbar - subtle */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.3);
+}

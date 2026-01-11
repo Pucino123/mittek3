@@ -1,0 +1,151 @@
+import { useEffect } from 'react';
+
+interface SEOHeadProps {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  ogImage?: string;
+  ogType?: 'website' | 'article';
+  noindex?: boolean;
+  jsonLd?: object;
+}
+
+export function SEOHead({
+  title = 'MitTek - Tryg IT for Seniorer',
+  description = 'Få hjælp til din iPhone, iPad og Mac. Enkle guides, trygge værktøjer og personlig hjælp til alle der har brug for teknisk hjælp. Lær i dit eget tempo.',
+  canonical,
+  ogImage = 'https://www.mittek.dk/og-image.png',
+  ogType = 'website',
+  noindex = false,
+  jsonLd,
+}: SEOHeadProps) {
+  useEffect(() => {
+    // Update document title
+    document.title = title.length > 60 ? title.slice(0, 57) + '...' : title;
+
+    // Helper function to update or create meta tag
+    const setMetaTag = (name: string, content: string, isProperty = false) => {
+      const attr = isProperty ? 'property' : 'name';
+      let element = document.querySelector(`meta[${attr}="${name}"]`) as HTMLMetaElement;
+      if (!element) {
+        element = document.createElement('meta');
+        element.setAttribute(attr, name);
+        document.head.appendChild(element);
+      }
+      element.content = content;
+    };
+
+    // Meta description
+    setMetaTag('description', description.length > 160 ? description.slice(0, 157) + '...' : description);
+
+    // Robots
+    if (noindex) {
+      setMetaTag('robots', 'noindex, nofollow');
+    } else {
+      setMetaTag('robots', 'index, follow');
+    }
+
+    // Open Graph
+    setMetaTag('og:title', title, true);
+    setMetaTag('og:description', description, true);
+    setMetaTag('og:type', ogType, true);
+    setMetaTag('og:image', ogImage, true);
+    setMetaTag('og:locale', 'da_DK', true);
+    setMetaTag('og:site_name', 'MitTek', true);
+
+    // Twitter Card
+    setMetaTag('twitter:card', 'summary_large_image');
+    setMetaTag('twitter:title', title);
+    setMetaTag('twitter:description', description);
+    setMetaTag('twitter:image', ogImage);
+
+    // Canonical URL
+    if (canonical) {
+      let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'canonical';
+        document.head.appendChild(link);
+      }
+      link.href = canonical;
+    }
+
+    // JSON-LD structured data
+    if (jsonLd) {
+      const existingScript = document.querySelector('script[data-seo-jsonld]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+      const script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.setAttribute('data-seo-jsonld', 'true');
+      script.textContent = JSON.stringify(jsonLd);
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      // Cleanup JSON-LD on unmount
+      const script = document.querySelector('script[data-seo-jsonld]');
+      if (script) script.remove();
+    };
+  }, [title, description, canonical, ogImage, ogType, noindex, jsonLd]);
+
+  return null;
+}
+
+// Pre-built JSON-LD schemas
+export const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'MitTek',
+  description: 'Tryg IT-hjælp til alle der har brug for teknisk support',
+  url: 'https://www.mittek.dk',
+  logo: 'https://www.mittek.dk/favicon.svg',
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer service',
+    availableLanguage: 'Danish',
+  },
+  sameAs: [],
+};
+
+export const serviceSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: 'MitTek IT-hjælp',
+  description: 'Personlig IT-hjælp til iPhone, iPad og Mac med letforståelige guides og dansk support',
+  provider: {
+    '@type': 'Organization',
+    name: 'MitTek',
+  },
+  serviceType: 'IT Support',
+  areaServed: {
+    '@type': 'Country',
+    name: 'Denmark',
+  },
+  availableLanguage: 'Danish',
+};
+
+export const faqSchema = (faqs: { question: string; answer: string }[]) => ({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.answer,
+    },
+  })),
+});
+
+export const breadcrumbSchema = (items: { name: string; url: string }[]) => ({
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: items.map((item, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    name: item.name,
+    item: item.url,
+  })),
+});
