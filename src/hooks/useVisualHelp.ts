@@ -8,6 +8,8 @@ import guideFindMy from '@/assets/guide-find-my.png';
 import guideTwoFactor from '@/assets/guide-two-factor.png';
 import guideSafariPopups from '@/assets/guide-safari-popups.png';
 import guideHardReset from '@/assets/guide-hard-reset.png';
+import guideSilenceCalls from '@/assets/guide-silence-calls.png';
+import guideHideEmail from '@/assets/guide-hide-email.png';
 
 // Hardcoded fallback images for when database is unavailable
 export const fallbackVisualHelp: Record<string, Record<string, VisualHelpData>> = {
@@ -18,17 +20,41 @@ export const fallbackVisualHelp: Record<string, Record<string, VisualHelpData>> 
       video_url: null,
       description: 'Kontrolcenter med lysstyrke-slider',
     },
+    'close-apps': {
+      image_url: guideBatterySettings,
+      gif_url: null,
+      video_url: null,
+      description: 'App-switcher visning',
+    },
     'old-phone': {
       image_url: guideBatterySettings,
       gif_url: null,
       video_url: null,
       description: 'Batteriindstillinger på iPhone',
     },
+    'background-refresh': {
+      image_url: guideIcloudSettings,
+      gif_url: null,
+      video_url: null,
+      description: 'Generelt → Opdater i baggrunden indstillinger',
+    },
+    'location-services': {
+      image_url: guideHideEmail,
+      gif_url: null,
+      video_url: null,
+      description: 'Anonymitet & Sikkerhed → Lokalitetstjenester',
+    },
     'low-power-mode': {
       image_url: guideBatterySettings,
       gif_url: null,
       video_url: null,
       description: 'Batteriindstillinger med strømbesparelse',
+    },
+    'notifications': {
+      image_url: guideSilenceCalls,
+      gif_url: null,
+      video_url: null,
+      description: 'Notifikationsindstillinger på iPhone',
     },
   },
   'medical-id': {
