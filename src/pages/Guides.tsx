@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams, useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useSearchParams, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { hardcodedGuides, HardcodedGuide, DeviceType } from '@/data/hardcodedGuides';
@@ -98,6 +98,7 @@ const Guides = () => {
   const [searchParams] = useSearchParams();
   const { guideId: routeGuideId } = useParams<{ guideId?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
@@ -107,8 +108,28 @@ const Guides = () => {
   const [isMarkingRead, setIsMarkingRead] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<GuideCategory>('alle');
   const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedStep, setHighlightedStep] = useState<number | null>(null);
+  const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const { markGuideAsRead, isGuideRead } = useUserAchievements();
+
+  // Parse step from URL hash or search params (e.g., #step-3 or ?step=3)
+  const getInitialStepFromUrl = useCallback(() => {
+    // Check hash first (e.g., #step-3)
+    const hash = location.hash;
+    if (hash) {
+      const stepMatch = hash.match(/#step-(\d+)/);
+      if (stepMatch) {
+        return parseInt(stepMatch[1], 10) - 1; // Convert to 0-indexed
+      }
+    }
+    // Check query param (e.g., ?step=3)
+    const stepParam = searchParams.get('step');
+    if (stepParam) {
+      return parseInt(stepParam, 10) - 1; // Convert to 0-indexed
+    }
+    return null;
+  }, [location.hash, searchParams]);
 
   // Get current steps based on device selection
   // For hardcoded guides: use stepsByDevice
@@ -158,7 +179,8 @@ const Guides = () => {
   // Fetch guides on mount and handle deep links
   useEffect(() => {
     const initGuides = async () => {
-      const guideId = routeGuideId || searchParams.get('id');
+      const guideId = routeGuideId || searchParams.get('guide') || searchParams.get('id');
+      const initialStep = getInitialStepFromUrl();
       
       // If we have a guideId, first check hardcoded guides for immediate response
       if (guideId) {
@@ -166,7 +188,13 @@ const Guides = () => {
         if (hardcodedGuide) {
           const convertedGuide = convertHardcodedGuide(hardcodedGuide);
           setSelectedGuide(convertedGuide);
-          setCurrentStep(0);
+          // Set initial step from URL if provided
+          if (initialStep !== null && initialStep >= 0) {
+            setCurrentStep(Math.min(initialStep, convertedGuide.steps.length - 1));
+            setHighlightedStep(Math.min(initialStep, convertedGuide.steps.length - 1));
+          } else {
+            setCurrentStep(0);
+          }
           setLoading(false);
           trackGuideView(hardcodedGuide.id, hardcodedGuide.title);
           // Still fetch DB guides in background for the list
@@ -182,9 +210,30 @@ const Guides = () => {
     initGuides();
   }, []);
 
+  // Handle step highlighting and scrolling
+  useEffect(() => {
+    if (highlightedStep !== null) {
+      // Scroll to the highlighted step after a brief delay
+      setTimeout(() => {
+        const stepElement = stepRefs.current[highlightedStep];
+        if (stepElement) {
+          stepElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      // Remove highlight after animation
+      const timeout = setTimeout(() => {
+        setHighlightedStep(null);
+      }, 2500);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [highlightedStep]);
+
   // Handle deep link navigation after guides are loaded
   useEffect(() => {
-    const guideId = routeGuideId || searchParams.get('id');
+    const guideId = routeGuideId || searchParams.get('guide') || searchParams.get('id');
+    const initialStep = getInitialStepFromUrl();
     
     // Skip if no guideId, still loading, or already have a selected guide
     if (!guideId || loading || selectedGuide) return;
@@ -194,7 +243,13 @@ const Guides = () => {
     if (hardcodedGuide) {
       const convertedGuide = convertHardcodedGuide(hardcodedGuide);
       setSelectedGuide(convertedGuide);
-      setCurrentStep(0);
+      // Set initial step from URL if provided
+      if (initialStep !== null && initialStep >= 0) {
+        setCurrentStep(Math.min(initialStep, convertedGuide.steps.length - 1));
+        setHighlightedStep(Math.min(initialStep, convertedGuide.steps.length - 1));
+      } else {
+        setCurrentStep(0);
+      }
       trackGuideView(hardcodedGuide.id, hardcodedGuide.title);
       return;
     }
@@ -203,10 +258,16 @@ const Guides = () => {
     const guide = guides.find(g => g.id === guideId);
     if (guide) {
       setSelectedGuide(guide);
-      setCurrentStep(0);
+      // Set initial step from URL if provided
+      if (initialStep !== null && initialStep >= 0) {
+        setCurrentStep(Math.min(initialStep, guide.steps.length - 1));
+        setHighlightedStep(Math.min(initialStep, guide.steps.length - 1));
+      } else {
+        setCurrentStep(0);
+      }
       trackGuideView(guide.id, guide.title);
     }
-  }, [searchParams, guides, routeGuideId, loading, selectedGuide]);
+  }, [searchParams, guides, routeGuideId, loading, selectedGuide, getInitialStepFromUrl]);
 
   // Reset step when device changes
   const handleDeviceChange = (newDevice: DeviceType) => {
@@ -419,16 +480,25 @@ const Guides = () => {
             </div>
 
             {/* Premium Step Card */}
-            <GuideStepCard
-              stepNumber={currentStep + 1}
-              totalSteps={currentSteps.length}
-              title={step.title}
-              instruction={step.instruction}
-              imageUrl={step.image_url}
-              videoUrl={step.video_url}
-              tipText={step.tip_text}
-              warningText={step.warning_text}
-            />
+            <div 
+              ref={(el) => { stepRefs.current[currentStep] = el; }}
+              className={`transition-all duration-500 ${
+                highlightedStep === currentStep 
+                  ? 'ring-4 ring-primary/30 rounded-2xl animate-highlight-step' 
+                  : ''
+              }`}
+            >
+              <GuideStepCard
+                stepNumber={currentStep + 1}
+                totalSteps={currentSteps.length}
+                title={step.title}
+                instruction={step.instruction}
+                imageUrl={step.image_url}
+                videoUrl={step.video_url}
+                tipText={step.tip_text}
+                warningText={step.warning_text}
+              />
+            </div>
 
             {/* Navigation */}
             <div className="flex justify-between mb-8">

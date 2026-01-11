@@ -10,6 +10,7 @@ import { Shield, FileText, Image, Loader2, AlertTriangle, CheckCircle, HelpCircl
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ScreenshotHelpModal } from '@/components/ui/ScreenshotHelpModal';
+import { CopyHelpModal } from '@/components/safety/CopyHelpModal';
 
 interface SafetyResult {
   risk: 'LAV' | 'MELLEM' | 'HØJ';
@@ -174,9 +175,12 @@ const Safety = () => {
                   <TabsContent value="text" className="mt-0">
                     <div className="space-y-4">
                       <div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Kopiér og indsæt den mistænkelige besked herunder:
-                        </p>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm text-muted-foreground">
+                            Kopiér og indsæt den mistænkelige besked herunder:
+                          </p>
+                          <CopyHelpModal />
+                        </div>
                         <Textarea
                           value={textInput}
                           onChange={(e) => {
