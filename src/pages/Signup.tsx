@@ -33,6 +33,7 @@ const Signup = () => {
 
   // Plan details for display
   const planDetails: Record<string, { name: string; price: string }> = {
+    basic: { name: 'Basic', price: '39' },
     plus: { name: 'Plus', price: '79' },
     pro: { name: 'Pro', price: '99' },
   };
@@ -40,7 +41,7 @@ const Signup = () => {
   // Check if user has selected a plan (via URL param from pricing page)
   useEffect(() => {
     const plan = searchParams.get('plan');
-    if (plan && ['plus', 'pro'].includes(plan)) {
+    if (plan && ['basic', 'plus', 'pro'].includes(plan)) {
       setHasPlanSelected(true);
       setSelectedPlan({ id: plan, ...planDetails[plan] });
     }
