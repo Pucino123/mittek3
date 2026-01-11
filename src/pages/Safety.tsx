@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,6 +21,9 @@ interface SafetyResult {
 }
 
 const Safety = () => {
+  // Enable scroll restoration
+  useScrollRestoration();
+  
   const [textInput, setTextInput] = useState('');
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);

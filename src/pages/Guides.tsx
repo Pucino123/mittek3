@@ -8,6 +8,7 @@ import { CategoryFilter, GuideCategory } from '@/components/guides/CategoryFilte
 import { GuideStepCard } from '@/components/guides/GuideStepCard';
 import { useUserAchievements } from '@/hooks/useUserAchievements';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { 
   BookOpen,
   ChevronRight,
@@ -95,6 +96,9 @@ const convertHardcodedGuide = (hardcodedGuide: HardcodedGuide): Guide => {
 };
 
 const Guides = () => {
+  // Enable scroll restoration
+  useScrollRestoration();
+  
   const [searchParams] = useSearchParams();
   const { guideId: routeGuideId } = useParams<{ guideId?: string }>();
   const navigate = useNavigate();

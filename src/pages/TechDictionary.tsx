@@ -4,6 +4,7 @@ import { ChevronLeft, BookOpen, Search, Smartphone, Shield, Cloud, MessageSquare
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import {
   Accordion,
   AccordionContent,
@@ -289,6 +290,9 @@ const categoryLabels: Record<string, { label: string; icon: React.ElementType }>
 };
 
 const TechDictionary = () => {
+  // Enable scroll restoration
+  useScrollRestoration();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('alle');
   const [dbEntries, setDbEntries] = useState<DictionaryEntry[]>([]);
