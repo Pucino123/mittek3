@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { saveScrollPosition } from '@/hooks/useScrollRestoration';
 
 interface BreadcrumbItem {
   label: string;
@@ -26,22 +27,28 @@ const routeLabels: Record<string, string> = {
   '/signup': 'Opret konto',
   '/privacy': 'Privatlivspolitik',
   '/terms': 'Vilkår',
-  '/safety': 'Sikkerhed',
+  // Værktøjer
+  '/safety': 'Sikkerhedsskjold',
   '/security-check': 'Sikkerhedstjek',
-  '/scam-quiz': 'Svindelquiz',
-  '/tech-dictionary': 'Teknisk Ordbog',
-  '/battery-doctor': 'Batteri Doktor',
-  '/password-generator': 'Kodeord Generator',
-  '/kode-mappe': 'Kode Mappe',
+  '/scam-quiz': 'Svindel-Quiz',
+  '/tech-dictionary': 'Ordbogen',
+  '/battery-doctor': 'Batteri-Doktor',
+  '/password-generator': 'Kode-generator',
+  '/kode-mappe': 'Kode-mappe',
   '/screenshot-ai': 'Screenshot AI',
-  '/hardware-detective': 'Hardware Detektiv',
-  '/panic': 'Panikknap',
-  '/checkin': 'Månedstjek',
+  '/hardware-detective': 'Hardware-Detektiv',
+  '/hardware': 'Hardware-Detektiv',
+  '/panic': 'Tryghedsknap',
+  '/checkin': 'Månedligt Tjek',
   '/wishlist': 'Ønskeseddel',
   '/medical-id': 'Nød-ID',
-  '/guest-wifi': 'Gæste-WiFi',
-  '/cleaning-guide': 'Rengøringsguide',
+  '/guest-wifi': 'Gæste-net',
+  '/cleaning-guide': 'Oprydning',
+  '/cleaning': 'Oprydning',
   '/device-setup': 'Enhedsopsætning',
+  '/dictionary': 'Ordbogen',
+  '/admin': 'Admin Panel',
+  '/helper-dashboard': 'Hjælper Dashboard',
 };
 
 // Tools that should show "Værktøjer" as parent instead of "Forside"
@@ -53,6 +60,9 @@ const toolRoutes = [
   '/kode-mappe',
   '/screenshot-ai',
   '/checkin',
+  '/guides',
+  '/help',
+  '/admin',
 ];
 
 /**
@@ -62,9 +72,6 @@ function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
   if (pathname === '/' || pathname === '/dashboard') {
     return [{ label: 'Værktøjer' }];
   }
-
-  // Check if this is a tool route (should show Værktøjer as parent)
-  const isToolRoute = toolRoutes.some(route => pathname.startsWith(route));
 
   const segments = pathname.split('/').filter(Boolean);
   const items: BreadcrumbItem[] = [{ label: 'Værktøjer', href: '/dashboard' }];
@@ -99,6 +106,11 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
     return null;
   }
 
+  const handleBreadcrumbClick = () => {
+    // Save current scroll position before navigating
+    saveScrollPosition(location.pathname);
+  };
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -113,6 +125,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
             {item.href ? (
               <Link
                 to={item.href}
+                onClick={handleBreadcrumbClick}
                 className="hover:text-foreground transition-colors flex items-center gap-1"
               >
                 {index === 0 && <Home className="h-3.5 w-3.5" aria-hidden="true" />}
