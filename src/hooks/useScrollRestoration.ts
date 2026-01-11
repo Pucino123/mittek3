@@ -147,10 +147,11 @@ function smoothScrollTo(targetY: number, duration: number = 600): Promise<void> 
  */
 async function smoothScrollToAnchor(
   anchorId: string,
-  opts?: { duration?: number; headerOffset?: number }
+  opts?: { duration?: number; headerOffset?: number; highlightAfter?: boolean }
 ): Promise<boolean> {
   const headerOffset = opts?.headerOffset ?? 80;
   const duration = opts?.duration ?? 600;
+  const highlightAfter = opts?.highlightAfter ?? true;
 
   const element = document.querySelector(`[data-scroll-anchor="${anchorId}"]`);
   if (!element) return false;
@@ -159,6 +160,15 @@ async function smoothScrollToAnchor(
   const absoluteTop = window.scrollY + elementRect.top - headerOffset;
 
   await smoothScrollTo(Math.max(0, absoluteTop), duration);
+
+  // Add highlight animation to the element
+  if (highlightAfter && element instanceof HTMLElement) {
+    element.classList.add('scroll-restored-highlight');
+    window.setTimeout(() => {
+      element.classList.remove('scroll-restored-highlight');
+    }, 2000);
+  }
+
   return true;
 }
 
