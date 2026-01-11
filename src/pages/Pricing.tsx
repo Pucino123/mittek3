@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { Check, Star, X, MessageCircle, Shield, Lock, Camera, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
@@ -100,6 +100,11 @@ const plans = [
 const Pricing = () => {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  // Check if user is coming from signup page (needs to select plan first)
+  const isSignupFlow = searchParams.get('signup') === 'true';
   
   const combinedSchema = {
     '@context': 'https://schema.org',
@@ -110,6 +115,12 @@ const Pricing = () => {
   };
 
   const handleSelectPlan = async (planId: string) => {
+    // If user is in signup flow, redirect to signup with selected plan
+    if (isSignupFlow) {
+      navigate(`/signup?plan=${planId}`);
+      return;
+    }
+    
     setLoadingPlan(planId);
     
     try {

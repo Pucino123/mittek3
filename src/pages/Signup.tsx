@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,9 @@ import { useToast } from '@/hooks/use-toast';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { trackSignup } from '@/utils/analytics';
 
+// Allowed email that can sign up without selecting a plan first
+const ALLOWED_DIRECT_SIGNUP_EMAIL = 'kevin.therkildsen@icloud.com';
+
 const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,15 +23,37 @@ const Signup = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasPlanSelected, setHasPlanSelected] = useState(false);
   
   const { signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Check if user has selected a plan (via URL param from pricing page)
+  useEffect(() => {
+    const plan = searchParams.get('plan');
+    if (plan && ['plus', 'pro'].includes(plan)) {
+      setHasPlanSelected(true);
+    }
+  }, [searchParams]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+
+    // Check if user needs to select a plan first (except for allowed email)
+    const isAllowedEmail = email.toLowerCase() === ALLOWED_DIRECT_SIGNUP_EMAIL.toLowerCase();
+    if (!hasPlanSelected && !isAllowedEmail) {
+      setError('Du skal vælge en betalingsplan før du kan oprette en konto.');
+      setIsLoading(false);
+      // Redirect to pricing with signup intent
+      setTimeout(() => {
+        navigate('/pricing?signup=true');
+      }, 2000);
+      return;
+    }
 
     if (!acceptedTerms) {
       setError('Du skal acceptere vilkår og betingelser for at oprette en konto.');
