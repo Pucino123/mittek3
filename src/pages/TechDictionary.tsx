@@ -343,6 +343,31 @@ const TechDictionary = () => {
     return matchesSearch && matchesCategory;
   });
 
+  // Group entries by first letter
+  const groupedEntries = useMemo(() => {
+    const groups: Record<string, DictionaryEntry[]> = {};
+    filteredEntries.forEach(entry => {
+      const firstLetter = entry.term.charAt(0).toUpperCase();
+      if (!groups[firstLetter]) {
+        groups[firstLetter] = [];
+      }
+      groups[firstLetter].push(entry);
+    });
+    return groups;
+  }, [filteredEntries]);
+
+  // Get all available letters
+  const availableLetters = useMemo(() => {
+    return Object.keys(groupedEntries).sort((a, b) => a.localeCompare(b, 'da'));
+  }, [groupedEntries]);
+
+  const scrollToLetter = (letter: string) => {
+    const element = document.getElementById(`letter-${letter}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
@@ -376,10 +401,10 @@ const TechDictionary = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Søg efter et ord..."
+              placeholder="Hvad leder du efter?"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12"
+              className="pl-10 h-14 text-base"
             />
           </div>
 
@@ -412,40 +437,66 @@ const TechDictionary = () => {
             </div>
           </div>
 
-          {/* Dictionary entries */}
-          <Accordion type="single" collapsible className="w-full">
-            {filteredEntries.map((entry, index) => (
-              <AccordionItem key={entry.term} value={`item-${index}`}>
-                <AccordionTrigger className="text-lg font-medium hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    {entry.term}
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-normal">
-                      {categoryLabels[entry.category]?.label || entry.category}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="space-y-3">
-                  <p className="text-muted-foreground">{entry.explanation}</p>
-                  
-                  {entry.example && (
-                    <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                      <p className="text-sm">
-                        <span className="font-medium">Eksempel:</span> {entry.example}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {entry.metaphor && (
-                    <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
-                      <p className="font-medium text-primary">{entry.metaphor}</p>
-                    </div>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          {/* Alphabet Navigation */}
+          {availableLetters.length > 0 && !searchQuery && (
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur py-3 mb-4 -mx-4 px-4">
+              <div className="flex flex-wrap gap-1 justify-center">
+                {availableLetters.map(letter => (
+                  <button
+                    key={letter}
+                    onClick={() => scrollToLetter(letter)}
+                    className="w-8 h-8 rounded-lg bg-primary/10 text-primary font-semibold text-sm hover:bg-primary hover:text-primary-foreground transition-colors"
+                  >
+                    {letter}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {filteredEntries.length === 0 && (
+          {/* Dictionary entries grouped by letter */}
+          {availableLetters.length > 0 ? (
+            <div className="space-y-6">
+              {availableLetters.map(letter => (
+                <div key={letter} id={`letter-${letter}`}>
+                  <h2 className="text-2xl font-bold text-primary mb-3 sticky top-16 bg-background/95 backdrop-blur py-2 z-5">
+                    {letter}
+                  </h2>
+                  <Accordion type="single" collapsible className="w-full">
+                    {groupedEntries[letter].map((entry, index) => (
+                      <AccordionItem key={`${letter}-${entry.term}`} value={`item-${letter}-${index}`}>
+                        <AccordionTrigger className="text-lg font-medium hover:no-underline py-4">
+                          <div className="flex items-center gap-2 text-left">
+                            {entry.term}
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-normal">
+                              {categoryLabels[entry.category]?.label || entry.category}
+                            </span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-3 pb-4">
+                          <p className="text-muted-foreground text-base">{entry.explanation}</p>
+                          
+                          {entry.example && (
+                            <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                              <p className="text-sm">
+                                <span className="font-medium">Eksempel:</span> {entry.example}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {entry.metaphor && (
+                            <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
+                              <p className="font-medium text-primary">{entry.metaphor}</p>
+                            </div>
+                          )}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </div>
+              ))}
+            </div>
+          ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
                 Ingen resultater for "{searchQuery}"

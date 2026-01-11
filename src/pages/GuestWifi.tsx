@@ -18,6 +18,7 @@ interface Step {
   instruction: string;
   icon: React.ElementType;
   tip?: string;
+  visualDescription?: string;
 }
 
 const steps: Step[] = [
@@ -27,12 +28,14 @@ const steps: Step[] = [
     instruction: 'Sørg for at din iPhone er låst op og forbundet til dit Wi-Fi. Du kan tjekke dette ved at se efter Wi-Fi-ikonet øverst på skærmen.',
     icon: Smartphone,
     tip: 'Din Bluetooth skal også være tændt (det plejer den at være).',
+    visualDescription: 'Se efter Wi-Fi-ikonet (tre buer) øverst til højre på din skærm. Det viser du er forbundet.',
   },
   {
     id: 2,
     title: 'Bed din gæst vælge netværket',
     instruction: 'Din gæst skal gå til Indstillinger → Wi-Fi på deres telefon, og vælge dit netværk fra listen. De skal IKKE taste koden endnu.',
     icon: Wifi,
+    visualDescription: 'Din gæst finder dit netværksnavn på listen (det samme navn som står på din router).',
   },
   {
     id: 3,
@@ -40,12 +43,14 @@ const steps: Step[] = [
     instruction: 'Efter et øjeblik kommer der en besked op på DIN skærm: "Vil du dele Wi-Fi-adgangskoden?". Det kan tage 5-10 sekunder.',
     icon: Share2,
     tip: 'Hold telefonerne tæt på hinanden (inden for 1-2 meter).',
+    visualDescription: 'En hvid boks popper op midt på din skærm med spørgsmålet og to knapper.',
   },
   {
     id: 4,
     title: 'Tryk på "Del adgangskode"',
     instruction: 'Tryk på den blå knap "Del adgangskode". Din gæst forbindes nu automatisk til dit Wi-Fi – helt uden at taste noget!',
     icon: Sparkles,
+    visualDescription: 'Tryk på den BLÅ knap. Den grå knap annullerer handlingen.',
   },
 ];
 
@@ -177,12 +182,23 @@ const GuestWifi = () => {
                   {/* Expanded content */}
                   {isExpanded && (
                     <div className="px-4 pb-4 pt-0">
-                      <div className="ml-12 pl-4 border-l-2 border-info/20">
+                      <div className="ml-12 pl-4 border-l-2 border-info/20 space-y-3">
                         <p className={`text-muted-foreground ${seniorMode ? 'text-base' : 'text-sm'}`}>
                           {step.instruction}
                         </p>
+                        
+                        {/* Visual description box */}
+                        {step.visualDescription && (
+                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                            <p className="text-sm flex items-start gap-2">
+                              <span className="text-primary text-lg leading-none">👁️</span>
+                              <span><strong className="text-foreground">Hvad skal du kigge efter:</strong> <span className="text-muted-foreground">{step.visualDescription}</span></span>
+                            </p>
+                          </div>
+                        )}
+                        
                         {step.tip && (
-                          <p className="mt-2 text-sm text-info bg-info/5 rounded-lg p-2">
+                          <p className="text-sm text-info bg-info/5 rounded-lg p-2">
                             💡 <span className="font-medium">Tip:</span> {step.tip}
                           </p>
                         )}

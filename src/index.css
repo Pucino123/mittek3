@@ -285,7 +285,22 @@
     50% { opacity: 0.7; }
   }
 
-  @keyframes confetti {
+@keyframes highlight-step {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 transparent;
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 0 8px hsl(var(--primary) / 0.2);
+    transform: scale(1.01);
+  }
+}
+
+.animate-highlight-step {
+  animation: highlight-step 0.8s ease-in-out 2;
+}
+
+@keyframes confetti {
     0% {
       transform: translateY(0) rotate(0deg);
       opacity: 1;

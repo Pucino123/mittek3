@@ -19,6 +19,7 @@ interface Step {
   instruction: string;
   icon: React.ElementType;
   important?: boolean;
+  visualDescription?: string;
 }
 
 const steps: Step[] = [
@@ -27,36 +28,42 @@ const steps: Step[] = [
     title: 'Åbn appen "Sundhed"',
     instruction: 'Find appen med det hvide hjerte på rød baggrund. Den hedder "Sundhed" og er installeret på alle iPhones.',
     icon: Heart,
+    visualDescription: 'Kig efter et hvidt hjerte på rød baggrund på din startskærm. Den ligger ofte i mappen "Ekstra".',
   },
   {
     id: 2,
     title: 'Tryk på dit profilbillede',
     instruction: 'I øverste højre hjørne ser du dit profilbillede (eller dine initialer i en cirkel). Tryk på det.',
     icon: User,
+    visualDescription: 'Dit profilbillede er en lille rund cirkel i øverste højre hjørne af skærmen.',
   },
   {
     id: 3,
     title: 'Vælg "Nød-ID"',
     instruction: 'Find og tryk på "Nød-ID". Her kan du indtaste vigtige sundhedsoplysninger.',
     icon: AlertCircle,
+    visualDescription: 'Scroll ned og find "Nød-ID" på listen. Det har et rødt hjerte-ikon ved siden af.',
   },
   {
     id: 4,
     title: 'Tryk på "Rediger"',
     instruction: 'Tryk på "Rediger" øverst til højre for at kunne ændre dine oplysninger.',
     icon: Pill,
+    visualDescription: 'Knappen "Rediger" er blå og sidder i øverste højre hjørne.',
   },
   {
     id: 5,
     title: 'Udfyld dine oplysninger',
     instruction: 'Indtast din medicin, allergier, blodtype og andre vigtige helbredsoplysninger. Tag dig god tid.',
     icon: Droplet,
+    visualDescription: 'Tryk på hvert felt for at udfylde det. F.eks. "Medicin", "Allergier", "Blodtype".',
   },
   {
     id: 6,
     title: 'Tilføj en nødkontakt',
     instruction: 'Under "Nødkontakt" kan du vælge en person fra din kontaktbog. Vælg din hjælper eller nærmeste pårørende.',
     icon: Phone,
+    visualDescription: 'Tryk på "tilføj nødkontakt" og vælg en person fra din kontaktbog. Angiv også forholdet (f.eks. "Datter").',
   },
   {
     id: 7,
@@ -64,6 +71,7 @@ const steps: Step[] = [
     instruction: 'Denne indstilling er MEGET vigtig! Sørg for at "Vis på låst skærm" er slået TIL (grøn). Så kan reddere se dine oplysninger uden at låse telefonen op.',
     icon: AlertCircle,
     important: true,
+    visualDescription: 'Find kontakten ved siden af "Vis på låst skærm" og sørg for den er GRØN. Dette er det vigtigste trin!',
   },
 ];
 
@@ -200,10 +208,20 @@ const MedicalId = () => {
                   {/* Expanded content */}
                   {isExpanded && (
                     <div className="px-4 pb-4 pt-0">
-                      <div className="ml-12 pl-4 border-l-2 border-primary/20">
+                      <div className="ml-12 pl-4 border-l-2 border-primary/20 space-y-3">
                         <p className={`text-muted-foreground ${seniorMode ? 'text-base' : 'text-sm'}`}>
                           {step.instruction}
                         </p>
+                        
+                        {/* Visual description box */}
+                        {step.visualDescription && (
+                          <div className="p-3 rounded-lg bg-info/10 border border-info/20">
+                            <p className="text-sm text-info-foreground flex items-start gap-2">
+                              <span className="text-info text-lg leading-none">👁️</span>
+                              <span><strong>Hvad skal du kigge efter:</strong> {step.visualDescription}</span>
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
