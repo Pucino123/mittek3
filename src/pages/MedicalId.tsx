@@ -13,6 +13,11 @@ import {
 import { BackButton } from '@/components/layout/BackButton';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
 
+// Import visual guide images
+import guideFindMy from '@/assets/guide-find-my.png';
+import guideIcloudSettings from '@/assets/guide-icloud-settings.png';
+import guideTwoFactor from '@/assets/guide-two-factor.png';
+
 interface Step {
   id: number;
   title: string;
@@ -20,6 +25,7 @@ interface Step {
   icon: React.ElementType;
   important?: boolean;
   visualDescription?: string;
+  visualImage?: string;
 }
 
 const steps: Step[] = [
@@ -29,6 +35,7 @@ const steps: Step[] = [
     instruction: 'Find appen med det hvide hjerte på rød baggrund. Den hedder "Sundhed" og er installeret på alle iPhones.',
     icon: Heart,
     visualDescription: 'Kig efter et hvidt hjerte på rød baggrund på din startskærm. Den ligger ofte i mappen "Ekstra".',
+    visualImage: guideFindMy,
   },
   {
     id: 2,
@@ -36,6 +43,7 @@ const steps: Step[] = [
     instruction: 'I øverste højre hjørne ser du dit profilbillede (eller dine initialer i en cirkel). Tryk på det.',
     icon: User,
     visualDescription: 'Dit profilbillede er en lille rund cirkel i øverste højre hjørne af skærmen.',
+    visualImage: guideIcloudSettings,
   },
   {
     id: 3,
@@ -72,6 +80,7 @@ const steps: Step[] = [
     icon: AlertCircle,
     important: true,
     visualDescription: 'Find kontakten ved siden af "Vis på låst skærm" og sørg for den er GRØN. Dette er det vigtigste trin!',
+    visualImage: guideTwoFactor,
   },
 ];
 
@@ -212,6 +221,17 @@ const MedicalId = () => {
                         <p className={`text-muted-foreground ${seniorMode ? 'text-base' : 'text-sm'}`}>
                           {step.instruction}
                         </p>
+                        
+                        {/* Visual guide image */}
+                        {step.visualImage && (
+                          <div className="rounded-xl overflow-hidden border border-border bg-muted/30">
+                            <img 
+                              src={step.visualImage} 
+                              alt={step.title}
+                              className="w-full h-auto object-contain max-h-48"
+                            />
+                          </div>
+                        )}
                         
                         {/* Visual description box */}
                         {step.visualDescription && (

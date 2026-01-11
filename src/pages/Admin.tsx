@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X } from 'lucide-react';
+import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,6 +20,7 @@ import { BackButton } from '@/components/layout/BackButton';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableGuideStep } from '@/components/admin/SortableGuideStep';
+import { VisualHelpManager } from '@/components/admin/VisualHelpManager';
 
 interface Profile {
   id: string;
@@ -746,6 +747,10 @@ const Admin = () => {
               <BookOpen className="mr-2 h-5 w-5" />
               <span className="hidden sm:inline">Guides</span> ({guides.length})
             </TabsTrigger>
+            <TabsTrigger value="visual" className="h-12 px-4 md:px-6">
+              <Eye className="mr-2 h-5 w-5" />
+              <span className="hidden sm:inline">Visuel Hjælp</span>
+            </TabsTrigger>
             <TabsTrigger value="pending" className="h-12 px-4 md:px-6">
               <CreditCard className="mr-2 h-5 w-5" />
               <span className="hidden sm:inline">Pending</span> ({pendingSubscriptions.filter(p => !p.claimed).length})
@@ -1084,6 +1089,11 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Visual Help Tab */}
+          <TabsContent value="visual">
+            <VisualHelpManager />
           </TabsContent>
 
           {/* Content Tab */}
