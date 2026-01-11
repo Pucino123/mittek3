@@ -95,13 +95,13 @@ export function ContextualHelpButton() {
 
   return (
     <>
-      {/* Floating Help Button */}
+      {/* Floating Help Button - left side on mobile, lower position */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 right-6 z-40 w-12 h-12 rounded-full bg-secondary text-secondary-foreground shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center border border-border hover:scale-105"
+        className="fixed z-40 w-12 h-12 rounded-full bg-secondary text-secondary-foreground shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center border border-border hover:scale-105 bottom-24 right-6 md:bottom-24 md:right-6 max-md:bottom-4 max-md:left-3 max-md:right-auto max-md:w-11 max-md:h-11 max-md:rounded-[22px]"
         aria-label="Hjælp"
       >
-        <HelpCircle className="h-6 w-6" />
+        <HelpCircle className="h-6 w-6 max-md:h-5 max-md:w-5" />
       </button>
 
       {/* Help Dialog */}
