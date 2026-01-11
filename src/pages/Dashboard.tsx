@@ -25,8 +25,10 @@ import {
   HeartPulse,
   ShieldAlert,
   Smartphone,
-  Clock
+  Clock,
+  AlertCircle
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Label } from '@/components/ui/label';
@@ -327,12 +329,30 @@ const Dashboard = () => {
             </div>
             <span className="text-xl font-semibold">MitTek</span>
             
-            {/* Trial Indicator */}
+            {/* Trial Indicator - becomes warning at ≤3 days */}
             {trialDaysRemaining !== null && (
-              <div className="ml-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning/15 text-warning text-xs font-medium">
-                <Clock className="h-3.5 w-3.5" />
-                <span>{trialDaysRemaining} dage tilbage</span>
-              </div>
+              <Link 
+                to="/pricing"
+                className={cn(
+                  "ml-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors hover:opacity-80",
+                  trialDaysRemaining <= 3 
+                    ? "bg-destructive/15 text-destructive animate-pulse" 
+                    : "bg-warning/15 text-warning"
+                )}
+              >
+                {trialDaysRemaining <= 3 ? (
+                  <AlertCircle className="h-3.5 w-3.5" />
+                ) : (
+                  <Clock className="h-3.5 w-3.5" />
+                )}
+                <span>
+                  {trialDaysRemaining === 0 
+                    ? "Udløber i dag!" 
+                    : trialDaysRemaining === 1 
+                      ? "1 dag tilbage" 
+                      : `${trialDaysRemaining} dage tilbage`}
+                </span>
+              </Link>
             )}
           </Link>
 
