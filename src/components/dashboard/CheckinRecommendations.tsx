@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, Sparkles } from 'lucide-react';
+import { CheckCircle, Sparkles, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 interface CheckinData {
   id: string;
@@ -16,6 +17,58 @@ interface CheckinData {
 interface CheckinRecommendationsProps {
   checkinData?: CheckinData;
 }
+
+// Map recommendation keywords to guide IDs
+const getGuideForRecommendation = (rec: string): { guideId: string; label: string } | null => {
+  const lowerRec = rec.toLowerCase();
+  
+  // Update/opdatering related
+  if (lowerRec.includes('opdater') || lowerRec.includes('software') || lowerRec.includes('version')) {
+    return { guideId: 'update-ios', label: 'Se guide til opdatering' };
+  }
+  
+  // Storage/plads related
+  if (lowerRec.includes('plads') || lowerRec.includes('lagerplads') || lowerRec.includes('storage') || lowerRec.includes('ryd') || lowerRec.includes('slet')) {
+    return { guideId: 'free-up-storage', label: 'Se guide til at frigøre plads' };
+  }
+  
+  // Popup related
+  if (lowerRec.includes('popup') || lowerRec.includes('vinduer') || lowerRec.includes('reklamer')) {
+    return { guideId: 'stop-popups', label: 'Se guide til at stoppe popups' };
+  }
+  
+  // Scam/spam/message related
+  if (lowerRec.includes('svindel') || lowerRec.includes('scam') || lowerRec.includes('beskeder') || lowerRec.includes('spam') || lowerRec.includes('mistænkelig')) {
+    return { guideId: 'recognize-scam-sms', label: 'Lær at genkende svindel' };
+  }
+  
+  // iCloud/backup related
+  if (lowerRec.includes('icloud') || lowerRec.includes('backup') || lowerRec.includes('sikkerhedskopi')) {
+    return { guideId: 'setup-icloud', label: 'Se guide til iCloud' };
+  }
+  
+  // Battery related
+  if (lowerRec.includes('batteri') || lowerRec.includes('strøm') || lowerRec.includes('opladning')) {
+    return { guideId: 'extend-battery-life', label: 'Se guide til bedre batteritid' };
+  }
+  
+  // Security/password related
+  if (lowerRec.includes('kodeord') || lowerRec.includes('password') || lowerRec.includes('adgangskode') || lowerRec.includes('to-faktor') || lowerRec.includes('2fa')) {
+    return { guideId: 'enable-2fa', label: 'Se guide til to-faktor' };
+  }
+  
+  // Find My related
+  if (lowerRec.includes('find min') || lowerRec.includes('find my') || lowerRec.includes('tabt') || lowerRec.includes('mistet')) {
+    return { guideId: 'find-my-device', label: 'Se guide til Find Min' };
+  }
+  
+  // Calls related
+  if (lowerRec.includes('opkald') || lowerRec.includes('ukendte') || lowerRec.includes('ring')) {
+    return { guideId: 'block-unknown-calls', label: 'Se guide til at blokere opkald' };
+  }
+  
+  return null;
+};
 
 export function CheckinRecommendations({ checkinData }: CheckinRecommendationsProps) {
   const { user } = useAuth();
@@ -44,7 +97,10 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
   // Use the recommendations stored in the database from the checkin
   const recommendations = checkinData.recommendations || [];
 
-  const toggleItem = (rec: string) => {
+  const toggleItem = (rec: string, e: React.MouseEvent) => {
+    // Don't toggle if clicking on a link
+    if ((e.target as HTMLElement).closest('a')) return;
+    
     if (!user || !checkinData) return;
 
     const storageKey = `checkin-completed-${user.id}-${checkinData.id}`;
@@ -82,11 +138,12 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
         <ul className="space-y-3">
           {recommendations.map((rec, index) => {
             const isCompleted = completedItems.includes(rec);
+            const guide = getGuideForRecommendation(rec);
             
             return (
               <li 
                 key={index}
-                onClick={() => toggleItem(rec)}
+                onClick={(e) => toggleItem(rec, e)}
                 className={`flex items-start gap-3 p-3 sm:p-4 rounded-xl cursor-pointer transition-all ${
                   isCompleted 
                     ? 'bg-success/5 border border-success/20' 
@@ -103,11 +160,23 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
                     <CheckCircle className="h-4 w-4" />
                   )}
                 </div>
-                <span className={`text-sm sm:text-base leading-relaxed ${
-                  isCompleted ? 'line-through text-muted-foreground' : ''
-                }`}>
-                  {rec}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <span className={`text-sm sm:text-base leading-relaxed block ${
+                    isCompleted ? 'line-through text-muted-foreground' : ''
+                  }`}>
+                    {rec}
+                  </span>
+                  {guide && !isCompleted && (
+                    <Link 
+                      to={`/guides?guide=${guide.guideId}`}
+                      className="inline-flex items-center gap-1 mt-2 text-xs sm:text-sm text-primary hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {guide.label}
+                    </Link>
+                  )}
+                </div>
               </li>
             );
           })}
