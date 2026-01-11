@@ -193,18 +193,18 @@ export function OnboardingTracker() {
                   className={`p-3 rounded-xl border transition-all relative h-full flex flex-col ${
                     isStepComplete 
                       ? 'bg-success/10 border-success/30' 
-                      : 'bg-secondary/50 border-border hover:border-primary/50 hover:bg-secondary'
+                      : 'bg-secondary/50 border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-secondary'
                   }`}
                 >
-                  {/* Optional indicator with tooltip */}
+                  {/* Optional indicator with tooltip - positioned in top-right corner */}
                   {step.isOptional && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button 
-                          className="absolute top-2 right-2 p-0.5 text-muted-foreground hover:text-primary transition-colors"
+                          className="absolute top-1 right-1 sm:top-2 sm:right-2 p-0.5 text-muted-foreground [@media(hover:hover)]:hover:text-primary transition-colors"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <HelpCircle className="h-3.5 w-3.5" />
+                          <HelpCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-[220px] text-center">
