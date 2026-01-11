@@ -10,6 +10,23 @@ interface BackButtonProps {
 // Track navigation history within the app
 const navigationStack: string[] = [];
 
+// Tool pages that should always navigate directly to dashboard
+const toolPages = [
+  '/tools/medical-id',
+  '/tools/cleaning-guide',
+  '/tools/guest-wifi',
+  '/tools/password-generator',
+  '/tools/scam-quiz',
+  '/tools/screenshot-ai',
+  '/panic',
+  '/safety',
+  '/checkin',
+  '/security-check',
+  '/battery-doctor',
+  '/hardware-detective',
+  '/kode-mappe',
+];
+
 export function BackButton({ fallbackPath = '/dashboard' }: BackButtonProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,6 +52,12 @@ export function BackButton({ fallbackPath = '/dashboard' }: BackButtonProps) {
     // For subscription page, always go back to settings
     if (location.pathname === '/settings/subscription') {
       navigate('/settings');
+      return;
+    }
+
+    // For tool pages, always navigate directly to dashboard
+    if (toolPages.some(toolPath => location.pathname.startsWith(toolPath))) {
+      navigate('/dashboard');
       return;
     }
 
