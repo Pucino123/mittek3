@@ -380,10 +380,11 @@
     @apply fixed bottom-6 right-6 z-50;
   }
 
-  /* Mobile: closer to corner with curved design */
+  /* Mobile: lower and closer to corner with curved design */
   @media (max-width: 768px) {
     .floating-widget {
-      @apply bottom-3 right-3;
+      bottom: 1rem;
+      right: 0.75rem;
     }
   }
 
@@ -394,8 +395,8 @@
   /* Mobile: smaller button with curved corner effect */
   @media (max-width: 768px) {
     .floating-widget-button {
-      @apply w-12 h-12;
-      border-radius: 24px;
+      @apply w-11 h-11;
+      border-radius: 22px;
     }
     
     .floating-widget-button svg {
