@@ -902,17 +902,20 @@ const Admin = () => {
     p.display_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Calculate KPI metrics - get admin user_ids to exclude from revenue
-  const adminUserIds = profiles.filter(p => p.is_admin).map(p => p.user_id);
+  // Calculate KPI metrics - exclude specific emails from revenue calculations
+  const excludedEmails = ['kevin.therkildsen@icloud.com', 'kevin@ihero.dk'];
+  const excludedUserIds = profiles
+    .filter(p => p.email && excludedEmails.includes(p.email.toLowerCase()))
+    .map(p => p.user_id);
   
   const kpiMetrics = {
     totalUsers: profiles.length,
-    payingUsers: subscriptions.filter(s => s.status === 'active' && !adminUserIds.includes(s.user_id)).length,
-    trialingUsers: subscriptions.filter(s => s.status === 'trialing').length,
+    payingUsers: subscriptions.filter(s => s.status === 'active' && !excludedUserIds.includes(s.user_id)).length,
+    trialingUsers: subscriptions.filter(s => s.status === 'trialing' && !excludedUserIds.includes(s.user_id)).length,
     canceledUsers: subscriptions.filter(s => s.status === 'canceled').length,
-    // MRR calculation: ONLY count 'active' subscriptions, exclude admins
+    // MRR calculation: ONLY count 'active' subscriptions, exclude specific emails
     mrr: subscriptions
-      .filter(s => s.status === 'active' && !adminUserIds.includes(s.user_id))
+      .filter(s => s.status === 'active' && !excludedUserIds.includes(s.user_id))
       .reduce((sum, s) => {
         const prices: Record<string, number> = { basic: 49, plus: 99, pro: 199 };
         return sum + (prices[s.plan_tier] || 0);
