@@ -684,6 +684,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_dashboard_settings: {
+        Row: {
+          card_order: string[] | null
+          created_at: string
+          hidden_cards: string[] | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          card_order?: string[] | null
+          created_at?: string
+          hidden_cards?: string[] | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          card_order?: string[] | null
+          created_at?: string
+          hidden_cards?: string[] | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_notes: {
         Row: {
           content: string | null
