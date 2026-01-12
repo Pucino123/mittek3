@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Check, Star, X, MessageCircle, Shield, Lock, Camera, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -96,6 +97,25 @@ const plans = [
     ],
   },
 ];
+
+const featureTooltips: Record<string, string> = {
+  'Din Digitale Hjælper (ubegrænset chat)': 'Du kan skrive og spørge lige så meget du vil. Du får svar i et roligt, enkelt sprog – også når du ikke lige ved, hvad du skal spørge om.',
+  'Månedligt Tjek (3–6 min)': 'Et hurtigt tjek der hjælper dig med at holde din iPhone/iPad “i form”. Du får små, konkrete råd – trin for trin.',
+  'Mini-guides med billeder': 'Små vejledninger med billeder, så du kan følge med i dit eget tempo. Godt hvis du gerne vil lære én ting ad gangen.',
+  'Trusted Helper (læseadgang)': 'Du kan give en hjælper lov til at “kigge med” (kun læse). Det gør det nemmere at hjælpe dig, uden at overtage alt.',
+  'Kode-mappe (krypteret)': 'Et sikkert sted til dine koder. “Krypteret” betyder, at andre ikke bare kan læse dem – selv hvis de får adgang til din konto.',
+  'Screenshot → AI Forklaring': 'Du kan tage et screenshot af noget du er i tvivl om. Så forklarer vi billedet og fortæller, hvad du trygt kan gøre bagefter.',
+  'Sikkerhedsskjold': 'Hjælper dig med at spotte svindel og farlige beskeder. Du får en klar anbefaling: “det er sikkert” eller “vær forsigtig”.',
+  'Sikkerhedsskjold (svindeltjek)': 'Hjælper dig med at spotte svindel og farlige beskeder. Du får en klar anbefaling: “det er sikkert” eller “vær forsigtig”.',
+  'Tryghedsknap': 'Hvis du føler dig usikker, guider knappen dig roligt igennem de vigtigste skridt, så du ikke står alene med det.',
+  'Tryghedsknap (panikflow)': 'Hvis du føler dig usikker, guider knappen dig roligt igennem de vigtigste skridt, så du ikke står alene med det.',
+  '1 support-henvendelse pr. måned': 'Du kan få personlig hjælp 1 gang om måneden. Perfekt hvis du af og til har brug for et menneske til at hjælpe dig helt i mål.',
+  '2 support-henvendelser pr. måned': 'Du kan få personlig hjælp 2 gange om måneden. Godt hvis du ofte har spørgsmål eller vil have ekstra tryghed.',
+  'Prioritet i køen': 'Vi sidder klar til at hjælpe dig først, hvis du oplever problemer, så du ikke skal vente så længe.',
+  'Alt fra Plus': 'Du får alle de samme funktioner som i Plus – og derudover ekstra fordele, som gør det endnu nemmere at få hjælp hurtigt.',
+};
+
+const getFeatureTooltip = (text: string) => featureTooltips[text] ?? 'Denne funktion er med i planen og er lavet til at gøre din digitale hverdag mere tryg og enkel.';
 
 const Pricing = () => {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -214,25 +234,45 @@ const Pricing = () => {
                   </div>
                 </div>
 
-                <ul className="space-y-2 sm:space-y-2 md:space-y-4 mb-6 md:mb-8 flex-1">
-                  {plan.features.map((feature, index) => (
-                    <li 
-                      key={index} 
-                      className={`flex items-start gap-2 ${
-                        feature.highlight ? 'bg-primary/5 -mx-2 px-2 py-1.5 sm:py-1.5 md:py-2 rounded-lg' : ''
-                      }`}
-                    >
-                      {feature.included ? (
-                        <Check className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
-                      ) : (
-                        <X className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
-                      )}
-                      <span className={`text-sm leading-tight ${!feature.included ? 'text-muted-foreground/50' : ''} ${feature.highlight ? 'font-medium' : ''}`}>
-                        {feature.text}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <TooltipProvider delayDuration={150}>
+                  <ul className="space-y-2 sm:space-y-2 md:space-y-4 mb-6 md:mb-8 flex-1">
+                    {plan.features.map((feature, index) => (
+                      <li 
+                        key={index} 
+                        className={`flex items-start gap-2 ${
+                          feature.highlight ? 'bg-primary/5 -mx-2 px-2 py-1.5 sm:py-1.5 md:py-2 rounded-lg' : ''
+                        }`}
+                      >
+                        {feature.included ? (
+                          <Check className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <X className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
+                        )}
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span
+                              className={cn(
+                                "text-sm leading-tight cursor-help underline decoration-dotted underline-offset-4",
+                                !feature.included && "text-muted-foreground/50",
+                                feature.highlight && "font-medium"
+                              )}
+                            >
+                              {feature.text}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="top"
+                            align="start"
+                            className="max-w-[320px] whitespace-normal leading-relaxed"
+                          >
+                            {getFeatureTooltip(feature.text)}
+                          </TooltipContent>
+                        </Tooltip>
+                      </li>
+                    ))}
+                  </ul>
+                </TooltipProvider>
 
                 <div className="space-y-2">
                   <Button

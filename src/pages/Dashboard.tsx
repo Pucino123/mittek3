@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { IOSSwitch } from '@/components/ui/ios-switch';
@@ -200,7 +200,7 @@ function SortableCard({
         opacity: isBeingDragged ? 0.3 : 1,
         zIndex: isDragging ? 10 : 1,
       }}
-      className="relative"
+      className="relative h-full"
     >
       <DashboardCard
         id={card.id}
@@ -220,53 +220,57 @@ function SortableCard({
 }
 
 // Static card for DragOverlay - iOS-style lifted appearance
-function DragOverlayCard({ card, hasAccess }: { card: CardDefinition; hasAccess: boolean }) {
-  return (
-    <motion.div 
-      className="pointer-events-none drag-overlay-glow"
-      initial={{ scale: 1, opacity: 0.9, rotate: 0 }}
-      animate={{ 
-        scale: 1.05,
-        opacity: 1,
-        rotate: [0, -1.5, 1.5, -1.5, 1.5, 0],
-      }}
-      transition={{
-        scale: springTransition,
-        opacity: { duration: 0.15 },
-        rotate: {
-          duration: 0.5,
-          repeat: Infinity,
-          repeatType: 'loop',
-          ease: 'easeInOut',
-        },
-      }}
-      style={{
-        // Fixed dimensions matching card heights
-        width: '100%',
-        maxWidth: '280px',
-        height: '210px',
-        zIndex: 9999,
-      }}
-    >
-      <DashboardCard
-        id={card.id}
-        title={card.title}
-        description={card.description}
-        icon={card.icon}
-        href={card.href}
-        color={card.color}
-        minPlan={card.minPlan}
-        hasAccess={hasAccess}
-        isEditMode={true}
-        isDragging={false}
-        style={{
-          height: '100%',
-          transform: 'none',
+const DragOverlayCard = forwardRef<HTMLDivElement, { card: CardDefinition; hasAccess: boolean }>(
+  ({ card, hasAccess }, ref) => {
+    return (
+      <motion.div 
+        ref={ref}
+        className="pointer-events-none drag-overlay-glow"
+        initial={{ scale: 1, opacity: 0.9, rotate: 0 }}
+        animate={{ 
+          scale: 1.05,
+          opacity: 1,
+          rotate: [0, -1.5, 1.5, -1.5, 1.5, 0],
         }}
-      />
-    </motion.div>
-  );
-}
+        transition={{
+          scale: springTransition,
+          opacity: { duration: 0.15 },
+          rotate: {
+            duration: 0.5,
+            repeat: Infinity,
+            repeatType: 'loop',
+            ease: 'easeInOut',
+          },
+        }}
+        style={{
+          width: '100%',
+          maxWidth: '280px',
+          height: '210px',
+          zIndex: 9999,
+        }}
+      >
+        <DashboardCard
+          id={card.id}
+          title={card.title}
+          description={card.description}
+          icon={card.icon}
+          href={card.href}
+          color={card.color}
+          minPlan={card.minPlan}
+          hasAccess={hasAccess}
+          isEditMode={true}
+          isDragging={false}
+          style={{
+            height: '100%',
+            transform: 'none',
+          }}
+        />
+      </motion.div>
+    );
+  }
+);
+DragOverlayCard.displayName = 'DragOverlayCard';
+
 
 // Droppable zone for empty categories with spring animation
 function EmptyCategoryDropZone({ categoryId, isOver }: { categoryId: string; isOver: boolean }) {
@@ -316,11 +320,17 @@ const Dashboard = () => {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const toolsSectionRef = useRef<HTMLDivElement>(null);
   
-  // Undo history stack for drag and delete operations
-  type UndoAction = 
-    | { type: 'move'; cardCategories: Record<string, string>; cardOrder: string[] | null; hiddenCards: string[]; }
-    | { type: 'delete'; cardId: string; cardCategory: string; cardOrder: string[] | null; hiddenCards: string[]; cardCategories: Record<string, string>; };
-  
+  // Undo history stack (full snapshots for robust restore)
+  type DashboardSnapshot = {
+    card_order: string[] | null;
+    hidden_cards: string[];
+    card_categories: Record<string, string>;
+  };
+
+  type UndoAction =
+    | { type: 'move'; snapshot: DashboardSnapshot }
+    | { type: 'delete'; cardId: string; snapshot: DashboardSnapshot };
+
   const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
   
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
@@ -336,9 +346,10 @@ const Dashboard = () => {
     customCategories,
     cardCategories,
     hideCard, 
-    showCard, 
+    showCard,
     updateCardOrder,
     updateCardCategoryAndOrder,
+    restoreSnapshot,
     updateCategoryTitle,
     updateCategoryOrder,
     addCustomCategory,
@@ -645,42 +656,33 @@ const Dashboard = () => {
     }
   };
 
-  // Handle card removal - save delete state for undo
+  // Handle card removal - save full snapshot for undo
   const handleRemoveCard = (cardId: string) => {
-    // Save delete action to undo stack with full context
-    const cardCategory = getCardCategory(cardId);
-    const savedCardOrder = cardOrder ? [...cardOrder] : null;
-    const savedHiddenCards = [...hiddenCards];
-    const savedCardCategories = { ...cardCategories };
-    
+    const sanitizedCategories = Object.fromEntries(
+      Object.entries(cardCategories).filter(([k, v]) => Boolean(k?.trim()) && Boolean(v?.trim()))
+    ) as Record<string, string>;
+
+    const snapshot: DashboardSnapshot = {
+      card_order: cardOrder ? [...cardOrder] : null,
+      hidden_cards: [...hiddenCards],
+      card_categories: sanitizedCategories,
+    };
+
     setUndoStack(prev => [
       ...prev.slice(-9),
-      {
-        type: 'delete' as const,
-        cardId,
-        cardCategory,
-        cardOrder: savedCardOrder,
-        hiddenCards: savedHiddenCards,
-        cardCategories: savedCardCategories,
-      }
+      { type: 'delete' as const, cardId, snapshot },
     ]);
-    
+
     hideCard(cardId);
     haptics.tick();
-    
-    // Show toast with undo action button
+
     toast.success('Værktøj skjult', {
       description: 'Klik for at fortryde',
       duration: 5000,
       action: {
         label: 'Fortryd',
         onClick: () => {
-          // Restore the card to its original category
-          showCard(cardId, cardCategory);
-          if (savedCardOrder) {
-            updateCardOrder(savedCardOrder);
-          }
-          // Remove this action from undo stack
+          restoreSnapshot(snapshot);
           setUndoStack(prev => prev.filter(a => !(a.type === 'delete' && a.cardId === cardId)));
           haptics.success();
           toast.success('Værktøj gendannet', { duration: 2000 });
@@ -704,64 +706,42 @@ const Dashboard = () => {
     });
   };
 
-  // Undo functionality - handles both move and delete actions
-  // Use a ref to always have access to latest functions
-  const showCardRef = useRef(showCard);
-  const updateCardOrderRef = useRef(updateCardOrder);
-  const updateCardCategoryAndOrderRef = useRef(updateCardCategoryAndOrder);
-  
-  useEffect(() => {
-    showCardRef.current = showCard;
-    updateCardOrderRef.current = updateCardOrder;
-    updateCardCategoryAndOrderRef.current = updateCardCategoryAndOrder;
-  }, [showCard, updateCardOrder, updateCardCategoryAndOrder]);
-
+  // Undo functionality - restore full snapshots for BOTH move and delete
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) {
       toast.info('Ingen handlinger at fortryde', { duration: 1500 });
       return;
     }
-    
+
     const lastAction = undoStack[undoStack.length - 1];
     setUndoStack(prev => prev.slice(0, -1));
-    
+
+    restoreSnapshot(lastAction.snapshot);
+
     if (lastAction.type === 'delete') {
-      // Restore deleted card to its original category and position
-      showCardRef.current(lastAction.cardId, lastAction.cardCategory);
-      
-      // Restore full order if available
-      if (lastAction.cardOrder) {
-        updateCardOrderRef.current(lastAction.cardOrder);
-      }
-      
       haptics.success();
-      toast.success('Værktøj gendannet', { 
-        description: 'Værktøjet er tilbage på dit dashboard',
-        duration: 2000 
-      });
+      toast.success('Værktøj gendannet', { duration: 2000 });
     } else {
-      // Handle move undo - restore previous state
-      updateCardCategoryAndOrderRef.current(
-        '', // No specific card
-        '', // No specific category  
-        lastAction.cardOrder || defaultCardOrder
-      );
-      
       haptics.tick();
       toast.success('Handling fortrudt', { duration: 2000 });
     }
-  }, [undoStack]);
+  }, [undoStack, restoreSnapshot]);
 
-  // Save state before drag operations (move type)
+  // Save snapshot before drag operations (move type)
   const saveUndoState = useCallback(() => {
+    const sanitizedCategories = Object.fromEntries(
+      Object.entries(cardCategories).filter(([k, v]) => Boolean(k?.trim()) && Boolean(v?.trim()))
+    ) as Record<string, string>;
+
+    const snapshot: DashboardSnapshot = {
+      card_order: cardOrder ? [...cardOrder] : null,
+      hidden_cards: [...hiddenCards],
+      card_categories: sanitizedCategories,
+    };
+
     setUndoStack(prev => [
-      ...prev.slice(-9), // Keep last 10 states
-      {
-        type: 'move' as const,
-        cardCategories: { ...cardCategories },
-        cardOrder: cardOrder ? [...cardOrder] : null,
-        hiddenCards: [...hiddenCards],
-      }
+      ...prev.slice(-9),
+      { type: 'move' as const, snapshot },
     ]);
   }, [cardCategories, cardOrder, hiddenCards]);
 
@@ -1044,7 +1024,7 @@ const Dashboard = () => {
                       {/* Cards Grid - 4 per row on desktop */}
                       {categoryCards && categoryCards.length > 0 ? (
                         <div 
-                          className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4"
+                          className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 auto-rows-fr items-stretch"
                           onMouseDown={handleLongPressStart}
                           onMouseUp={handleLongPressEnd}
                           onMouseLeave={handleLongPressEnd}
