@@ -6,10 +6,50 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 20; // 20 requests per minute per user
+
 const logStep = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[AI-CHAT] ${step}${detailsStr}`);
 };
+
+// Rate limiting helper
+async function checkRateLimit(supabase: any, identifier: string, endpoint: string, maxRequests: number): Promise<{ allowed: boolean; remaining: number }> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  
+  const { data: existing } = await supabase
+    .from("rate_limits")
+    .select("request_count, window_start")
+    .eq("identifier", identifier)
+    .eq("endpoint", endpoint)
+    .gte("window_start", windowStart)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.request_count >= maxRequests) {
+      return { allowed: false, remaining: 0 };
+    }
+    
+    await supabase
+      .from("rate_limits")
+      .update({ request_count: existing.request_count + 1 })
+      .eq("identifier", identifier)
+      .eq("endpoint", endpoint);
+    
+    return { allowed: true, remaining: maxRequests - existing.request_count - 1 };
+  }
+
+  await supabase.from("rate_limits").insert({
+    identifier,
+    endpoint,
+    request_count: 1,
+    window_start: new Date().toISOString(),
+  });
+
+  return { allowed: true, remaining: maxRequests - 1 };
+}
 
 // Guide links for smart recommendations
 const GUIDE_LINKS = `
@@ -101,6 +141,8 @@ serve(async (req) => {
     auth: { persistSession: false }
   });
 
+  const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+
   try {
     // 1. Validate authentication
     const authHeader = req.headers.get("Authorization");
@@ -126,12 +168,22 @@ serve(async (req) => {
     const user = userData.user;
     logStep("User authenticated", { userId: user.id });
 
+    // Rate limiting check based on user ID
+    const rateCheck = await checkRateLimit(supabase, user.id, "ai-chat", RATE_LIMIT_MAX_REQUESTS);
+    if (!rateCheck.allowed) {
+      logStep("Rate limit exceeded", { userId: user.id });
+      return new Response(JSON.stringify({ error: "For mange beskeder. Vent venligst et minut." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // 2. Check for active subscription
     const { data: subscription, error: subError } = await supabase
       .from("subscriptions")
       .select("id, status, plan_tier")
       .eq("user_id", user.id)
-      .eq("status", "active")
+      .in("status", ["active", "trialing"])
       .maybeSingle();
 
     if (subError) {
