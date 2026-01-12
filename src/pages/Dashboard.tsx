@@ -190,9 +190,11 @@ const Dashboard = () => {
     categoryTitles: customCategoryTitles,
     categoryOrder,
     customCategories,
+    cardCategories,
     hideCard, 
     showCard, 
     updateCardOrder,
+    updateCardCategoryAndOrder,
     updateCategoryTitle,
     updateCategoryOrder,
     addCustomCategory,
@@ -212,14 +214,30 @@ const Dashboard = () => {
     })
   );
 
+  // Get effective category for a card (user override or default)
+  const getCardCategory = useCallback((cardId: string): string => {
+    // Check user-persisted category first, then fall back to default
+    if (cardCategories[cardId]) {
+      return cardCategories[cardId];
+    }
+    const card = allCards.find(c => c.id === cardId);
+    return card?.category || 'extras';
+  }, [cardCategories]);
+
   // Calculate visible cards based on order and hidden status
   const visibleCards = useMemo(() => {
     const order = cardOrder || defaultCardOrder;
     return order
       .filter(id => !hiddenCards.includes(id))
-      .map(id => allCards.find(c => c.id === id))
+      .map(id => {
+        const card = allCards.find(c => c.id === id);
+        if (!card) return undefined;
+        // Apply user's category override
+        const effectiveCategory = getCardCategory(card.id);
+        return { ...card, category: effectiveCategory };
+      })
       .filter((c): c is CardDefinition => c !== undefined);
-  }, [cardOrder, hiddenCards]);
+  }, [cardOrder, hiddenCards, getCardCategory]);
 
   // Get hidden card definitions for the modal
   const hiddenCardDefinitions = useMemo(() => {
@@ -404,27 +422,30 @@ const Dashboard = () => {
       return;
     }
 
-    // Dragging cards - check if moving between categories or within same category
-    const activeCard = allCards.find(c => c.id === activeId);
-    const overCard = allCards.find(c => c.id === overId);
-    
-    // Cross-category move: update the card's category
-    if (activeCard && overCard && activeCard.category !== overCard.category) {
-      // Find index in allCards to update category
-      const updatedCards = [...allCards];
-      const activeIndex = updatedCards.findIndex(c => c.id === activeId);
-      if (activeIndex !== -1) {
-        updatedCards[activeIndex] = { ...updatedCards[activeIndex], category: overCard.category };
-      }
-    }
-    
-    // Update card order (supports cross-category movement via visual position)
+    // Dragging cards
     const currentCardOrder = cardOrder || defaultCardOrder;
     const oldIndex = currentCardOrder.indexOf(activeId);
     const newIndex = currentCardOrder.indexOf(overId);
     
-    if (oldIndex !== -1 && newIndex !== -1) {
-      const newOrder = arrayMove(currentCardOrder, oldIndex, newIndex);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Get effective categories for both cards
+    const activeCardCategory = getCardCategory(activeId);
+    const overCardCategory = getCardCategory(overId);
+    
+    // Calculate new order
+    const newOrder = arrayMove(currentCardOrder, oldIndex, newIndex);
+    
+    // Check if this is a cross-category move
+    if (activeCardCategory !== overCardCategory) {
+      // Cross-category move: update both category AND order in one call
+      updateCardCategoryAndOrder(activeId, overCardCategory, newOrder);
+      toast.success('Værktøj flyttet', {
+        description: `Flyttet til ny kategori`,
+        duration: 2000,
+      });
+    } else {
+      // Same category: just update order
       updateCardOrder(newOrder);
     }
   };

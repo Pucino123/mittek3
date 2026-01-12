@@ -15,6 +15,7 @@ interface DashboardSettings {
   category_titles: Record<string, string>;
   category_order: string[] | null;
   custom_categories: CustomCategory[];
+  card_categories: Record<string, string>; // cardId -> categoryId mapping
 }
 
 // localStorage helpers
@@ -46,6 +47,7 @@ export function useDashboardSettings() {
     category_titles: {},
     category_order: null,
     custom_categories: [],
+    card_categories: {},
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,7 +57,10 @@ export function useDashboardSettings() {
       // Try localStorage for non-authenticated users
       const localSettings = loadFromLocalStorage();
       if (localSettings) {
-        setSettings(localSettings);
+        setSettings({
+          ...localSettings,
+          card_categories: localSettings.card_categories || {},
+        });
       }
       setIsLoading(false);
       return;
@@ -65,7 +70,7 @@ export function useDashboardSettings() {
       try {
         const { data, error } = await supabase
           .from('user_dashboard_settings')
-          .select('card_order, hidden_cards')
+          .select('card_order, hidden_cards, card_categories')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -80,6 +85,7 @@ export function useDashboardSettings() {
             category_titles: localSettings?.category_titles || {},
             category_order: localSettings?.category_order || null,
             custom_categories: localSettings?.custom_categories || [],
+            card_categories: (data.card_categories as Record<string, string>) || {},
           };
           setSettings(loadedSettings);
           // Also save to localStorage as backup
@@ -92,6 +98,7 @@ export function useDashboardSettings() {
             category_titles: {},
             category_order: null,
             custom_categories: [],
+            card_categories: {},
           };
           setSettings(defaultSettings);
           saveToLocalStorage(defaultSettings);
@@ -101,7 +108,10 @@ export function useDashboardSettings() {
         // Fallback to localStorage
         const localSettings = loadFromLocalStorage();
         if (localSettings) {
-          setSettings(localSettings);
+          setSettings({
+            ...localSettings,
+            card_categories: localSettings.card_categories || {},
+          });
         }
       } finally {
         setIsLoading(false);
@@ -129,6 +139,7 @@ export function useDashboardSettings() {
           user_id: user.id,
           card_order: updatedSettings.card_order,
           hidden_cards: updatedSettings.hidden_cards,
+          card_categories: updatedSettings.card_categories,
         }, { onConflict: 'user_id' });
 
       if (error) throw error;
@@ -155,6 +166,21 @@ export function useDashboardSettings() {
     saveSettings({ card_order: newOrder });
   }, [saveSettings]);
 
+  // Update a single card's category (for cross-category drag)
+  const updateCardCategory = useCallback((cardId: string, newCategoryId: string) => {
+    const newCardCategories = { ...settings.card_categories, [cardId]: newCategoryId };
+    saveSettings({ card_categories: newCardCategories });
+  }, [settings.card_categories, saveSettings]);
+
+  // Batch update card categories and order (for drag operations)
+  const updateCardCategoryAndOrder = useCallback((cardId: string, newCategoryId: string, newOrder: string[]) => {
+    const newCardCategories = { ...settings.card_categories, [cardId]: newCategoryId };
+    saveSettings({ 
+      card_categories: newCardCategories,
+      card_order: newOrder,
+    });
+  }, [settings.card_categories, saveSettings]);
+
   // Reset to default - clear DB and localStorage
   const resetToDefault = useCallback(async () => {
     // Clear localStorage
@@ -165,7 +191,14 @@ export function useDashboardSettings() {
     }
     
     // Reset local state
-    setSettings({ card_order: null, hidden_cards: [], category_titles: {}, category_order: null, custom_categories: [] });
+    setSettings({ 
+      card_order: null, 
+      hidden_cards: [], 
+      category_titles: {}, 
+      category_order: null, 
+      custom_categories: [],
+      card_categories: {},
+    });
     
     // Clear from DB if authenticated
     if (user) {
@@ -236,14 +269,23 @@ export function useDashboardSettings() {
     const newHiddenCards = cardIdsInCategory 
       ? [...new Set([...settings.hidden_cards, ...cardIdsInCategory])]
       : settings.hidden_cards;
+
+    // Also remove card_categories entries for deleted category's cards
+    const newCardCategories = { ...settings.card_categories };
+    if (cardIdsInCategory) {
+      cardIdsInCategory.forEach(cardId => {
+        delete newCardCategories[cardId];
+      });
+    }
     
     saveSettings({ 
       custom_categories: newCustomCategories,
       category_order: newOrder,
       category_titles: newCategoryTitles,
       hidden_cards: newHiddenCards,
+      card_categories: newCardCategories,
     });
-  }, [settings.custom_categories, settings.category_order, settings.category_titles, settings.hidden_cards, saveSettings]);
+  }, [settings.custom_categories, settings.category_order, settings.category_titles, settings.hidden_cards, settings.card_categories, saveSettings]);
 
   return {
     cardOrder: settings.card_order,
@@ -251,10 +293,13 @@ export function useDashboardSettings() {
     categoryTitles: settings.category_titles,
     categoryOrder: settings.category_order,
     customCategories: settings.custom_categories,
+    cardCategories: settings.card_categories,
     isLoading,
     hideCard,
     showCard,
     updateCardOrder,
+    updateCardCategory,
+    updateCardCategoryAndOrder,
     updateCategoryTitle,
     updateCategoryOrder,
     addCustomCategory,
