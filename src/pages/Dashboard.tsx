@@ -705,19 +705,33 @@ const Dashboard = () => {
   };
 
   // Undo functionality - handles both move and delete actions
+  // Use a ref to always have access to latest functions
+  const showCardRef = useRef(showCard);
+  const updateCardOrderRef = useRef(updateCardOrder);
+  const updateCardCategoryAndOrderRef = useRef(updateCardCategoryAndOrder);
+  
+  useEffect(() => {
+    showCardRef.current = showCard;
+    updateCardOrderRef.current = updateCardOrder;
+    updateCardCategoryAndOrderRef.current = updateCardCategoryAndOrder;
+  }, [showCard, updateCardOrder, updateCardCategoryAndOrder]);
+
   const handleUndo = useCallback(() => {
-    if (undoStack.length === 0) return;
+    if (undoStack.length === 0) {
+      toast.info('Ingen handlinger at fortryde', { duration: 1500 });
+      return;
+    }
     
     const lastAction = undoStack[undoStack.length - 1];
     setUndoStack(prev => prev.slice(0, -1));
     
     if (lastAction.type === 'delete') {
       // Restore deleted card to its original category and position
-      showCard(lastAction.cardId, lastAction.cardCategory);
+      showCardRef.current(lastAction.cardId, lastAction.cardCategory);
       
       // Restore full order if available
       if (lastAction.cardOrder) {
-        updateCardOrder(lastAction.cardOrder);
+        updateCardOrderRef.current(lastAction.cardOrder);
       }
       
       haptics.success();
@@ -727,7 +741,7 @@ const Dashboard = () => {
       });
     } else {
       // Handle move undo - restore previous state
-      updateCardCategoryAndOrder(
+      updateCardCategoryAndOrderRef.current(
         '', // No specific card
         '', // No specific category  
         lastAction.cardOrder || defaultCardOrder
@@ -736,7 +750,7 @@ const Dashboard = () => {
       haptics.tick();
       toast.success('Handling fortrudt', { duration: 2000 });
     }
-  }, [undoStack, updateCardCategoryAndOrder, showCard, updateCardOrder]);
+  }, [undoStack]);
 
   // Save state before drag operations (move type)
   const saveUndoState = useCallback(() => {
