@@ -12,6 +12,15 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Security: Disable this function in production
+  const environment = Deno.env.get("ENVIRONMENT") || "development";
+  if (environment === "production") {
+    return new Response(
+      JSON.stringify({ error: "Function disabled in production" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
