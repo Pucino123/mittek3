@@ -11,6 +11,13 @@ const corsHeaders = {
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per minute per user
 
+// Product ID to plan tier mapping (same as stripe-webhook)
+const PRODUCT_TIER_MAP: Record<string, string> = {
+  "prod_Tl6ynRCM8KbUL6": "basic",
+  "prod_Tl6zZq8UNBdnPN": "plus",
+  "prod_Tl6zLUM9nEq1TX": "pro",
+};
+
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[CLAIM-SUBSCRIPTION] ${step}${detailsStr}`);
@@ -139,29 +146,112 @@ serve(async (req) => {
     const { sessionId } = await req.json();
     logStep("Claiming session", { sessionId });
 
-    // Find the pending subscription
-    const { data: pending, error: pendingError } = await supabaseAdmin
+    // First, check if user already has an active subscription
+    const { data: existingSub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", user.id)
+      .in("status", ["active", "trialing"])
+      .maybeSingle();
+
+    if (existingSub) {
+      logStep("User already has active subscription", { existingSub });
+      return new Response(JSON.stringify({ success: true, planTier: existingSub.plan_tier, alreadyExists: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Try to find pending subscription first (from webhook)
+    let pending = null;
+    const { data: pendingData, error: pendingError } = await supabaseAdmin
       .from("pending_subscriptions")
       .select("*")
       .eq("checkout_session_id", sessionId)
       .eq("claimed", false)
       .maybeSingle();
 
-    if (pendingError) {
-      logStep("ERROR finding pending subscription", pendingError);
-      throw new Error("Could not find pending subscription");
+    if (!pendingError && pendingData) {
+      pending = pendingData;
+      logStep("Found pending subscription from webhook", { planTier: pending.plan_tier });
+    } else {
+      // No pending subscription - fetch directly from Stripe (webhook might not have arrived yet)
+      logStep("No pending subscription found, fetching from Stripe directly");
+      
+      try {
+        const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId, {
+          expand: ['subscription']
+        });
+        
+        logStep("Retrieved Stripe checkout session", { 
+          sessionId: checkoutSession.id,
+          status: checkoutSession.status,
+          paymentStatus: checkoutSession.payment_status,
+          email: checkoutSession.customer_email
+        });
+
+        // Verify the checkout was completed
+        if (checkoutSession.status !== 'complete' || checkoutSession.payment_status !== 'paid') {
+          logStep("Checkout not completed", { status: checkoutSession.status, paymentStatus: checkoutSession.payment_status });
+          return new Response(JSON.stringify({ error: "Checkout not completed yet" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          });
+        }
+
+        const subscription = checkoutSession.subscription as Stripe.Subscription;
+        if (!subscription) {
+          throw new Error("No subscription found in checkout session");
+        }
+
+        // Get plan tier from product
+        const productId = subscription.items.data[0]?.price?.product as string;
+        const planTier = PRODUCT_TIER_MAP[productId] || "basic";
+
+        logStep("Subscription details from Stripe", {
+          subscriptionId: subscription.id,
+          productId,
+          planTier,
+          status: subscription.status
+        });
+
+        // Create pending subscription record for tracking (in case it wasn't created by webhook)
+        const { error: insertError } = await supabaseAdmin
+          .from("pending_subscriptions")
+          .insert({
+            checkout_session_id: sessionId,
+            stripe_customer_id: checkoutSession.customer as string,
+            stripe_subscription_id: subscription.id,
+            purchaser_email: checkoutSession.customer_email || user.email || "",
+            plan_tier: planTier,
+            claimed: false,
+          });
+
+        if (insertError && !insertError.message?.includes('duplicate')) {
+          logStep("Warning: Could not insert pending subscription", insertError);
+        }
+
+        // Build pending object from Stripe data
+        pending = {
+          id: null, // Will be null for direct Stripe fetch
+          checkout_session_id: sessionId,
+          stripe_customer_id: checkoutSession.customer as string,
+          stripe_subscription_id: subscription.id,
+          purchaser_email: checkoutSession.customer_email || user.email || "",
+          plan_tier: planTier,
+        };
+        
+      } catch (stripeError: any) {
+        logStep("ERROR fetching from Stripe", { error: stripeError.message });
+        await logAudit(supabaseAdmin, user.id, "claim_failed", "subscription", sessionId, { reason: "stripe_fetch_failed", error: stripeError.message }, "error", ipAddress, userAgent);
+        return new Response(JSON.stringify({ error: "Could not verify payment. Please try again or contact support." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 404,
+        });
+      }
     }
 
-    if (!pending) {
-      logStep("No pending subscription found or already claimed");
-      await logAudit(supabaseAdmin, user.id, "claim_failed", "subscription", sessionId, { reason: "not_found_or_claimed" }, "warning", ipAddress, userAgent);
-      return new Response(JSON.stringify({ error: "No pending subscription found or already claimed" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 404,
-      });
-    }
-
-    logStep("Found pending subscription", { 
+    logStep("Processing subscription claim", { 
       planTier: pending.plan_tier, 
       email: pending.purchaser_email,
       stripeSubscriptionId: pending.stripe_subscription_id
@@ -177,7 +267,7 @@ serve(async (req) => {
     if (pending.stripe_subscription_id) {
       try {
         const stripeSubscription = await stripe.subscriptions.retrieve(pending.stripe_subscription_id);
-        logStep("Fetched Stripe subscription", { 
+        logStep("Fetched Stripe subscription details", { 
           status: stripeSubscription.status,
           trialEnd: stripeSubscription.trial_end
         });
@@ -193,7 +283,7 @@ serve(async (req) => {
           trialEnd = new Date(stripeSubscription.trial_end * 1000).toISOString();
         }
       } catch (stripeError) {
-        logStep("Warning: Could not fetch Stripe subscription, using defaults", stripeError);
+        logStep("Warning: Could not fetch Stripe subscription details, using defaults", stripeError);
       }
     }
 
@@ -219,17 +309,28 @@ serve(async (req) => {
 
     logStep("Subscription created", { status: subscriptionStatus, trialEnd });
 
-    // Mark pending as claimed
-    const { error: updateError } = await supabaseAdmin
-      .from("pending_subscriptions")
-      .update({ 
-        claimed: true, 
-        claimed_by: user.id 
-      })
-      .eq("id", pending.id);
+    // Mark pending as claimed (if we have the record)
+    if (pending.id) {
+      const { error: updateError } = await supabaseAdmin
+        .from("pending_subscriptions")
+        .update({ 
+          claimed: true, 
+          claimed_by: user.id 
+        })
+        .eq("id", pending.id);
 
-    if (updateError) {
-      logStep("ERROR updating pending", updateError);
+      if (updateError) {
+        logStep("ERROR updating pending", updateError);
+      }
+    } else {
+      // Update by session ID if we created it from Stripe directly
+      await supabaseAdmin
+        .from("pending_subscriptions")
+        .update({ 
+          claimed: true, 
+          claimed_by: user.id 
+        })
+        .eq("checkout_session_id", sessionId);
     }
 
     logStep("Pending subscription marked as claimed");
@@ -241,7 +342,7 @@ serve(async (req) => {
       "subscription_claimed",
       "subscription",
       pending.stripe_subscription_id,
-      { planTier: pending.plan_tier, status: subscriptionStatus, email: user.email },
+      { planTier: pending.plan_tier, status: subscriptionStatus, email: user.email, directFromStripe: !pendingData },
       "info",
       ipAddress,
       userAgent
