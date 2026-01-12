@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { BackButton } from '@/components/layout/BackButton';
-import { DeviceSelector } from '@/components/ui/DeviceSelector';
-import { DeviceType } from '@/data/hardcodedGuides';
+import { DeviceSelector, DeviceType } from '@/components/ui/DeviceSelector';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
