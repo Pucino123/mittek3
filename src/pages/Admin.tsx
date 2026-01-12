@@ -173,11 +173,11 @@ const Admin = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Use LEFT JOIN approach: fetch profiles with their subscriptions embedded
+      // Fetch profiles and subscriptions separately (no FK relationship exists)
       const [profilesRes, subscriptionsRes, pendingRes, guidesRes, ticketsRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('*, subscriptions(*)')
+          .select('*')
           .order('created_at', { ascending: false })
           .range(0, 999),
         supabase.from('subscriptions').select('*').order('created_at', { ascending: false }).range(0, 999),
@@ -193,26 +193,32 @@ const Admin = () => {
       }
       if (subscriptionsRes.error) {
         console.error('Subscriptions fetch error:', subscriptionsRes.error);
+        toast.error(`Abonnementer: ${subscriptionsRes.error.message}`);
       }
 
       console.log('Fetched profiles:', profilesRes.data?.length, 'Subscriptions:', subscriptionsRes.data?.length);
 
+      // Store subscriptions first so we can use them in the merge
+      const allSubscriptions = subscriptionsRes.data || [];
+      setSubscriptions(allSubscriptions);
+
       if (profilesRes.data) {
-        // Transform the data: subscriptions comes as array, we want the most recent active/trialing one
+        // Merge profiles with their subscriptions manually (LEFT JOIN simulation)
         const transformedProfiles = profilesRes.data.map((p: any) => {
-          const subs = p.subscriptions as Subscription[] | null;
+          // Find all subscriptions for this user
+          const userSubs = allSubscriptions.filter(s => s.user_id === p.user_id);
           // Get the best subscription (prioritize active > trialing > others)
-          const bestSub = subs?.length 
-            ? subs.sort((a, b) => {
-                const priority = { active: 3, trialing: 2, past_due: 1, canceled: 0, incomplete: -1 };
-                return (priority[b.status as keyof typeof priority] ?? -1) - (priority[a.status as keyof typeof priority] ?? -1);
+          const bestSub = userSubs.length 
+            ? userSubs.sort((a, b) => {
+                const priority: Record<string, number> = { active: 3, trialing: 2, past_due: 1, canceled: 0, incomplete: -1 };
+                return (priority[b.status] ?? -1) - (priority[a.status] ?? -1);
               })[0]
             : null;
           return { ...p, subscriptions: bestSub };
         });
         setProfiles(transformedProfiles);
       }
-      if (subscriptionsRes.data) setSubscriptions(subscriptionsRes.data);
+      
       if (pendingRes.data) setPendingSubscriptions(pendingRes.data);
       if (guidesRes.data) setGuides(guidesRes.data);
       if (ticketsRes.data) setTickets(ticketsRes.data);
@@ -896,15 +902,17 @@ const Admin = () => {
     p.display_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Calculate KPI metrics
+  // Calculate KPI metrics - get admin user_ids to exclude from revenue
+  const adminUserIds = profiles.filter(p => p.is_admin).map(p => p.user_id);
+  
   const kpiMetrics = {
     totalUsers: profiles.length,
-    payingUsers: subscriptions.filter(s => s.status === 'active').length,
+    payingUsers: subscriptions.filter(s => s.status === 'active' && !adminUserIds.includes(s.user_id)).length,
     trialingUsers: subscriptions.filter(s => s.status === 'trialing').length,
     canceledUsers: subscriptions.filter(s => s.status === 'canceled').length,
-    // MRR calculation based on plan prices (DKK)
+    // MRR calculation: ONLY count 'active' subscriptions, exclude admins
     mrr: subscriptions
-      .filter(s => s.status === 'active' || s.status === 'trialing')
+      .filter(s => s.status === 'active' && !adminUserIds.includes(s.user_id))
       .reduce((sum, s) => {
         const prices: Record<string, number> = { basic: 49, plus: 99, pro: 199 };
         return sum + (prices[s.plan_tier] || 0);
