@@ -191,7 +191,7 @@ const Dashboard = () => {
   const toolsSectionRef = useRef<HTMLDivElement>(null);
   
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
-  const { user, profile, hasAccess, signOut, isSubscriptionActive, subscription } = useAuth();
+  const { user, profile, hasAccess, signOut, isSubscriptionActive, subscription, refetchProfile } = useAuth();
   const navigate = useNavigate();
   
   const { 
@@ -356,8 +356,11 @@ const Dashboard = () => {
         throw response.error;
       }
 
+      // Refresh profile to get updated admin status
+      await refetchProfile();
+
       toast.success('Konto opgraderet til Admin/Pro!', {
-        description: 'Genindlæs siden for at se ændringerne.',
+        description: 'Admin-panelet er nu tilgængeligt.',
       });
     } catch (error: any) {
       console.error('Dev fix error:', error);

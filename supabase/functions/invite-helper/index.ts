@@ -125,28 +125,30 @@ serve(async (req: Request) => {
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <div style="width: 60px; height: 60px; background: #3B82F6; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;">
-              <span style="color: white; font-size: 28px;">🛡️</span>
+            <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
             </div>
-            <h1 style="color: #1a1a1a; margin-top: 16px;">MitTek</h1>
+            <h1 style="color: #1a1a1a; margin-top: 16px; font-size: 24px;">MitTek</h1>
           </div>
           
-          <h2 style="color: #1a1a1a;">Hej!</h2>
+          <h2 style="color: #1a1a1a; font-size: 20px;">Hej!</h2>
           
-          <p><strong>${senderName}</strong> har inviteret dig som deres trygheds-hjælper på MitTek.</p>
+          <p style="font-size: 16px;"><strong>${senderName}</strong> har inviteret dig som deres trygheds-hjælper på MitTek.</p>
           
-          <p>Som hjælper kan du:</p>
-          <ul>
+          <p style="font-size: 16px;">Som hjælper kan du:</p>
+          <ul style="font-size: 16px;">
             ${can_view_dashboard ? '<li>Se deres oversigt og status</li>' : ''}
             ${can_view_checkins ? '<li>Se deres månedlige tjek-resultater</li>' : ''}
             ${can_view_tickets ? '<li>Se deres support-sager</li>' : ''}
             ${can_view_notes ? '<li>Se deres noter</li>' : ''}
           </ul>
           
-          <p>På den måde kan du hjælpe dem med at holde øje med deres digitale sikkerhed.</p>
+          <p style="font-size: 16px;">På den måde kan du hjælpe dem med at holde øje med deres digitale sikkerhed.</p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${inviteLink}" style="display: inline-block; background: #3B82F6; color: white; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 16px;">
+            <a href="${inviteLink}" style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);">
               Accepter invitation
             </a>
           </div>
