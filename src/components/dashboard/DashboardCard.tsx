@@ -97,7 +97,7 @@ export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
           ref={ref}
           style={style}
           className={cn(
-            "card-interactive p-3 sm:p-5 flex flex-col relative min-h-[140px] sm:min-h-[160px]",
+            "card-interactive p-3 sm:p-5 flex flex-col relative h-[150px] sm:h-[170px]",
             !hasAccess && "opacity-60 grayscale-[20%]",
             isEditMode && "animate-wiggle cursor-grab",
             isDragging && "opacity-50 scale-105 shadow-xl"
@@ -113,7 +113,7 @@ export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
       <Link
         to={hasAccess ? href : '/settings/subscription'}
         className={cn(
-          "card-interactive p-3 sm:p-5 flex flex-col min-h-[140px] sm:min-h-[160px]",
+          "card-interactive p-3 sm:p-5 flex flex-col h-[150px] sm:h-[170px]",
           !hasAccess && "opacity-60 grayscale-[20%]"
         )}
       >
