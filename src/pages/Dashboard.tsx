@@ -193,7 +193,7 @@ const Dashboard = () => {
   const toolsSectionRef = useRef<HTMLDivElement>(null);
   
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
-  const { user, profile, hasAccess, signOut, isSubscriptionActive, subscription, refetchProfile } = useAuth();
+  const { user, profile, isAdmin, hasAccess, signOut, isSubscriptionActive, subscription, refetchProfile } = useAuth();
   const navigate = useNavigate();
 
   const adminCard = adminCardDefinition;
@@ -633,6 +633,29 @@ const Dashboard = () => {
           </p>
         </div>
 
+        {/* Admin Card - directly under "Dine værktøjer" (admins only) */}
+        {isAdmin && !isEditMode && (
+          <div className="mb-6 sm:mb-8">
+            <Link
+              to={adminCard.href}
+              className="card-interactive p-3 sm:p-5 flex flex-col h-[180px] sm:h-[200px] md:h-[210px] border-2 border-primary/30"
+            >
+              <div className="flex items-start justify-between mb-2 sm:mb-3">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${adminCard.color} flex items-center justify-center shrink-0`}>
+                  <AdminIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+                </div>
+              </div>
+              <h3 className="text-sm sm:text-lg font-semibold mb-0.5 sm:mb-1 leading-tight line-clamp-1">{adminCard.title}</h3>
+              <p className="text-muted-foreground text-[11px] sm:text-sm line-clamp-2">{adminCard.description}</p>
+              <div className="flex-1" />
+              <div className="mt-2 sm:mt-3 flex items-center text-primary font-medium text-xs sm:text-sm">
+                Åbn
+                <ChevronRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
+              </div>
+            </Link>
+          </div>
+        )}
+
         {/* Categories with Cards */}
         <div ref={toolsSectionRef}>
           <DndContext
@@ -651,10 +674,9 @@ const Dashboard = () => {
                   // Also check custom categories that might be empty but should still render
                   const isCustomCategory = categoryId.startsWith('custom_');
                   const customCategoryData = customCategories.find(c => c.id === categoryId);
-                  const hasAdminCard = categoryId === 'tools' && !!profile?.is_admin;
                   
-                  // Skip if no cards AND not a custom category AND no admin card for tools
-                  if (categoryCards.length === 0 && !isCustomCategory && !hasAdminCard) return null;
+                  // Skip if no cards AND not a custom category
+                  if (categoryCards.length === 0 && !isCustomCategory) return null;
                   
                   const defaultTitle = customCategoryData?.title || defaultCategoryTitles[categoryId] || categoryId;
                   const customTitle = customCategoryTitles[categoryId];
@@ -673,7 +695,7 @@ const Dashboard = () => {
                       />
                     
                       {/* Cards Grid - 4 per row on desktop */}
-                      {categoryCards && (categoryCards.length > 0 || (categoryId === 'tools' && profile?.is_admin && !isEditMode)) ? (
+                      {categoryCards && categoryCards.length > 0 ? (
                         <SortableContext
                           items={categoryCards.map((c) => c.id)}
                           strategy={rectSortingStrategy}
@@ -686,26 +708,6 @@ const Dashboard = () => {
                             onTouchStart={handleLongPressStart}
                             onTouchEnd={handleLongPressEnd}
                           >
-                            {/* Admin Card - Pinned first in Tools for admins */}
-                            {categoryId === 'tools' && profile?.is_admin && !isEditMode && (
-                              <Link
-                                to={adminCard.href}
-                                className="card-interactive p-3 sm:p-5 flex flex-col h-[180px] sm:h-[200px] md:h-[210px] border-2 border-primary/30"
-                              >
-                                <div className="flex items-start justify-between mb-2 sm:mb-3">
-                                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${adminCard.color} flex items-center justify-center shrink-0`}>
-                                    <AdminIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-                                  </div>
-                                </div>
-                                <h3 className="text-sm sm:text-lg font-semibold mb-0.5 sm:mb-1 leading-tight line-clamp-1">{adminCard.title}</h3>
-                                <p className="text-muted-foreground text-[11px] sm:text-sm line-clamp-2">{adminCard.description}</p>
-                                <div className="flex-1" />
-                                <div className="mt-2 sm:mt-3 flex items-center text-primary font-medium text-xs sm:text-sm">
-                                  Åbn
-                                  <ChevronRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
-                                </div>
-                              </Link>
-                            )}
                             {categoryCards.map((card) => (
                               <SortableCard
                                 key={card.id}

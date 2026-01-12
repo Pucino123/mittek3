@@ -122,7 +122,7 @@ interface Message {
 }
 
 const Admin = () => {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [pendingSubscriptions, setPendingSubscriptions] = useState<PendingSubscription[]>([]);
@@ -772,7 +772,7 @@ const Admin = () => {
   );
 
   // Check if current user is admin
-  if (!profile?.is_admin) {
+  if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
