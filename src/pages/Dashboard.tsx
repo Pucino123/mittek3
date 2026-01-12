@@ -61,6 +61,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragOverEvent,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -145,7 +147,7 @@ function SortableCard({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || 'transform 150ms ease',
   };
 
   return (
@@ -167,6 +169,32 @@ function SortableCard({
   );
 }
 
+// Droppable zone for empty categories
+function EmptyCategoryDropZone({ categoryId, isOver }: { categoryId: string; isOver: boolean }) {
+  const { setNodeRef } = useDroppable({
+    id: `dropzone-${categoryId}`,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 min-h-[120px] flex items-center justify-center",
+        isOver 
+          ? "border-primary bg-primary/10 scale-[1.02]" 
+          : "border-muted-foreground/30 bg-muted/20"
+      )}
+    >
+      <p className={cn(
+        "text-sm font-medium transition-colors",
+        isOver ? "text-primary" : "text-muted-foreground"
+      )}>
+        {isOver ? "Slip for at placere her" : "Træk værktøjer hertil"}
+      </p>
+    </div>
+  );
+}
+
 const Dashboard = () => {
   // Enable scroll restoration for dashboard
   useScrollRestoration();
@@ -177,6 +205,7 @@ const Dashboard = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+  const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
   const toolsSectionRef = useRef<HTMLDivElement>(null);
   
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
@@ -397,14 +426,30 @@ const Dashboard = () => {
     }
   };
 
+  // Handle drag over for visual feedback on empty zones
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    if (over?.id && String(over.id).startsWith('dropzone-')) {
+      setActiveDropZone(String(over.id).replace('dropzone-', ''));
+    } else {
+      setActiveDropZone(null);
+    }
+  };
+
   // Handle drag end for both cards and categories
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    
+    // Clear drop zone highlight
+    setActiveDropZone(null);
 
-    if (!over || active.id === over.id) return;
+    if (!over) return;
 
     const activeId = String(active.id);
     const overId = String(over.id);
+    
+    // Don't do anything if dropped on itself
+    if (activeId === overId) return;
 
     // Check if dragging categories
     if (activeId.startsWith('category-') && overId.startsWith('category-')) {
@@ -422,7 +467,21 @@ const Dashboard = () => {
       return;
     }
 
-    // Dragging cards
+    // Handle drop on empty category zone
+    if (overId.startsWith('dropzone-')) {
+      const targetCategoryId = overId.replace('dropzone-', '');
+      const currentCardOrder = cardOrder || defaultCardOrder;
+      
+      // Move card to target category
+      updateCardCategoryAndOrder(activeId, targetCategoryId, currentCardOrder);
+      toast.success('Værktøj flyttet', {
+        description: `Flyttet til ny kategori`,
+        duration: 2000,
+      });
+      return;
+    }
+
+    // Dragging cards onto other cards
     const currentCardOrder = cardOrder || defaultCardOrder;
     const oldIndex = currentCardOrder.indexOf(activeId);
     const newIndex = currentCardOrder.indexOf(overId);
@@ -644,6 +703,7 @@ const Dashboard = () => {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
             {/* Single unified SortableContext for all cards - enables cross-category dragging */}
@@ -661,8 +721,9 @@ const Dashboard = () => {
                   const isCustomCategory = categoryId.startsWith('custom_');
                   const customCategoryData = customCategories.find(c => c.id === categoryId);
                   
-                  // Skip if no cards AND not a custom category
-                  if (categoryCards.length === 0 && !isCustomCategory) return null;
+                  // In edit mode, show ALL categories including empty ones for drop targets
+                  // Outside edit mode, skip empty non-custom categories
+                  if (categoryCards.length === 0 && !isCustomCategory && !isEditMode) return null;
                   
                   const defaultTitle = customCategoryData?.title || defaultCategoryTitles[categoryId] || categoryId;
                   const customTitle = customCategoryTitles[categoryId];
@@ -701,10 +762,12 @@ const Dashboard = () => {
                           ))}
                         </div>
                       ) : (
-                        isEditMode && isCustomCategory && (
-                          <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center text-muted-foreground">
-                            <p>Træk værktøjer hertil</p>
-                          </div>
+                        // Show drop zone for empty categories in edit mode
+                        isEditMode && (
+                          <EmptyCategoryDropZone 
+                            categoryId={categoryId} 
+                            isOver={activeDropZone === categoryId}
+                          />
                         )
                       )}
                     </section>
