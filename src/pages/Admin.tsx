@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye, FileText, Shield } from 'lucide-react';
+import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye, FileText, Shield, TrendingUp, Clock, AlertTriangle, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -184,6 +184,17 @@ const Admin = () => {
         supabase.from('guides').select('*').order('sort_order', { ascending: true }).range(0, 999),
         supabase.from('support_tickets').select('*').order('updated_at', { ascending: false }).range(0, 999),
       ]);
+
+      // Log any errors for debugging
+      if (profilesRes.error) {
+        console.error('Profiles fetch error:', profilesRes.error);
+        toast.error(`Profiler: ${profilesRes.error.message}`);
+      }
+      if (subscriptionsRes.error) {
+        console.error('Subscriptions fetch error:', subscriptionsRes.error);
+      }
+
+      console.log('Fetched profiles:', profilesRes.data?.length, 'Subscriptions:', subscriptionsRes.data?.length);
 
       if (profilesRes.data) {
         // Transform the data: subscriptions comes as array, we want the most recent active/trialing one
@@ -834,6 +845,25 @@ const Admin = () => {
     p.display_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Calculate KPI metrics
+  const kpiMetrics = {
+    totalUsers: profiles.length,
+    payingUsers: subscriptions.filter(s => s.status === 'active').length,
+    trialingUsers: subscriptions.filter(s => s.status === 'trialing').length,
+    canceledUsers: subscriptions.filter(s => s.status === 'canceled').length,
+    // MRR calculation based on plan prices (DKK)
+    mrr: subscriptions
+      .filter(s => s.status === 'active' || s.status === 'trialing')
+      .reduce((sum, s) => {
+        const prices: Record<string, number> = { basic: 49, plus: 99, pro: 199 };
+        return sum + (prices[s.plan_tier] || 0);
+      }, 0),
+    // Churn rate: canceled / (active + canceled) last 30 days (simplified)
+    churnRate: subscriptions.length > 0 
+      ? Math.round((subscriptions.filter(s => s.status === 'canceled').length / subscriptions.length) * 100)
+      : 0,
+  };
+
   // Admin check is now handled by AdminRoute in App.tsx
   // This component will only render for verified admins
 
@@ -855,6 +885,93 @@ const Admin = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
           <p className="text-muted-foreground">Administrer brugere, support og indhold</p>
+        </div>
+
+        {/* KPI Overview Panel */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/20">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{kpiMetrics.totalUsers}</p>
+                  <p className="text-xs text-muted-foreground">Total brugere</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-success/10 to-success/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-success/20">
+                  <CreditCard className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{kpiMetrics.payingUsers}</p>
+                  <p className="text-xs text-muted-foreground">Betalende</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-info/10 to-info/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-info/20">
+                  <Clock className="h-5 w-5 text-info" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{kpiMetrics.trialingUsers}</p>
+                  <p className="text-xs text-muted-foreground">Prøveperiode</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-warning/10 to-warning/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-warning/20">
+                  <AlertTriangle className="h-5 w-5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{kpiMetrics.churnRate}%</p>
+                  <p className="text-xs text-muted-foreground">Churn rate</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-accent/10 to-accent/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-accent/20">
+                  <TrendingUp className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{kpiMetrics.mrr} kr</p>
+                  <p className="text-xs text-muted-foreground">MRR</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-destructive/20">
+                  <X className="h-5 w-5 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{kpiMetrics.canceledUsers}</p>
+                  <p className="text-xs text-muted-foreground">Opsagte</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
