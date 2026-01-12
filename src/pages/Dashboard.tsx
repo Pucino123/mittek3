@@ -224,13 +224,22 @@ function DragOverlayCard({ card, hasAccess }: { card: CardDefinition; hasAccess:
   return (
     <motion.div 
       className="pointer-events-none"
-      initial={{ scale: 1, opacity: 0.9 }}
+      initial={{ scale: 1, opacity: 0.9, rotate: 0 }}
       animate={{ 
         scale: 1.05,
         opacity: 1,
-        rotate: 0,
+        rotate: [0, -1.5, 1.5, -1.5, 1.5, 0],
       }}
-      transition={springTransition}
+      transition={{
+        scale: springTransition,
+        opacity: { duration: 0.15 },
+        rotate: {
+          duration: 0.5,
+          repeat: Infinity,
+          repeatType: 'loop',
+          ease: 'easeInOut',
+        },
+      }}
       style={{
         // Fixed dimensions matching card heights
         width: '100%',
