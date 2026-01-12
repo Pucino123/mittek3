@@ -50,6 +50,7 @@ import { useDashboardSettings } from '@/hooks/useDashboardSettings';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import { AddToolCard } from '@/components/dashboard/AddToolCard';
 import { AddToolModal } from '@/components/dashboard/AddToolModal';
+import { DashboardOnboardingTip } from '@/components/dashboard/DashboardOnboardingTip';
 
 import {
   DndContext,
@@ -622,6 +623,9 @@ const Dashboard = () => {
           DEV: Fix My Account
         </button>
       )}
+
+      {/* Onboarding Tip for first-time users */}
+      <DashboardOnboardingTip />
     </div>
   );
 };
