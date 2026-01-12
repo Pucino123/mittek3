@@ -806,7 +806,7 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="h-14 flex-wrap">
+          <TabsList className="h-14 w-full justify-start overflow-x-auto">
             <TabsTrigger value="users" className="h-12 px-4 md:px-6">
               <Users className="mr-2 h-5 w-5" />
               <span className="hidden sm:inline">Brugere</span> ({profiles.length})
