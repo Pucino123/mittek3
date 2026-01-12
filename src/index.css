@@ -425,14 +425,14 @@
   }
 }
 
-/* Apple-style wiggle animation for edit mode */
+/* Apple-style wiggle animation for edit mode - subtle */
 @keyframes wiggle {
-  0%, 100% { transform: rotate(-1deg); }
-  50% { transform: rotate(1deg); }
+  0%, 100% { transform: rotate(-0.5deg) translateX(-0.5px); }
+  50% { transform: rotate(0.5deg) translateX(0.5px); }
 }
 
 .animate-wiggle {
-  animation: wiggle 0.15s ease-in-out infinite;
+  animation: wiggle 0.3s ease-in-out infinite;
 }
 
 /* Custom scrollbar - subtle */
