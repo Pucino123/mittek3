@@ -189,7 +189,11 @@ const Pricing = () => {
               <div
                 key={plan.id}
                 className={`card-elevated p-5 sm:p-6 md:p-8 relative flex flex-col ${
-                  plan.popular ? 'ring-2 ring-primary shadow-xl shadow-primary/10 order-first sm:order-none sm:col-span-2 lg:col-span-1' : ''
+                  plan.popular ? 'ring-2 ring-primary shadow-xl shadow-primary/10' : ''
+                } ${
+                  plan.id === 'pro'
+                    ? 'sm:col-span-2 sm:max-w-[560px] sm:justify-self-center lg:col-span-1 lg:max-w-none'
+                    : ''
                 }`}
               >
                 {plan.popular && (

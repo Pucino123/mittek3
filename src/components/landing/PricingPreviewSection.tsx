@@ -60,7 +60,11 @@ export function PricingPreviewSection() {
             <div
               key={plan.name}
               className={`card-elevated p-6 relative ${
-                plan.popular ? 'ring-2 ring-primary shadow-xl shadow-primary/10 order-first sm:order-none sm:col-span-2 lg:col-span-1' : ''
+                plan.popular ? 'ring-2 ring-primary shadow-xl shadow-primary/10' : ''
+              } ${
+                plan.name === 'Pro'
+                  ? 'sm:col-span-2 sm:max-w-[420px] sm:justify-self-center lg:col-span-1 lg:max-w-none'
+                  : ''
               }`}
             >
               {plan.popular && (
