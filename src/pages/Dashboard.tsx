@@ -897,18 +897,6 @@ const Dashboard = () => {
           </Link>
 
           <div className="flex items-center gap-4">
-            {/* Edit Mode Indicator */}
-            {isEditMode && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditMode(false)}
-                className="gap-2"
-              >
-                <Check className="h-4 w-4" />
-                Færdig
-              </Button>
-            )}
 
             {/* Admin shortcut - only for admins */}
             {isAdmin && (
@@ -984,15 +972,30 @@ const Dashboard = () => {
 
 
 
-        {/* Tools Section Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex items-center gap-2 md:gap-2.5">
-            <h2 className="text-xl sm:text-2xl font-bold">Dine værktøjer</h2>
-            <ToolPageHelpButton inline />
+        {/* Tools Section Header with Done button on right */}
+        <div className="flex items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+          <div>
+            <div className="flex items-center gap-2 md:gap-2.5">
+              <h2 className="text-xl sm:text-2xl font-bold">Dine værktøjer</h2>
+              <ToolPageHelpButton inline />
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isEditMode ? 'Træk for at flytte • Tryk X for at skjule' : 'Hold nede for at tilpasse'}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            {isEditMode ? 'Træk for at flytte • Tryk X for at skjule' : 'Hold nede for at tilpasse'}
-          </p>
+          
+          {/* Done button - appears when in edit mode, positioned on the right */}
+          {isEditMode && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsEditMode(false)}
+              className="gap-2 shrink-0"
+            >
+              <Check className="h-4 w-4" />
+              Færdig
+            </Button>
+          )}
         </div>
         {/* Categories with Cards */}
         <div ref={toolsSectionRef}>
