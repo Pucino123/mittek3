@@ -152,6 +152,9 @@ serve(async (req) => {
         ? ((bodyJson as any).guides as IncomingGuide[])
         : [];
 
+    // Check for upsert mode (restore standard)
+    const isUpsertMode = bodyJson && isRecord(bodyJson) && (bodyJson as any).mode === "upsert";
+
     if (!incomingGuides.length) {
       return new Response(JSON.stringify({ error: "No guides provided" }), {
         status: 400,
@@ -159,7 +162,10 @@ serve(async (req) => {
       });
     }
 
-    logStep("Incoming guides", { count: incomingGuides.length });
+    logStep("Incoming guides", { count: incomingGuides.length, mode: isUpsertMode ? "upsert" : "insert" });
+
+    // Log all incoming guide titles for debugging
+    logStep("Guide titles received", { titles: incomingGuides.map(g => g.title) });
 
     // Fetch ALL existing guides (override default pagination limit)
     const { data: existingGuides, error: countError } = await supabaseAdmin
@@ -170,26 +176,84 @@ serve(async (req) => {
     if (countError) throw countError;
 
     const existingCount = existingGuides?.length || 0;
-    logStep("Existing guides", { count: existingCount });
+    logStep("Existing guides", { count: existingCount, titles: existingGuides?.map(g => g.title) });
 
     let syncedCount = 0;
     let skippedCount = 0;
+    let updatedCount = 0;
     const errors: string[] = [];
 
-    // Insert missing guides (do NOT overwrite existing admin edits)
+    // Process each guide
     for (const guideData of incomingGuides) {
-      if (!guideData?.title || typeof guideData.title !== "string") continue;
+      if (!guideData?.title || typeof guideData.title !== "string") {
+        logStep("Skipping invalid guide (no title)", { guide: guideData });
+        continue;
+      }
 
       const existingGuide = existingGuides?.find(
         (g) => g.title.toLowerCase() === guideData.title.toLowerCase()
       );
 
       if (existingGuide) {
-        logStep("Skipping existing guide", { title: guideData.title });
-        skippedCount++;
+        if (isUpsertMode) {
+          // UPSERT MODE: Update existing guide
+          logStep("Updating existing guide", { id: existingGuide.id, title: guideData.title });
+
+          const { error: updateError } = await supabaseAdmin
+            .from("guides")
+            .update({
+              description: guideData.description || null,
+              category: guideData.category || null,
+            })
+            .eq("id", existingGuide.id);
+
+          if (updateError) {
+            logStep("Error updating guide", { title: guideData.title, error: updateError });
+            errors.push(`Update "${guideData.title}": ${updateError.message}`);
+            continue;
+          }
+
+          // Delete existing steps and reinsert
+          await supabaseAdmin
+            .from("guide_steps")
+            .delete()
+            .eq("guide_id", existingGuide.id);
+
+          // Insert new steps
+          const steps = extractStepsForGuide(guideData);
+          if (steps.length > 0) {
+            const stepsToInsert: StepInsertRow[] = steps.map((s) => ({
+              guide_id: existingGuide.id,
+              step_number: s.step_number,
+              title: s.title,
+              instruction: s.instruction,
+              device_type: s.device_type ?? null,
+              image_url: s.image_url ?? null,
+              video_url: s.video_url ?? null,
+              animated_gif_url: s.animated_gif_url ?? null,
+              tip_text: s.tip_text ?? null,
+              warning_text: s.warning_text ?? null,
+            }));
+
+            const { error: stepsError } = await supabaseAdmin
+              .from("guide_steps")
+              .insert(stepsToInsert);
+
+            if (stepsError) {
+              logStep("Error reinserting steps", { guide_id: existingGuide.id, error: stepsError });
+            }
+          }
+
+          updatedCount++;
+        } else {
+          // INSERT MODE: Skip existing
+          logStep("Skipping existing guide", { title: guideData.title });
+          skippedCount++;
+        }
         continue;
       }
 
+      // INSERT new guide
       const sortOrder = existingCount + syncedCount;
 
       const { data: newGuide, error: guideError } = await supabaseAdmin
@@ -244,13 +308,14 @@ serve(async (req) => {
       syncedCount++;
     }
 
-    logStep("Sync complete", { synced: syncedCount, skipped: skippedCount, errors: errors.length });
+    logStep("Sync complete", { synced: syncedCount, updated: updatedCount, skipped: skippedCount, errors: errors.length });
 
     return new Response(
       JSON.stringify({
         success: true,
         message: `Synkronisering fuldført`,
         synced: syncedCount,
+        updated: updatedCount,
         skipped: skippedCount,
         errors: errors.length > 0 ? errors : undefined,
       }),
