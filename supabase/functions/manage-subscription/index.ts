@@ -55,12 +55,12 @@ serve(async (req) => {
     
     logStep("Request received", { action, subscription_id, new_plan_tier });
 
-    // Get user's subscription from DB
+    // Get user's subscription from DB (include both active and trialing)
     const { data: subData, error: subError } = await supabaseClient
       .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
-      .eq("status", "active")
+      .in("status", ["active", "trialing"])
       .order("created_at", { ascending: false })
       .maybeSingle();
 
