@@ -70,8 +70,11 @@ export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
           )}
         </div>
         
-        <h3 className="text-sm sm:text-lg font-semibold mb-0.5 sm:mb-1 leading-tight">{title}</h3>
-        <p className="text-muted-foreground text-[11px] sm:text-sm flex-1 line-clamp-2">{description}</p>
+        <h3 className="text-sm sm:text-lg font-semibold mb-0.5 sm:mb-1 leading-tight line-clamp-1">{title}</h3>
+        <p className="text-muted-foreground text-[11px] sm:text-sm line-clamp-2">{description}</p>
+        
+        {/* Spacer to push action to bottom */}
+        <div className="flex-1" />
         
         <div className="mt-2 sm:mt-3 flex items-center text-primary font-medium text-xs sm:text-sm">
           {hasAccess ? (
@@ -94,7 +97,7 @@ export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
           ref={ref}
           style={style}
           className={cn(
-            "card-interactive p-3 sm:p-5 flex flex-col relative",
+            "card-interactive p-3 sm:p-5 flex flex-col relative min-h-[140px] sm:min-h-[160px]",
             !hasAccess && "opacity-60 grayscale-[20%]",
             isEditMode && "animate-wiggle cursor-grab",
             isDragging && "opacity-50 scale-105 shadow-xl"
@@ -110,7 +113,7 @@ export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
       <Link
         to={hasAccess ? href : '/settings/subscription'}
         className={cn(
-          "card-interactive p-3 sm:p-5 flex flex-col",
+          "card-interactive p-3 sm:p-5 flex flex-col min-h-[140px] sm:min-h-[160px]",
           !hasAccess && "opacity-60 grayscale-[20%]"
         )}
       >

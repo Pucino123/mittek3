@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,7 @@ interface SystemContent {
   updated_at: string;
 }
 
-export function SystemContentEditor() {
+export const SystemContentEditor = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>((props, ref) => {
   const [items, setItems] = useState<SystemContent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<SystemContent | null>(null);
@@ -266,4 +266,6 @@ export function SystemContentEditor() {
       </Dialog>
     </>
   );
-}
+});
+
+SystemContentEditor.displayName = 'SystemContentEditor';
