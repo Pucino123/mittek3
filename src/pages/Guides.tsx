@@ -608,6 +608,32 @@ const Guides = () => {
             </p>
           </div>
 
+          {/* Reading Progress Bar */}
+          {guides.length > 0 && (
+            <div className="mb-6 p-4 bg-card border border-border rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-foreground">Din læsefremgang</span>
+                <span className="text-sm font-semibold text-primary">
+                  {guides.filter(g => isGuideRead(g.id)).length} af {guides.length} læst
+                </span>
+              </div>
+              <div className="h-3 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-primary to-success rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.round((guides.filter(g => isGuideRead(g.id)).length / guides.length) * 100)}%` 
+                  }}
+                />
+              </div>
+              {guides.filter(g => isGuideRead(g.id)).length === guides.length && (
+                <p className="text-xs text-success font-medium mt-2 flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Tillykke! Du har læst alle guides
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Search Bar - larger and more visible */}
           <div className="relative mb-6">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
