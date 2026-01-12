@@ -155,11 +155,21 @@ export function useDashboardSettings() {
     saveSettings({ hidden_cards: newHiddenCards });
   }, [settings.hidden_cards, saveSettings]);
 
-  // Show a card (remove from hidden)
-  const showCard = useCallback((cardId: string) => {
+  // Show a card (remove from hidden) and optionally assign to a category
+  const showCard = useCallback((cardId: string, targetCategoryId?: string) => {
     const newHiddenCards = settings.hidden_cards.filter(id => id !== cardId);
-    saveSettings({ hidden_cards: newHiddenCards });
-  }, [settings.hidden_cards, saveSettings]);
+    
+    // If a target category is specified, also update card_categories
+    if (targetCategoryId) {
+      const newCardCategories = { ...settings.card_categories, [cardId]: targetCategoryId };
+      saveSettings({ 
+        hidden_cards: newHiddenCards,
+        card_categories: newCardCategories,
+      });
+    } else {
+      saveSettings({ hidden_cards: newHiddenCards });
+    }
+  }, [settings.hidden_cards, settings.card_categories, saveSettings]);
 
   // Update card order
   const updateCardOrder = useCallback((newOrder: string[]) => {
