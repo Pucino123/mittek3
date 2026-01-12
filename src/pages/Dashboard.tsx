@@ -65,15 +65,17 @@ import {
   DragStartEvent,
   DragOverlay,
   useDroppable,
+  DragMoveEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 
 // Card definition type
@@ -126,7 +128,34 @@ const defaultCategoryTitles: Record<string, string> = {
 // Legacy alias for backwards compatibility
 const categoryTitles = defaultCategoryTitles;
 
-// Sortable card wrapper
+// Haptic feedback utility with iOS-style patterns
+const haptics = {
+  tick: () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  },
+  soft: () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(5);
+    }
+  },
+  success: () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(20);
+    }
+  },
+};
+
+// iOS-style spring animation config
+const springTransition = {
+  type: 'spring' as const,
+  stiffness: 500,
+  damping: 35,
+  mass: 1,
+};
+
+// Sortable card wrapper with spring animations
 function SortableCard({ 
   card, 
   hasAccess, 
@@ -147,17 +176,32 @@ function SortableCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: card.id, disabled: !isEditMode });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: transition || 'transform 150ms ease',
-    // Dim and hide the original when being dragged (overlay shows instead)
-    opacity: isBeingDragged ? 0.4 : 1,
-  };
+  } = useSortable({ 
+    id: card.id, 
+    disabled: !isEditMode,
+    transition: {
+      duration: 350,
+      easing: 'cubic-bezier(0.25, 1, 0.5, 1)', // iOS-like easing
+    },
+  });
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <motion.div 
+      ref={setNodeRef} 
+      {...attributes} 
+      {...listeners}
+      layout
+      layoutId={card.id}
+      transition={springTransition}
+      style={{
+        // Use dnd-kit transform for dragging
+        transform: CSS.Transform.toString(transform),
+        // Dim the original when being dragged (overlay shows instead)
+        opacity: isBeingDragged ? 0.3 : 1,
+        zIndex: isDragging ? 10 : 1,
+      }}
+      className="relative"
+    >
       <DashboardCard
         id={card.id}
         title={card.title}
@@ -171,20 +215,28 @@ function SortableCard({
         onRemove={onRemove}
         isDragging={isDragging}
       />
-    </div>
+    </motion.div>
   );
 }
 
-// Static card for DragOverlay - no interactions, just visual
+// Static card for DragOverlay - iOS-style lifted appearance
 function DragOverlayCard({ card, hasAccess }: { card: CardDefinition; hasAccess: boolean }) {
   return (
-    <div 
+    <motion.div 
       className="pointer-events-none"
+      initial={{ scale: 1, opacity: 0.9 }}
+      animate={{ 
+        scale: 1.05,
+        opacity: 1,
+        rotate: 0,
+      }}
+      transition={springTransition}
       style={{
         // Fixed dimensions matching card heights
         width: '100%',
         maxWidth: '280px',
         height: '210px',
+        zIndex: 9999,
       }}
     >
       <DashboardCard
@@ -200,37 +252,45 @@ function DragOverlayCard({ card, hasAccess }: { card: CardDefinition; hasAccess:
         isDragging={false}
         style={{
           height: '100%',
-          boxShadow: '0 20px 40px -10px rgba(0,0,0,0.3)',
-          transform: 'scale(1.02)',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.05)',
+          transform: 'none',
         }}
       />
-    </div>
+    </motion.div>
   );
 }
 
-// Droppable zone for empty categories
+// Droppable zone for empty categories with spring animation
 function EmptyCategoryDropZone({ categoryId, isOver }: { categoryId: string; isOver: boolean }) {
   const { setNodeRef } = useDroppable({
     id: `dropzone-${categoryId}`,
   });
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
-      className={cn(
-        "border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 min-h-[120px] flex items-center justify-center",
-        isOver 
-          ? "border-primary bg-primary/10 scale-[1.02]" 
-          : "border-muted-foreground/30 bg-muted/20"
-      )}
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ 
+        opacity: 1, 
+        scale: isOver ? 1.02 : 1,
+        borderColor: isOver ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground) / 0.3)',
+        backgroundColor: isOver ? 'hsl(var(--primary) / 0.1)' : 'hsl(var(--muted) / 0.2)',
+      }}
+      transition={springTransition}
+      className="border-2 border-dashed rounded-xl p-8 text-center min-h-[140px] flex items-center justify-center"
     >
-      <p className={cn(
-        "text-sm font-medium transition-colors",
-        isOver ? "text-primary" : "text-muted-foreground"
-      )}>
+      <motion.p 
+        className="text-sm font-medium"
+        animate={{ 
+          color: isOver ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+          scale: isOver ? 1.05 : 1,
+        }}
+        transition={springTransition}
+      >
         {isOver ? "Slip for at placere her" : "Træk værktøjer hertil"}
-      </p>
-    </div>
+      </motion.p>
+    </motion.div>
   );
 }
 
@@ -451,10 +511,7 @@ const Dashboard = () => {
   const handleLongPressStart = () => {
     const timer = setTimeout(() => {
       setIsEditMode(true);
-      // Haptic feedback if available
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
+      haptics.tick(); // Haptic on enter edit mode
     }, 500); // 500ms long press
     setLongPressTimer(timer);
   };
@@ -466,15 +523,27 @@ const Dashboard = () => {
     }
   };
 
+  // Track previous over ID for haptic on change
+  const prevOverIdRef = useRef<string | null>(null);
+
   // Handle drag start - track active dragged item for overlay
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     setActiveDragId(String(active.id));
+    haptics.tick(); // Haptic on drag start
   };
 
   // Handle drag over for visual feedback on empty zones
   const handleDragOver = (event: DragOverEvent) => {
     const { over } = event;
+    const overId = over?.id ? String(over.id) : null;
+    
+    // Haptic feedback when hovering over a new target
+    if (overId && overId !== prevOverIdRef.current) {
+      haptics.soft();
+      prevOverIdRef.current = overId;
+    }
+    
     if (over?.id && String(over.id).startsWith('dropzone-')) {
       setActiveDropZone(String(over.id).replace('dropzone-', ''));
     } else {
@@ -489,6 +558,7 @@ const Dashboard = () => {
     // Clear drag states
     setActiveDropZone(null);
     setActiveDragId(null);
+    prevOverIdRef.current = null;
 
     if (!over) return;
 
@@ -497,6 +567,9 @@ const Dashboard = () => {
     
     // Don't do anything if dropped on itself
     if (activeId === overId) return;
+    
+    // Haptic feedback on successful drop
+    haptics.success();
 
     // Check if dragging categories
     if (activeId.startsWith('category-') && overId.startsWith('category-')) {
@@ -760,7 +833,7 @@ const Dashboard = () => {
                 ...currentCategoryOrder.map(id => `category-${id}`),
                 ...visibleCards.map(c => c.id)
               ]}
-              strategy={verticalListSortingStrategy}
+              strategy={rectSortingStrategy}
             >
               <div className="space-y-10 sm:space-y-12" id="dashboard-wrapper">
                 {currentCategoryOrder.map((categoryId) => {
@@ -825,8 +898,14 @@ const Dashboard = () => {
               </div>
             </SortableContext>
 
-            {/* DragOverlay - renders a floating copy with fixed dimensions */}
-            <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
+            {/* DragOverlay - renders a floating copy with iOS spring animation */}
+            <DragOverlay 
+              dropAnimation={{
+                duration: 300,
+                easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+              }}
+              style={{ zIndex: 9999 }}
+            >
               {activeDragId && (() => {
                 const card = visibleCards.find(c => c.id === activeDragId);
                 if (!card) return null;
