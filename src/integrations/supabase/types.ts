@@ -457,6 +457,33 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          created_at: string | null
+          endpoint: string
+          id: string
+          identifier: string
+          request_count: number | null
+          window_start: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          identifier: string
+          request_count?: number | null
+          window_start?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          identifier?: string
+          request_count?: number | null
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
@@ -627,6 +654,7 @@ export type Database = {
           can_view_dashboard: boolean | null
           can_view_notes: boolean | null
           can_view_tickets: boolean | null
+          can_view_vault: boolean | null
           created_at: string
           helper_email: string
           helper_user_id: string | null
@@ -643,6 +671,7 @@ export type Database = {
           can_view_dashboard?: boolean | null
           can_view_notes?: boolean | null
           can_view_tickets?: boolean | null
+          can_view_vault?: boolean | null
           created_at?: string
           helper_email: string
           helper_user_id?: string | null
@@ -659,6 +688,7 @@ export type Database = {
           can_view_dashboard?: boolean | null
           can_view_notes?: boolean | null
           can_view_tickets?: boolean | null
+          can_view_vault?: boolean | null
           created_at?: string
           helper_email?: string
           helper_user_id?: string | null
