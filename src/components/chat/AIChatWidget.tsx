@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, forwardRef } from 'react';
 import { MessageCircle, X, Send, Loader2, User, History, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -98,7 +98,7 @@ const getSuggestions = (devices: string[] | null | undefined): string[] => {
 // LocalStorage key for chat history
 const getChatStorageKey = (userId: string) => `mittek_chat_history_${userId}`;
 
-export const AIChatWidget = () => {
+export const AIChatWidget = forwardRef<HTMLDivElement, object>(function AIChatWidgetComponent(_, ref) {
   const { isSubscriptionActive, user, profile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [showWidget, setShowWidget] = useState(false);
@@ -611,4 +611,6 @@ export const AIChatWidget = () => {
       )}
     </div>
   );
-};
+});
+
+AIChatWidget.displayName = 'AIChatWidget';
