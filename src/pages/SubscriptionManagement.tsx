@@ -215,8 +215,13 @@ const SubscriptionManagement = () => {
       
       if (data.success) {
         toast.success('Abonnement ændret!');
-        // Refresh subscription data
-        await fetchSubscriptionData();
+        // Immediately update local state to reflect the change
+        if (subscription) {
+          setSubscription({
+            ...subscription,
+            plan_tier: planId as 'basic' | 'plus' | 'pro',
+          });
+        }
       } else if (data.error === 'not_stripe_linked') {
         toast.error(data.message || 'Dit abonnement er ikke forbundet til Stripe. Kontakt support.');
       } else {
@@ -250,7 +255,13 @@ const SubscriptionManagement = () => {
       
       if (data.success) {
         toast.success('Dit abonnement er opsagt. Du har adgang til udgangen af perioden.');
-        await fetchSubscriptionData();
+        // Immediately update local state to reflect the cancellation
+        if (subscription) {
+          setSubscription({
+            ...subscription,
+            cancel_at_period_end: true,
+          });
+        }
         setShowCancelDialog(false);
       } else if (data.error === 'not_stripe_linked') {
         toast.error(data.message || 'Dit abonnement er ikke forbundet til Stripe. Kontakt support.');
@@ -276,7 +287,13 @@ const SubscriptionManagement = () => {
       
       if (data.success) {
         toast.success('Abonnement genaktiveret!');
-        await fetchSubscriptionData();
+        // Immediately update local state to reflect reactivation
+        if (subscription) {
+          setSubscription({
+            ...subscription,
+            cancel_at_period_end: false,
+          });
+        }
       } else if (data.error === 'not_stripe_linked') {
         toast.error(data.message || 'Dit abonnement er ikke forbundet til Stripe. Kontakt support.');
       } else {
@@ -381,8 +398,12 @@ const SubscriptionManagement = () => {
                 </p>
                 <p className="text-muted-foreground">
                   {cancelAtPeriodEnd 
-                    ? `Stopper ${subscription?.current_period_end ? formatDanishDate(subscription.current_period_end) : ''}`
-                    : subscription?.status === 'active' ? 'Aktivt abonnement' : 'Inaktivt'
+                    ? `Opsagt - stopper ${subscription?.current_period_end ? formatDanishDate(subscription.current_period_end) : ''}`
+                    : subscription?.status === 'trialing' 
+                      ? 'Prøveperiode' 
+                      : subscription?.status === 'active' 
+                        ? 'Aktivt abonnement' 
+                        : 'Inaktivt'
                   }
                 </p>
               </div>
