@@ -227,7 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, displayName?: string) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -237,6 +237,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     });
+    
+    // Update the profile with the display name after signup
+    // The trigger creates the profile, but we need to update it with the correct name
+    if (!error && data.user && displayName) {
+      // Small delay to ensure the profile is created by the trigger
+      setTimeout(async () => {
+        await supabase
+          .from('profiles')
+          .update({ display_name: displayName })
+          .eq('user_id', data.user!.id);
+      }, 500);
+    }
+    
     return { error };
   };
 
