@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle, Search, Mail, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, Search, Mail, AlertTriangle, LifeBuoy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -25,12 +25,47 @@ const FinishSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isLoadingEmail, setIsLoadingEmail] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [isRecovering, setIsRecovering] = useState(false);
   const [foundSessionId, setFoundSessionId] = useState<string | null>(null);
   const [planTier, setPlanTier] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState(false);
+  const [hasFailed, setHasFailed] = useState(false);
+
+  // Fetch email from session ID on mount
+  useEffect(() => {
+    const fetchSessionEmail = async () => {
+      if (!sessionId) return;
+      
+      setIsLoadingEmail(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('get-session-email', {
+          body: { sessionId },
+        });
+
+        if (error) {
+          console.error('Error fetching session email:', error);
+          return;
+        }
+
+        if (data?.found && data?.email) {
+          setEmail(data.email);
+          if (data.planTier) {
+            setPlanTier(data.planTier);
+          }
+          console.log('Auto-filled email from session:', data.email);
+        }
+      } catch (error) {
+        console.error('Error fetching session email:', error);
+      } finally {
+        setIsLoadingEmail(false);
+      }
+    };
+
+    fetchSessionEmail();
+  }, [sessionId]);
 
   // Poll for subscription to handle webhook race condition
   const pollForSubscription = useCallback(async (userId: string, attempts = 0): Promise<boolean> => {
@@ -65,6 +100,7 @@ const FinishSignup = () => {
     if (!user) return;
     
     setIsClaiming(true);
+    setHasFailed(false);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       
@@ -105,6 +141,7 @@ const FinishSignup = () => {
       } else {
         toast.error('Kunne ikke aktivere dit abonnement. Kontakt support hvis problemet fortsætter.');
         setIsFinalizing(false);
+        setHasFailed(true);
       }
     } finally {
       setIsClaiming(false);
@@ -116,11 +153,13 @@ const FinishSignup = () => {
     if (!email || !password) return;
 
     setIsLoading(true);
+    setHasFailed(false);
     const { error } = await signUp(email, password);
     
     if (error) {
       toast.error(error.message);
       setIsLoading(false);
+      setHasFailed(true);
     } else {
       setSignupSuccess(true);
       // The useEffect will handle claiming when user is set
@@ -134,10 +173,12 @@ const FinishSignup = () => {
     }
 
     setIsLoading(true);
+    setHasFailed(false);
     const { error } = await signInWithMagicLink(email);
     
     if (error) {
       toast.error(error.message);
+      setHasFailed(true);
     } else {
       toast.success('Vi har sendt et login-link til din email!');
       setSignupSuccess(true);
@@ -174,6 +215,8 @@ const FinishSignup = () => {
       setIsRecovering(false);
     }
   };
+
+  const supportMailtoLink = `mailto:mittek@webilax.com?subject=${encodeURIComponent('Fejl ved oprettelse af konto')}&body=${encodeURIComponent(`Hej MitTek Support,\n\nJeg har oplevet en fejl under oprettelsen af min konto.\n\nEmail brugt: ${email}\nSession ID: ${sessionId || foundSessionId || 'Ikke tilgængelig'}\n\nVenlig hilsen`)}`;
 
   // If we're waiting for user to click magic link
   if (signupSuccess && !user) {
@@ -252,18 +295,47 @@ const FinishSignup = () => {
                 </Alert>
               )}
 
+              {/* Support fallback on failure */}
+              {hasFailed && (
+                <Alert className="mb-6 border-destructive/50 bg-destructive/10">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  <AlertDescription className="text-destructive">
+                    <p className="font-medium mb-3">Der opstod en fejl under oprettelsen af din konto.</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="border-destructive/50 text-destructive hover:bg-destructive/10"
+                    >
+                      <a href={supportMailtoLink}>
+                        <LifeBuoy className="mr-2 h-4 w-4" />
+                        Kontakt Support
+                      </a>
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <form onSubmit={handleSignup} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="din@email.dk"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="h-14 text-lg"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="din@email.dk"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="h-14 text-lg"
+                      disabled={isLoadingEmail}
+                    />
+                    {isLoadingEmail && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -284,7 +356,7 @@ const FinishSignup = () => {
                   type="submit" 
                   size="xl" 
                   className="w-full"
-                  disabled={isLoading}
+                  disabled={isLoading || isLoadingEmail}
                 >
                   {isLoading ? (
                     <>
