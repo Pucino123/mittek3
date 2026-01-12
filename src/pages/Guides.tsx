@@ -510,6 +510,40 @@ const Guides = () => {
     );
   }
 
+  // Group guides by category for better organization
+  const groupGuidesByCategory = (guides: Guide[]) => {
+    const categoryLabels: Record<string, string> = {
+      'hverdag': '📱 Hverdagsbrug',
+      'sikkerhed': '🔒 Sikkerhed',
+      'batteri': '🔋 Batteri',
+      'icloud': '☁️ iCloud',
+      'beskeder': '💬 Beskeder',
+      'apps': '📦 Apps',
+    };
+
+    const groups: Record<string, Guide[]> = {};
+    
+    guides.forEach(guide => {
+      const category = guide.category || 'hverdag';
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+      groups[category].push(guide);
+    });
+
+    // Sort categories in a logical order
+    const categoryOrder = ['hverdag', 'sikkerhed', 'batteri', 'icloud', 'beskeder', 'apps'];
+    const sortedGroups = categoryOrder
+      .filter(cat => groups[cat] && groups[cat].length > 0)
+      .map(cat => ({
+        category: cat,
+        label: categoryLabels[cat] || cat,
+        guides: groups[cat]
+      }));
+
+    return sortedGroups;
+  };
+
   // Guides list
   return (
     <div className="min-h-screen bg-background">
@@ -529,32 +563,38 @@ const Guides = () => {
             <Breadcrumb />
           </div>
 
-          <div className="mb-6">
-            <h1 className="text-xl md:text-2xl font-bold mb-2">Mini-guides</h1>
-            <p className="text-sm md:text-base text-muted-foreground">
-              Trin-for-trin guides med billeder der viser præcis hvad du skal gøre
+          {/* Header with clear explanation */}
+          <div className="mb-8 text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="h-8 w-8 text-primary" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold mb-3">Mini-guides</h1>
+            <p className="text-base md:text-lg text-muted-foreground max-w-md mx-auto">
+              Nemme trin-for-trin guides med billeder, der viser dig præcis hvad du skal gøre
             </p>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          {/* Search Bar - larger and more visible */}
+          <div className="relative mb-6">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Søg efter guides..."
+              placeholder="Søg efter en guide..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 min-h-[48px]"
+              className="pl-12 min-h-[56px] text-base rounded-xl border-2 focus:border-primary"
             />
           </div>
 
-          {/* Category Filter - horizontal scroll on mobile */}
-          <div className="mb-6 sticky top-0 z-10 bg-background py-2 -mx-4 px-4 overflow-x-auto">
-            <CategoryFilter value={selectedCategory} onChange={setSelectedCategory} />
+          {/* Category Filter - with clear labels */}
+          <div className="mb-8 sticky top-0 z-10 bg-background py-3 -mx-4 px-4">
+            <p className="text-sm font-medium text-muted-foreground mb-3">Filtrer efter emne:</p>
+            <div className="overflow-x-auto">
+              <CategoryFilter value={selectedCategory} onChange={setSelectedCategory} />
+            </div>
           </div>
 
           {(() => {
-            // Use only database guides
             const allGuides: Guide[] = guides;
 
             // Filter guides by category and search
@@ -573,30 +613,122 @@ const Guides = () => {
                 <div className="text-center py-12">
                   <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">Ingen guides tilgængelige endnu</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Admin kan synkronisere guides fra Admin-panelet
-                  </p>
                 </div>
               );
             }
 
             if (filteredGuides.length === 0) {
               return (
-                <div className="text-center py-12">
-                  <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground mb-2">Vi fandt desværre ikke noget.</p>
-                  <p className="text-sm text-muted-foreground">
-                    Prøv at søge efter "Batteri" eller "Lyd"
+                <div className="text-center py-12 px-4">
+                  <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Search className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-lg font-medium mb-2">Vi fandt ingen guides</p>
+                  <p className="text-muted-foreground mb-6">
+                    Prøv et andet søgeord, f.eks. "batteri" eller "opdatering"
                   </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedCategory('alle');
+                    }}
+                    className="min-h-[48px]"
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Nulstil søgning
+                  </Button>
                 </div>
               );
             }
 
+            // If showing all categories, group by category
+            if (selectedCategory === 'alle' && searchQuery === '') {
+              const groupedGuides = groupGuidesByCategory(filteredGuides);
+              
+              return (
+                <div className="space-y-8">
+                  {groupedGuides.map(group => (
+                    <section key={group.category}>
+                      {/* Category Header */}
+                      <h2 className="text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                        {group.label}
+                        <span className="text-sm font-normal text-muted-foreground">
+                          ({group.guides.length})
+                        </span>
+                      </h2>
+                      
+                      {/* Guides in this category */}
+                      <div className="space-y-3">
+                        {group.guides.map((guide) => {
+                          const IconComponent = getGuideIcon(guide.category);
+                          const isRead = isGuideRead(guide.id);
+                          
+                          return (
+                            <button
+                              key={guide.id}
+                              onClick={() => {
+                                setSelectedGuide(guide);
+                                setCurrentStep(0);
+                                trackGuideView(guide.id, guide.title);
+                              }}
+                              className={`w-full text-left rounded-2xl border-2 transition-all p-5 flex items-center gap-4 ${
+                                isRead 
+                                  ? 'bg-success/5 border-success/30 hover:border-success/50' 
+                                  : 'bg-card border-border hover:border-primary/50 hover:shadow-md'
+                              }`}
+                            >
+                              {/* Icon */}
+                              <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                isRead ? 'bg-success/15' : 'bg-primary/10'
+                              }`}>
+                                {isRead ? (
+                                  <CheckCircle2 className="h-7 w-7 text-success" />
+                                ) : (
+                                  <IconComponent className="h-7 w-7 text-primary" />
+                                )}
+                              </div>
+                              
+                              {/* Text */}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-base md:text-lg mb-1 leading-tight">
+                                  {guide.title}
+                                </h3>
+                                {guide.description && (
+                                  <p className="text-sm text-muted-foreground line-clamp-2">
+                                    {guide.description}
+                                  </p>
+                                )}
+                                {isRead && (
+                                  <p className="text-xs text-success font-medium mt-1">
+                                    ✓ Du har læst denne
+                                  </p>
+                                )}
+                              </div>
+                              
+                              {/* Arrow */}
+                              <ChevronRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              );
+            }
+
+            // Flat list when filtering or searching
             return (
-              <div className="space-y-4">
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Viser {filteredGuides.length} {filteredGuides.length === 1 ? 'guide' : 'guides'}
+                </p>
+                
                 {filteredGuides.map((guide) => {
                   const IconComponent = getGuideIcon(guide.category);
                   const isRead = isGuideRead(guide.id);
+                  
                   return (
                     <button
                       key={guide.id}
@@ -605,28 +737,55 @@ const Guides = () => {
                         setCurrentStep(0);
                         trackGuideView(guide.id, guide.title);
                       }}
-                      className="card-interactive p-6 w-full text-left flex items-center gap-4"
+                      className={`w-full text-left rounded-2xl border-2 transition-all p-5 flex items-center gap-4 ${
+                        isRead 
+                          ? 'bg-success/5 border-success/30 hover:border-success/50' 
+                          : 'bg-card border-border hover:border-primary/50 hover:shadow-md'
+                      }`}
                     >
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        isRead ? 'bg-success/10' : 'bg-info/10'
+                      {/* Icon */}
+                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        isRead ? 'bg-success/15' : 'bg-primary/10'
                       }`}>
                         {isRead ? (
-                          <CheckCircle2 className="h-6 w-6 text-success" />
+                          <CheckCircle2 className="h-7 w-7 text-success" />
                         ) : (
-                          <IconComponent className="h-6 w-6 text-info" />
+                          <IconComponent className="h-7 w-7 text-primary" />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold mb-1">{guide.title}</h3>
-                        <p className="text-sm text-muted-foreground">{guide.description}</p>
+                      
+                      {/* Text */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base md:text-lg mb-1 leading-tight">
+                          {guide.title}
+                        </h3>
+                        {guide.description && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {guide.description}
+                          </p>
+                        )}
+                        {isRead && (
+                          <p className="text-xs text-success font-medium mt-1">
+                            ✓ Du har læst denne
+                          </p>
+                        )}
                       </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      
+                      {/* Arrow */}
+                      <ChevronRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
                     </button>
                   );
                 })}
               </div>
             );
           })()}
+
+          {/* Quick tip at bottom */}
+          <div className="mt-12 p-4 bg-muted/50 rounded-xl text-center">
+            <p className="text-sm text-muted-foreground">
+              💡 <strong>Tip:</strong> Når du har læst en guide, får du et stempel på dit stempelkort!
+            </p>
+          </div>
         </div>
       </main>
     </div>
