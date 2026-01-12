@@ -27,24 +27,33 @@ serve(async (req) => {
 
     // Verify admin authentication
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       throw new Error("No authorization header");
     }
 
+    // Create user client for authentication
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
     
-    if (userError || !userData.user) {
+    if (claimsError || !claimsData?.claims) {
       throw new Error("Not authenticated");
     }
 
+    const userId = claimsData.claims.sub as string;
+
     // Check if user is admin
-    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: userData.user.id });
+    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: userId });
     if (!isAdmin) {
       throw new Error("Unauthorized - admin access required");
     }
 
-    logStep("Admin verified", { adminId: userData.user.id });
+    logStep("Admin verified", { adminId: userId });
 
     // Get all users from auth.users
     const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
@@ -111,7 +120,7 @@ serve(async (req) => {
 
     // Log audit
     await supabaseAdmin.from("audit_logs").insert({
-      user_id: userData.user.id,
+      user_id: userId,
       action: "repair_profiles",
       resource_type: "profiles",
       resource_id: null,
