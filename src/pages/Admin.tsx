@@ -900,7 +900,7 @@ const Admin = () => {
       const profile = profiles.find(p => p.user_id === s.user_id);
       const email = profile?.email || 'Ukendt';
       const isExcluded = excludedUserIds.includes(s.user_id);
-      const prices: Record<string, number> = { basic: 49, plus: 99, pro: 199 };
+      const prices: Record<string, number> = { basic: 39, plus: 79, pro: 99 };
       const amount = prices[s.plan_tier] || 0;
       return { email, plan: s.plan_tier, amount, isExcluded, user_id: s.user_id };
     });

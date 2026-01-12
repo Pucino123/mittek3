@@ -66,7 +66,6 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  rectSortingStrategy,
   verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
@@ -626,9 +625,12 @@ const Dashboard = () => {
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            {/* Sortable context for categories (vertical list) */}
+            {/* Single unified SortableContext for all cards - enables cross-category dragging */}
             <SortableContext
-              items={currentCategoryOrder.map(id => `category-${id}`)}
+              items={[
+                ...currentCategoryOrder.map(id => `category-${id}`),
+                ...visibleCards.map(c => c.id)
+              ]}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-10 sm:space-y-12" id="dashboard-wrapper">
@@ -659,29 +661,24 @@ const Dashboard = () => {
                     
                       {/* Cards Grid - 4 per row on desktop */}
                       {categoryCards && categoryCards.length > 0 ? (
-                        <SortableContext
-                          items={categoryCards.map((c) => c.id)}
-                          strategy={rectSortingStrategy}
+                        <div 
+                          className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4"
+                          onMouseDown={handleLongPressStart}
+                          onMouseUp={handleLongPressEnd}
+                          onMouseLeave={handleLongPressEnd}
+                          onTouchStart={handleLongPressStart}
+                          onTouchEnd={handleLongPressEnd}
                         >
-                          <div 
-                            className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4"
-                            onMouseDown={handleLongPressStart}
-                            onMouseUp={handleLongPressEnd}
-                            onMouseLeave={handleLongPressEnd}
-                            onTouchStart={handleLongPressStart}
-                            onTouchEnd={handleLongPressEnd}
-                          >
-                            {categoryCards.map((card) => (
-                              <SortableCard
-                                key={card.id}
-                                card={card}
-                                hasAccess={hasAccess(card.minPlan)}
-                                isEditMode={isEditMode}
-                                onRemove={() => handleRemoveCard(card.id)}
-                              />
-                            ))}
-                          </div>
-                        </SortableContext>
+                          {categoryCards.map((card) => (
+                            <SortableCard
+                              key={card.id}
+                              card={card}
+                              hasAccess={hasAccess(card.minPlan)}
+                              isEditMode={isEditMode}
+                              onRemove={() => handleRemoveCard(card.id)}
+                            />
+                          ))}
+                        </div>
                       ) : (
                         isEditMode && isCustomCategory && (
                           <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center text-muted-foreground">
