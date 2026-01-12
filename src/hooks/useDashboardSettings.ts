@@ -191,6 +191,49 @@ export function useDashboardSettings() {
     });
   }, [settings.card_categories, saveSettings]);
 
+  // Restore a full dashboard snapshot (used for Undo)
+  type DashboardSnapshot = Pick<DashboardSettings, 'card_order' | 'hidden_cards' | 'card_categories'>;
+
+  const restoreSnapshot = useCallback(async (snapshot: Partial<DashboardSnapshot>) => {
+    const incomingCategories = snapshot.card_categories;
+    const sanitizedCategories = incomingCategories && typeof incomingCategories === 'object'
+      ? Object.fromEntries(
+          Object.entries(incomingCategories as Record<string, unknown>)
+            .filter(([k, v]) => typeof k === 'string' && k.trim().length > 0 && typeof v === 'string' && v.trim().length > 0)
+            .map(([k, v]) => [k, String(v)])
+        ) as Record<string, string>
+      : undefined;
+
+    const nextSettings: DashboardSettings = {
+      ...settings,
+      card_order: snapshot.card_order ?? settings.card_order,
+      hidden_cards: snapshot.hidden_cards ?? settings.hidden_cards,
+      card_categories: sanitizedCategories ?? settings.card_categories ?? {},
+    };
+
+    // Update UI immediately
+    setSettings(nextSettings);
+    saveToLocalStorage(nextSettings);
+
+    // Persist to DB when authenticated
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_dashboard_settings')
+        .upsert({
+          user_id: user.id,
+          card_order: nextSettings.card_order,
+          hidden_cards: nextSettings.hidden_cards,
+          card_categories: nextSettings.card_categories,
+        }, { onConflict: 'user_id' });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Failed to restore dashboard snapshot in DB:', error);
+    }
+  }, [user, settings]);
+
   // Reset to default - clear DB and localStorage
   const resetToDefault = useCallback(async () => {
     // Clear localStorage
@@ -310,6 +353,7 @@ export function useDashboardSettings() {
     updateCardOrder,
     updateCardCategory,
     updateCardCategoryAndOrder,
+    restoreSnapshot,
     updateCategoryTitle,
     updateCategoryOrder,
     addCustomCategory,
