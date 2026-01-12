@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Shield, Menu, X, LogOut, LayoutDashboard } from 'lucide-react';
+import { Shield, Menu, X, LogOut, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,7 +12,7 @@ import { useNotificationCount } from '@/hooks/useNotificationCount';
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const location = useLocation();
   const { count: notificationCount } = useNotificationCount();
 
@@ -40,6 +40,15 @@ export function Header() {
         <nav className="hidden md:flex items-center gap-4">
           {user ? (
             <>
+              {/* Admin shortcut - only for admins */}
+              {profile?.is_admin && (
+                <Link to="/admin">
+                  <Button variant="outline" size="default" className="border-violet-500/50 text-violet-600 hover:bg-violet-500/10">
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
               <Link to="/dashboard">
                 <Button variant="default" size="default" className="relative animate-pulse-soft">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -100,6 +109,15 @@ export function Header() {
           <div className="container py-6 space-y-5">
             {user ? (
               <div className="space-y-4">
+                {/* Admin shortcut - mobile - only for admins */}
+                {profile?.is_admin && (
+                  <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block">
+                    <Button variant="outline" size="lg" className="w-full min-h-[52px] border-violet-500/50 text-violet-600 hover:bg-violet-500/10">
+                      <ShieldCheck className="mr-2 h-5 w-5" />
+                      Admin Panel
+                    </Button>
+                  </Link>
+                )}
                 <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block">
                   <Button variant="default" size="lg" className="w-full min-h-[52px] relative animate-pulse-soft">
                     <LayoutDashboard className="mr-2 h-5 w-5" />
