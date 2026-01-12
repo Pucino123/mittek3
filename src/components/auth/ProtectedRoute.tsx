@@ -17,7 +17,7 @@ const MAX_POLL_ATTEMPTS = 5;
 const POLL_INTERVAL_MS = 1500;
 
 export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRouteProps) {
-  const { user, isLoading, hasAccess, isSubscriptionActive, subscription } = useAuth();
+  const { user, isLoading, hasAccess, isSubscriptionActive, subscription, refetchSubscription } = useAuth();
   const navigate = useNavigate();
   const [isVerifyingSubscription, setIsVerifyingSubscription] = useState(false);
   const [verificationComplete, setVerificationComplete] = useState(false);
@@ -71,8 +71,9 @@ export function ProtectedRoute({ children, requiredPlan = 'basic' }: ProtectedRo
       
       if (hasServerSubscription) {
         console.log('Found subscription via server poll');
-        // Force a page reload to refresh the auth context
-        window.location.reload();
+        await refetchSubscription();
+        setIsVerifyingSubscription(false);
+        setVerificationComplete(true);
         return;
       }
       

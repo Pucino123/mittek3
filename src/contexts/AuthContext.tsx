@@ -30,6 +30,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAdmin: boolean;
   refetchProfile: () => Promise<void>;
+  refetchSubscription: () => Promise<void>;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   signInWithPassword: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null }>;
@@ -280,6 +281,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refetchSubscription = async () => {
+    if (user) {
+      await fetchSubscription(user.id);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -289,6 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       isAdmin,
       refetchProfile,
+      refetchSubscription,
       signInWithMagicLink,
       signInWithPassword,
       signUp,
