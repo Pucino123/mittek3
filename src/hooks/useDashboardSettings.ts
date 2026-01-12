@@ -209,18 +209,26 @@ export function useDashboardSettings() {
     });
   }, [settings.custom_categories, settings.category_order, saveSettings]);
 
-  // Delete a custom category
-  const deleteCustomCategory = useCallback((categoryId: string) => {
-    // Only allow deleting custom categories
-    if (!categoryId.startsWith('custom_')) return;
+  // Delete a category (default or custom)
+  const deleteCategory = useCallback((categoryId: string) => {
+    const isCustom = categoryId.startsWith('custom_');
     
-    const newCustomCategories = settings.custom_categories.filter(c => c.id !== categoryId);
+    // For custom categories, remove from custom_categories list
+    const newCustomCategories = isCustom 
+      ? settings.custom_categories.filter(c => c.id !== categoryId)
+      : settings.custom_categories;
+    
+    // Remove from order
     const currentOrder = settings.category_order || ['start', 'tools', 'safety', 'extras'];
     const newOrder = currentOrder.filter(id => id !== categoryId);
     
     // Also remove the category title if any
     const newCategoryTitles = { ...settings.category_titles };
     delete newCategoryTitles[categoryId];
+    
+    // Move all cards from this category to hidden (add to hidden_cards)
+    // Note: We're not doing this here as it would require knowing which cards belong to this category
+    // The UI already handles this - cards in deleted categories just won't appear
     
     saveSettings({ 
       custom_categories: newCustomCategories,
@@ -242,7 +250,7 @@ export function useDashboardSettings() {
     updateCategoryTitle,
     updateCategoryOrder,
     addCustomCategory,
-    deleteCustomCategory,
+    deleteCategory,
     resetToDefault,
   };
 }

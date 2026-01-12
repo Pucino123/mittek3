@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
@@ -10,6 +10,12 @@ import { toast } from 'sonner';
 import { ScreenshotHelpModal } from '@/components/ui/ScreenshotHelpModal';
 import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 
+// Default texts (fallback if DB fetch fails)
+const defaultTexts = {
+  title: 'Screenshot → Forklaring',
+  description: 'Upload et billede fra din skærm, og få det forklaret i simple ord',
+};
+
 const ScreenshotAI = () => {
   useScrollRestoration();
 
@@ -18,6 +24,40 @@ const ScreenshotAI = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Dynamic texts from system_content
+  const [pageTexts, setPageTexts] = useState(defaultTexts);
+
+  // Fetch dynamic texts from system_content
+  useEffect(() => {
+    const fetchTexts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('system_content')
+          .select('key, value')
+          .in('key', ['screenshot_ai_title', 'screenshot_ai_description']);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const texts: Record<string, string> = {};
+          data.forEach(item => {
+            if (item.key === 'screenshot_ai_title') {
+              texts.title = item.value;
+            } else if (item.key === 'screenshot_ai_description') {
+              texts.description = item.value;
+            }
+          });
+          setPageTexts(prev => ({ ...prev, ...texts }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch system texts:', error);
+        // Use defaults on error
+      }
+    };
+
+    fetchTexts();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,9 +121,9 @@ const ScreenshotAI = () => {
                 </div>
                 <ToolPageHelpButton />
               </div>
-              <h1 className="text-3xl font-bold mb-2">Screenshot → Forklaring</h1>
+              <h1 className="text-3xl font-bold mb-2">{pageTexts.title}</h1>
               <p className="text-lg text-muted-foreground">
-                Upload et billede fra din skærm, og få det forklaret i simple ord
+                {pageTexts.description}
               </p>
             </div>
 
