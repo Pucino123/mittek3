@@ -209,8 +209,8 @@ export function useDashboardSettings() {
     });
   }, [settings.custom_categories, settings.category_order, saveSettings]);
 
-  // Delete a category (default or custom)
-  const deleteCategory = useCallback((categoryId: string) => {
+  // Delete a category (default or custom) - moves cards to hidden pool for safety
+  const deleteCategory = useCallback((categoryId: string, cardIdsInCategory?: string[]) => {
     const isCustom = categoryId.startsWith('custom_');
     
     // For custom categories, remove from custom_categories list
@@ -226,16 +226,19 @@ export function useDashboardSettings() {
     const newCategoryTitles = { ...settings.category_titles };
     delete newCategoryTitles[categoryId];
     
-    // Move all cards from this category to hidden (add to hidden_cards)
-    // Note: We're not doing this here as it would require knowing which cards belong to this category
-    // The UI already handles this - cards in deleted categories just won't appear
+    // SAFE DELETION: Move all cards from this category to hidden pool
+    // This ensures tools are never lost - they become available via the "+" button
+    const newHiddenCards = cardIdsInCategory 
+      ? [...new Set([...settings.hidden_cards, ...cardIdsInCategory])]
+      : settings.hidden_cards;
     
     saveSettings({ 
       custom_categories: newCustomCategories,
       category_order: newOrder,
       category_titles: newCategoryTitles,
+      hidden_cards: newHiddenCards,
     });
-  }, [settings.custom_categories, settings.category_order, settings.category_titles, saveSettings]);
+  }, [settings.custom_categories, settings.category_order, settings.category_titles, settings.hidden_cards, saveSettings]);
 
   return {
     cardOrder: settings.card_order,
