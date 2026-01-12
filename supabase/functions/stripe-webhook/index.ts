@@ -140,27 +140,18 @@ serve(async (req) => {
     const body = await req.text();
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     
-    // Log webhook secret status for debugging (masked)
-    if (webhookSecret) {
-      logStep("Webhook secret loaded", { 
-        starts_with: webhookSecret.substring(0, 6) + "...",
-        length: webhookSecret.length 
-      });
-    } else {
-      logStep("WARNING: No STRIPE_WEBHOOK_SECRET configured - signature verification disabled!");
+    // SECURITY: Webhook secret is required - fail if not configured
+    if (!webhookSecret) {
+      logStep("CRITICAL: STRIPE_WEBHOOK_SECRET not configured - rejecting request");
+      return new Response(
+        JSON.stringify({ error: "Webhook secret not configured" }),
+        { status: 500 }
+      );
     }
     
-    let event: Stripe.Event;
-    
-    if (webhookSecret) {
-      // Verify signature using the webhook secret
-      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-      logStep("Signature verified successfully");
-    } else {
-      // WARNING: For testing only - should NEVER be used in production
-      logStep("SECURITY WARNING: Parsing event without signature verification");
-      event = JSON.parse(body);
-    }
+    // Verify signature using the webhook secret
+    const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+    logStep("Signature verified successfully");
 
     logStep("Event received", { type: event.type, id: event.id });
 
