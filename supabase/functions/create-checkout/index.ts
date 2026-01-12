@@ -141,7 +141,8 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "http://localhost:5173";
     
-    const session = await stripe.checkout.sessions.create({
+    // Build checkout session params
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : email,
       locale: "da",
@@ -168,7 +169,16 @@ serve(async (req) => {
       metadata: {
         plan_tier: planTier,
       },
-    });
+    };
+
+    // If using existing customer, allow updating name for tax ID collection
+    if (customerId) {
+      sessionParams.customer_update = {
+        name: "auto",
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
 
