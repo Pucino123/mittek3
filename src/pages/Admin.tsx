@@ -20,6 +20,7 @@ import { BackButton } from '@/components/layout/BackButton';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableGuideStep } from '@/components/admin/SortableGuideStep';
+import { SortableGuideRow } from '@/components/admin/SortableGuideRow';
 import { VisualHelpManager } from '@/components/admin/VisualHelpManager';
 import { SystemContentEditor } from '@/components/admin/SystemContentEditor';
 
@@ -545,6 +546,35 @@ const Admin = () => {
         toast.success('Rækkefølge opdateret');
       } catch (error) {
         console.error('Reorder error:', error);
+        toast.error('Kunne ikke opdatere rækkefølge');
+      }
+    }
+  };
+
+  // Handle drag end for guides reordering
+  const handleGuideDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = guides.findIndex((g) => g.id === active.id);
+      const newIndex = guides.findIndex((g) => g.id === over.id);
+
+      const newGuides = arrayMove(guides, oldIndex, newIndex);
+      setGuides(newGuides);
+
+      // Update sort_order in database for all reordered guides
+      try {
+        const updates = newGuides.map((guide, index) => 
+          supabase
+            .from('guides')
+            .update({ sort_order: index })
+            .eq('id', guide.id)
+        );
+        
+        await Promise.all(updates);
+        toast.success('Guide-rækkefølge opdateret');
+      } catch (error) {
+        console.error('Guide reorder error:', error);
         toast.error('Kunne ikke opdatere rækkefølge');
       }
     }
@@ -1185,70 +1215,40 @@ const Admin = () => {
                     </Button>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Titel</TableHead>
-                        <TableHead>Min. plan</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Handlinger</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {guides.map((guide) => (
-                        <TableRow key={guide.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{guide.title}</p>
-                              {guide.description && (
-                                <p className="text-sm text-muted-foreground line-clamp-1">
-                                  {guide.description}
-                                </p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{guide.min_plan}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={guide.is_published ? 'default' : 'secondary'}
-                              className="cursor-pointer"
-                              onClick={() => toggleGuidePublished(guide)}
-                            >
-                              {guide.is_published ? 'Publiceret' : 'Kladde'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex gap-2 justify-end">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openStepsEditor(guide)}
-                              >
-                                <ImageIcon className="mr-2 h-4 w-4" />
-                                Trin
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openGuideEditor(guide)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => deleteGuide(guide.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleGuideDragEnd}
+                  >
+                    <SortableContext
+                      items={guides.map(g => g.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-10"></TableHead>
+                            <TableHead>Titel</TableHead>
+                            <TableHead>Min. plan</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Handlinger</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {guides.map((guide) => (
+                            <SortableGuideRow
+                              key={guide.id}
+                              guide={guide}
+                              onEdit={openGuideEditor}
+                              onDelete={deleteGuide}
+                              onTogglePublished={toggleGuidePublished}
+                              onOpenSteps={openStepsEditor}
+                            />
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </SortableContext>
+                  </DndContext>
                 )}
               </CardContent>
             </Card>
