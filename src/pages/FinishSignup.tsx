@@ -1,14 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CheckCircle, Search, Mail } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, CheckCircle, Search, Mail, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+const MAX_POLL_ATTEMPTS = 10;
+const POLL_INTERVAL_MS = 1500;
 
 const FinishSignup = () => {
   const [searchParams] = useSearchParams();
@@ -20,12 +24,35 @@ const FinishSignup = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [isRecovering, setIsRecovering] = useState(false);
   const [foundSessionId, setFoundSessionId] = useState<string | null>(null);
   const [planTier, setPlanTier] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState(false);
+
+  // Poll for subscription to handle webhook race condition
+  const pollForSubscription = useCallback(async (userId: string, attempts = 0): Promise<boolean> => {
+    if (attempts >= MAX_POLL_ATTEMPTS) {
+      return false;
+    }
+
+    const { data } = await supabase
+      .from('subscriptions')
+      .select('id, status')
+      .eq('user_id', userId)
+      .in('status', ['active', 'trialing'])
+      .maybeSingle();
+
+    if (data) {
+      return true;
+    }
+
+    // Wait and retry
+    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+    return pollForSubscription(userId, attempts + 1);
+  }, []);
 
   // If user is logged in and we have a session ID, try to claim it
   useEffect(() => {
@@ -35,6 +62,8 @@ const FinishSignup = () => {
   }, [user, sessionId, foundSessionId]);
 
   const claimSubscription = async (claimSessionId: string) => {
+    if (!user) return;
+    
     setIsClaiming(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -46,13 +75,37 @@ const FinishSignup = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // If claim fails, check if subscription already exists (webhook beat us)
+        console.log('Claim failed, checking if webhook already processed...', error);
+        setIsFinalizing(true);
+        const hasSubscription = await pollForSubscription(user.id);
+        
+        if (hasSubscription) {
+          toast.success('Din betaling er bekræftet! Velkommen til MitTek.');
+          navigate('/dashboard');
+          return;
+        }
+        
+        throw error;
+      }
 
       toast.success('Din betaling er bekræftet! Velkommen til MitTek.');
       navigate('/dashboard');
     } catch (error) {
       console.error('Claim error:', error);
-      toast.error('Kunne ikke aktivere dit abonnement. Prøv igen.');
+      
+      // Final fallback: poll for subscription in case webhook processed it
+      setIsFinalizing(true);
+      const hasSubscription = await pollForSubscription(user.id);
+      
+      if (hasSubscription) {
+        toast.success('Din konto er klar! Velkommen til MitTek.');
+        navigate('/dashboard');
+      } else {
+        toast.error('Kunne ikke aktivere dit abonnement. Kontakt support hvis problemet fortsætter.');
+        setIsFinalizing(false);
+      }
     } finally {
       setIsClaiming(false);
     }
@@ -143,17 +196,21 @@ const FinishSignup = () => {
     );
   }
 
-  // If claiming is in progress
-  if (isClaiming) {
+  // If claiming or finalizing is in progress
+  if (isClaiming || isFinalizing) {
     return (
       <PublicLayout>
         <div className="container py-16 md:py-24">
           <Card className="max-w-md mx-auto">
             <CardHeader className="text-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-              <CardTitle className="text-2xl">Aktiverer dit abonnement...</CardTitle>
+              <CardTitle className="text-2xl">
+                {isFinalizing ? 'Færdiggør opsætning...' : 'Aktiverer dit abonnement...'}
+              </CardTitle>
               <CardDescription className="text-lg">
-                Vent venligst mens vi sætter alt op for dig.
+                {isFinalizing 
+                  ? 'Verificerer din betaling. Dette kan tage et øjeblik.'
+                  : 'Vent venligst mens vi sætter alt op for dig.'}
               </CardDescription>
             </CardHeader>
           </Card>
@@ -185,6 +242,16 @@ const FinishSignup = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* CRITICAL WARNING about matching email */}
+              {(sessionId || foundSessionId) && (
+                <Alert className="mb-6 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  <AlertDescription className="text-amber-800 dark:text-amber-200 font-medium">
+                    VIGTIGT: Du skal oprette din konto med præcis samme email, som du lige har brugt til betalingen. Ellers kan vi ikke aktivere din plan.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <form onSubmit={handleSignup} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -227,27 +294,6 @@ const FinishSignup = () => {
                   ) : (
                     'Opret konto'
                   )}
-                </Button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="bg-card px-2 text-muted-foreground">eller</span>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="w-full"
-                  onClick={handleMagicLink}
-                  disabled={isLoading || !email}
-                >
-                  <Mail className="mr-2 h-5 w-5" />
-                  Få login-link på email
                 </Button>
               </form>
 
