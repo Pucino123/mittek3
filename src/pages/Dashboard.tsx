@@ -67,6 +67,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   rectSortingStrategy,
+  verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -205,6 +206,7 @@ const Dashboard = () => {
     updateCategoryTitle,
     updateCategoryOrder,
     addCustomCategory,
+    deleteCustomCategory,
     resetToDefault 
   } = useDashboardSettings();
 
@@ -384,16 +386,38 @@ const Dashboard = () => {
     }
   };
 
-  // Handle drag end
+  // Handle drag end for both cards and categories
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (over && active.id !== over.id) {
-      const currentOrder = cardOrder || defaultCardOrder;
-      const oldIndex = currentOrder.indexOf(active.id as string);
-      const newIndex = currentOrder.indexOf(over.id as string);
+    if (!over || active.id === over.id) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // Check if dragging categories
+    if (activeId.startsWith('category-') && overId.startsWith('category-')) {
+      const activeCategoryId = activeId.replace('category-', '');
+      const overCategoryId = overId.replace('category-', '');
       
-      const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
+      const currentOrder = categoryOrder || Object.keys(defaultCategoryTitles);
+      const oldIndex = currentOrder.indexOf(activeCategoryId);
+      const newIndex = currentOrder.indexOf(overCategoryId);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
+        updateCategoryOrder(newOrder);
+      }
+      return;
+    }
+
+    // Otherwise, dragging cards
+    const currentCardOrder = cardOrder || defaultCardOrder;
+    const oldIndex = currentCardOrder.indexOf(activeId);
+    const newIndex = currentCardOrder.indexOf(overId);
+    
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const newOrder = arrayMove(currentCardOrder, oldIndex, newIndex);
       updateCardOrder(newOrder);
     }
   };
@@ -427,6 +451,15 @@ const Dashboard = () => {
       description: 'Du kan nu trække værktøjer ind i den nye kategori',
     });
   };
+
+  // Handle delete custom category
+  const handleDeleteCategory = (categoryId: string) => {
+    deleteCustomCategory(categoryId);
+    toast.success('Kategori slettet');
+  };
+
+  // Get current category order for sortable context
+  const currentCategoryOrder = categoryOrder || Object.keys(defaultCategoryTitles);
 
   const displayName = profile?.display_name || 'der';
   const isOwner = user?.email === 'kevin.therkildsen@icloud.com';
@@ -575,52 +608,74 @@ const Dashboard = () => {
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <div className="space-y-10 sm:space-y-12" id="dashboard-wrapper">
-              {(categoryOrder || Object.keys(defaultCategoryTitles)).map((categoryId) => {
-                const categoryCards = cardsByCategory[categoryId];
-                if (!categoryCards || categoryCards.length === 0) return null;
-                const defaultTitle = defaultCategoryTitles[categoryId] || categoryId;
-                const customTitle = customCategoryTitles[categoryId];
-
-                return (
-                  <section key={categoryId}>
-                    {/* Category Header - Editable in edit mode */}
-                    <EditableCategoryTitle
-                      categoryId={categoryId}
-                      defaultTitle={defaultTitle}
-                      customTitle={customTitle}
-                      isEditMode={isEditMode}
-                      onTitleChange={updateCategoryTitle}
-                    />
+            {/* Sortable context for categories (vertical list) */}
+            <SortableContext
+              items={currentCategoryOrder.map(id => `category-${id}`)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-10 sm:space-y-12" id="dashboard-wrapper">
+                {currentCategoryOrder.map((categoryId) => {
+                  const categoryCards = cardsByCategory[categoryId];
+                  // Also check custom categories that might be empty but should still render
+                  const isCustomCategory = categoryId.startsWith('custom_');
+                  const customCategoryData = customCategories.find(c => c.id === categoryId);
                   
-                  {/* Cards Grid - 4 per row on desktop */}
-                  <SortableContext
-                    items={categoryCards.map(c => c.id)}
-                    strategy={rectSortingStrategy}
-                  >
-                    <div 
-                      className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4"
-                      onMouseDown={handleLongPressStart}
-                      onMouseUp={handleLongPressEnd}
-                      onMouseLeave={handleLongPressEnd}
-                      onTouchStart={handleLongPressStart}
-                      onTouchEnd={handleLongPressEnd}
-                    >
-                      {categoryCards.map((card) => (
-                        <SortableCard
-                          key={card.id}
-                          card={card}
-                          hasAccess={hasAccess(card.minPlan)}
-                          isEditMode={isEditMode}
-                          onRemove={() => handleRemoveCard(card.id)}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </section>
-              );
-            })}
-          </div>
+                  // Skip if no cards AND not a custom category
+                  if ((!categoryCards || categoryCards.length === 0) && !isCustomCategory) return null;
+                  
+                  const defaultTitle = customCategoryData?.title || defaultCategoryTitles[categoryId] || categoryId;
+                  const customTitle = customCategoryTitles[categoryId];
+
+                  return (
+                    <section key={categoryId}>
+                      {/* Category Header - Editable in edit mode, with drag & delete for custom */}
+                      <EditableCategoryTitle
+                        categoryId={categoryId}
+                        defaultTitle={defaultTitle}
+                        customTitle={customTitle}
+                        isEditMode={isEditMode}
+                        isCustomCategory={isCustomCategory}
+                        onTitleChange={updateCategoryTitle}
+                        onDelete={handleDeleteCategory}
+                      />
+                    
+                      {/* Cards Grid - 4 per row on desktop */}
+                      {categoryCards && categoryCards.length > 0 ? (
+                        <SortableContext
+                          items={categoryCards.map(c => c.id)}
+                          strategy={rectSortingStrategy}
+                        >
+                          <div 
+                            className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4"
+                            onMouseDown={handleLongPressStart}
+                            onMouseUp={handleLongPressEnd}
+                            onMouseLeave={handleLongPressEnd}
+                            onTouchStart={handleLongPressStart}
+                            onTouchEnd={handleLongPressEnd}
+                          >
+                            {categoryCards.map((card) => (
+                              <SortableCard
+                                key={card.id}
+                                card={card}
+                                hasAccess={hasAccess(card.minPlan)}
+                                isEditMode={isEditMode}
+                                onRemove={() => handleRemoveCard(card.id)}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      ) : (
+                        isEditMode && isCustomCategory && (
+                          <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center text-muted-foreground">
+                            <p>Træk værktøjer hertil</p>
+                          </div>
+                        )
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
+            </SortableContext>
           </DndContext>
         </div>
 

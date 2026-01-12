@@ -183,10 +183,11 @@ serve(async (req) => {
 
     logStep("Starting guide sync", { user_id: user.id });
 
-    // Check existing guides count
+    // Check existing guides count - fetch ALL without default pagination limit
     const { data: existingGuides, error: countError } = await supabaseAdmin
       .from("guides")
-      .select("id, title");
+      .select("id, title")
+      .range(0, 9999);  // Override default limit to fetch all records
     
     if (countError) throw countError;
     
