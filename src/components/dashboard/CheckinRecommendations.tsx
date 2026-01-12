@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CheckCircle, Sparkles, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import confetti from 'canvas-confetti';
 
 interface CheckinData {
   id: string;
@@ -164,20 +165,42 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
     if (!user || !checkinData) return;
 
     const storageKey = `checkin-completed-${user.id}-${checkinData.id}`;
-    const newCompleted = completedItems.includes(rec)
+    const wasAlreadyCompleted = completedItems.includes(rec);
+    const newCompleted = wasAlreadyCompleted
       ? completedItems.filter(item => item !== rec)
       : [...completedItems, rec];
     
     setCompletedItems(newCompleted);
     localStorage.setItem(storageKey, JSON.stringify(newCompleted));
+
+    // Fire confetti when completing the LAST item
+    const willBeAllComplete = newCompleted.length === recommendations.length && recommendations.length > 0;
+    if (!wasAlreadyCompleted && willBeAllComplete) {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#FFD700', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'],
+      });
+    }
   };
 
   const completedCount = completedItems.length;
   const totalCount = recommendations.length;
   const allCompleted = completedCount === totalCount && totalCount > 0;
 
-  // If all completed, hide the entire component with smooth animation
-  if (allCompleted) {
+  // If all completed, show celebration briefly then collapse
+  const [isCollapsing, setIsCollapsing] = useState(false);
+
+  useEffect(() => {
+    if (allCompleted && !isCollapsing) {
+      // Start collapsing after 700ms (gives time for confetti)
+      const timer = setTimeout(() => setIsCollapsing(true), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [allCompleted, isCollapsing]);
+
+  if (isCollapsing) {
     return (
       <div 
         className="overflow-hidden transition-all duration-500 ease-out"

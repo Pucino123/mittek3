@@ -232,6 +232,7 @@ export type Database = {
           id: string
           is_published: boolean | null
           min_plan: Database["public"]["Enums"]["plan_tier"] | null
+          slug: string | null
           sort_order: number | null
           title: string
           updated_at: string
@@ -243,6 +244,7 @@ export type Database = {
           id?: string
           is_published?: boolean | null
           min_plan?: Database["public"]["Enums"]["plan_tier"] | null
+          slug?: string | null
           sort_order?: number | null
           title: string
           updated_at?: string
@@ -254,6 +256,7 @@ export type Database = {
           id?: string
           is_published?: boolean | null
           min_plan?: Database["public"]["Enums"]["plan_tier"] | null
+          slug?: string | null
           sort_order?: number | null
           title?: string
           updated_at?: string
