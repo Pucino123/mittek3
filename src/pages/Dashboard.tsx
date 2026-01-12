@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { IOSSwitch } from '@/components/ui/ios-switch';
@@ -183,6 +183,7 @@ const Dashboard = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+  const toolsSectionRef = useRef<HTMLDivElement>(null);
   
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
   const { user, profile, hasAccess, signOut, isSubscriptionActive, subscription } = useAuth();
@@ -527,15 +528,16 @@ const Dashboard = () => {
         </div>
 
         {/* Categories with Cards */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="space-y-10 sm:space-y-12">
-            {Object.entries(categoryTitles).map(([categoryId, title]) => {
-              const categoryCards = cardsByCategory[categoryId];
-              if (!categoryCards || categoryCards.length === 0) return null;
+        <div ref={toolsSectionRef}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="space-y-10 sm:space-y-12">
+              {Object.entries(categoryTitles).map(([categoryId, title]) => {
+                const categoryCards = cardsByCategory[categoryId];
+                if (!categoryCards || categoryCards.length === 0) return null;
 
               return (
                 <section key={categoryId}>
@@ -572,7 +574,8 @@ const Dashboard = () => {
               );
             })}
           </div>
-        </DndContext>
+          </DndContext>
+        </div>
 
         {/* Add Tool Card - Always at the end */}
         <div className="mt-10 sm:mt-12">
@@ -625,7 +628,7 @@ const Dashboard = () => {
       )}
 
       {/* Onboarding Tip for first-time users */}
-      <DashboardOnboardingTip />
+      <DashboardOnboardingTip targetRef={toolsSectionRef} />
     </div>
   );
 };

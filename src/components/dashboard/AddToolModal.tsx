@@ -77,18 +77,22 @@ export function AddToolModal({
               </div>
             </ScrollArea>
 
-            <div className="pt-4 border-t flex justify-between">
+            <div className="pt-4 border-t space-y-3">
+              <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
+                Luk
+              </Button>
+              
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={onResetAll}
-                className="text-muted-foreground"
+                onClick={() => {
+                  onResetAll();
+                  onOpenChange(false);
+                }}
+                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
-                Nulstil alle
-              </Button>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Luk
+                Gendan standard layout
               </Button>
             </div>
           </>
