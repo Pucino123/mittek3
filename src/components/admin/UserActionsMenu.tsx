@@ -20,6 +20,7 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
   const [editPlanOpen, setEditPlanOpen] = useState(false);
   const [confirmDeactivateOpen, setConfirmDeactivateOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmRemovePlanOpen, setConfirmRemovePlanOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'plus' | 'pro'>(
     (currentPlan as 'basic' | 'plus' | 'pro') || 'basic'
   );
@@ -81,6 +82,27 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
       setIsLoading(false);
     }
   };
+
+  const handleRemovePlan = async () => {
+    setIsLoading(true);
+    try {
+      const response = await supabase.functions.invoke('admin-manage-user', {
+        body: { action: 'remove_plan', userId }
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.error);
+
+      toast.success(`Plan fjernet fra ${userEmail}`);
+      setConfirmRemovePlanOpen(false);
+      onActionComplete();
+    } catch (error: any) {
+      toast.error(error.message || 'Kunne ikke fjerne plan');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     setIsLoading(true);
     try {
@@ -134,6 +156,13 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
                 Aktiver konto
               </>
             )}
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => setConfirmRemovePlanOpen(true)}
+            className="text-warning"
+          >
+            <UserX className="mr-2 h-4 w-4" />
+            Fjern plan (ingen plan)
           </DropdownMenuItem>
           <DropdownMenuItem 
             onClick={() => setConfirmDeleteOpen(true)}
@@ -228,6 +257,33 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
             >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               Slet permanent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Remove Plan Dialog */}
+      <Dialog open={confirmRemovePlanOpen} onOpenChange={setConfirmRemovePlanOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-warning">Fjern Plan</DialogTitle>
+            <DialogDescription>
+              Er du sikker på at du vil fjerne planen fra {userEmail}? 
+              <br /><br />
+              Brugeren vil ikke længere have adgang til betalte funktioner.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmRemovePlanOpen(false)}>
+              Annuller
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleRemovePlan} 
+              disabled={isLoading}
+            >
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
+              Fjern plan
             </Button>
           </DialogFooter>
         </DialogContent>

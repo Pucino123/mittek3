@@ -888,7 +888,7 @@ const Admin = () => {
   );
 
   // Calculate KPI metrics - exclude specific emails from revenue calculations
-  const excludedEmails = ['kevin.therkildsen@icloud.com', 'kevin@ihero.dk'];
+  const excludedEmails = ['kevin.therkildsen@icloud.com', 'kevin@ihero.dk', 'sabina-bini@hotmail.com'];
   const excludedUserIds = profiles
     .filter(p => p.email && excludedEmails.includes(p.email.toLowerCase()))
     .map(p => p.user_id);
