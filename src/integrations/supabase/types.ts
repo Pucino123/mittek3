@@ -1045,6 +1045,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_pending_subscription_by_email: {
+        Args: { check_email: string }
+        Returns: {
+          checkout_session_id: string
+          claimed: boolean
+          id: string
+          plan_tier: Database["public"]["Enums"]["plan_tier"]
+        }[]
+      }
       cleanup_old_audit_logs: { Args: never; Returns: undefined }
       get_user_plan: {
         Args: { _user_id: string }
