@@ -165,6 +165,8 @@ const Admin = () => {
   
   const [isGranting, setIsGranting] = useState(false);
   const [isSyncingStripe, setIsSyncingStripe] = useState(false);
+  const [isRepairingProfiles, setIsRepairingProfiles] = useState(false);
+
 
   useEffect(() => {
     fetchData();
@@ -365,6 +367,52 @@ const Admin = () => {
       setIsSyncingStripe(false);
     }
   };
+
+  // Repair missing profiles function
+  const repairMissingProfiles = async () => {
+    setIsRepairingProfiles(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Ikke logget ind');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('repair-missing-profiles', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const result = response.data;
+      
+      if (result.success) {
+        if (result.repaired === 0) {
+          toast.success('Alle brugere har allerede profiler!');
+        } else {
+          toast.success(
+            `Reparation fuldført!\n` +
+            `Oprettet: ${result.repaired} manglende profiler`,
+            { duration: 5000 }
+          );
+          // Refresh data
+          fetchData();
+        }
+      } else {
+        throw new Error(result.error || 'Ukendt fejl');
+      }
+    } catch (error) {
+      console.error('Repair profiles error:', error);
+      toast.error(`Kunne ikke reparere profiler: ${error instanceof Error ? error.message : 'Ukendt fejl'}`);
+    } finally {
+      setIsRepairingProfiles(false);
+    }
+  };
+
   // Guide functions
   const openGuideEditor = (guide?: Guide) => {
     if (guide) {
@@ -1158,6 +1206,19 @@ const Admin = () => {
                         <RefreshCw className="mr-2 h-4 w-4" />
                       )}
                       Synk fra Stripe
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={repairMissingProfiles} 
+                      disabled={isRepairingProfiles}
+                      title="Finder brugere i auth.users uden profil og opretter dem"
+                    >
+                      {isRepairingProfiles ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Shield className="mr-2 h-4 w-4" />
+                      )}
+                      Reparer profiler
                     </Button>
                     <CreateUserDialog onUserCreated={fetchData} />
                   </div>
