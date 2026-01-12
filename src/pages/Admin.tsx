@@ -25,6 +25,7 @@ import { VisualHelpManager } from '@/components/admin/VisualHelpManager';
 import { SystemContentEditor } from '@/components/admin/SystemContentEditor';
 import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 import { CreateUserDialog } from '@/components/admin/CreateUserDialog';
+import { UserActionsMenu } from '@/components/admin/UserActionsMenu';
 
 
 interface Profile {
@@ -904,14 +905,23 @@ const Admin = () => {
                               {new Date(userProfile.created_at).toLocaleDateString('da-DK')}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openGrantPlanDialog(userProfile)}
-                              >
-                                <Gift className="mr-2 h-4 w-4" />
-                                Giv Plan
-                              </Button>
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openGrantPlanDialog(userProfile)}
+                                >
+                                  <Gift className="mr-2 h-4 w-4" />
+                                  Giv Plan
+                                </Button>
+                                <UserActionsMenu
+                                  userId={userProfile.user_id}
+                                  userEmail={userProfile.email || ''}
+                                  currentPlan={sub?.plan_tier || null}
+                                  isActive={sub?.status === 'active' || sub?.status === 'trialing'}
+                                  onActionComplete={fetchData}
+                                />
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
