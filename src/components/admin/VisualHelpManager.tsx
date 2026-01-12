@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Upload, X, Image as ImageIcon, Video, Play } from 'lucide-react';
+import { Loader2, Upload, X, Image as ImageIcon, Video, Play, Save, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -23,6 +24,7 @@ const features = [
   { key: 'battery_doctor', label: 'Batteri-Doktor' },
   { key: 'medical_id', label: 'Digitalt Nødkort' },
   { key: 'guest_wifi', label: 'Gæste Wi-Fi' },
+  { key: 'screenshot_ai', label: 'Screenshot AI' },
 ];
 
 export function VisualHelpManager() {
@@ -30,6 +32,13 @@ export function VisualHelpManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [uploadType, setUploadType] = useState<'image' | 'gif' | 'video' | null>(null);
+  const [editingDescription, setEditingDescription] = useState<string | null>(null);
+  const [descriptionValue, setDescriptionValue] = useState('');
+  const [savingDescription, setSavingDescription] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newStepKey, setNewStepKey] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [selectedFeatureForNew, setSelectedFeatureForNew] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -144,6 +153,72 @@ export function VisualHelpManager() {
     return items.filter(item => item.feature_key === featureKey);
   };
 
+  const startEditDescription = (item: VisualHelpImage) => {
+    setEditingDescription(item.id);
+    setDescriptionValue(item.description || '');
+  };
+
+  const saveDescription = async (id: string) => {
+    setSavingDescription(true);
+    try {
+      const { error } = await supabase
+        .from('visual_help_images')
+        .update({ description: descriptionValue })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setItems(prev => 
+        prev.map(item => item.id === id ? { ...item, description: descriptionValue } : item)
+      );
+      setEditingDescription(null);
+      toast.success('Beskrivelse gemt');
+    } catch (error) {
+      console.error('Save description error:', error);
+      toast.error('Kunne ikke gemme beskrivelse');
+    } finally {
+      setSavingDescription(false);
+    }
+  };
+
+  const createNewEntry = async (featureKey: string) => {
+    if (!newStepKey.trim()) {
+      toast.error('Step key er påkrævet');
+      return;
+    }
+    
+    setIsCreating(true);
+    try {
+      const maxSort = items
+        .filter(i => i.feature_key === featureKey)
+        .reduce((max, i) => Math.max(max, (i as any).sort_order || 0), 0);
+      
+      const { data, error } = await supabase
+        .from('visual_help_images')
+        .insert({
+          feature_key: featureKey,
+          step_key: newStepKey.trim(),
+          description: newDescription.trim() || null,
+          sort_order: maxSort + 1,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setItems(prev => [...prev, data]);
+      setNewStepKey('');
+      setNewDescription('');
+      setSelectedFeatureForNew('');
+      toast.success('Ny visuel hjælp oprettet');
+    } catch (error) {
+      console.error('Create error:', error);
+      toast.error('Kunne ikke oprette ny visuel hjælp');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
@@ -176,6 +251,55 @@ export function VisualHelpManager() {
           {features.map(feature => (
             <TabsContent key={feature.key} value={feature.key}>
               <div className="space-y-4">
+                {/* Add new entry button */}
+                {selectedFeatureForNew === feature.key ? (
+                  <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+                    <Label className="text-sm font-medium">Opret ny visuel hjælp</Label>
+                    <div className="grid gap-3">
+                      <Input
+                        placeholder="Step key (f.eks. 'step_1' eller 'intro')"
+                        value={newStepKey}
+                        onChange={(e) => setNewStepKey(e.target.value)}
+                      />
+                      <Textarea
+                        placeholder="Beskrivelse (valgfri)"
+                        value={newDescription}
+                        onChange={(e) => setNewDescription(e.target.value)}
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => createNewEntry(feature.key)}
+                          disabled={isCreating || !newStepKey.trim()}
+                        >
+                          {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Opret'}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedFeatureForNew('');
+                            setNewStepKey('');
+                            setNewDescription('');
+                          }}
+                        >
+                          Annuller
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={() => setSelectedFeatureForNew(feature.key)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Tilføj ny visuel hjælp
+                  </Button>
+                )}
+
                 {getFeatureItems(feature.key).length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground">
                     Ingen visuelle hjælpebilleder for denne funktion
@@ -183,10 +307,45 @@ export function VisualHelpManager() {
                 ) : (
                   getFeatureItems(feature.key).map(item => (
                     <div key={item.id} className="border rounded-lg p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Badge variant="outline" className="mb-1">{item.step_key}</Badge>
-                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <Badge variant="outline" className="mb-2">{item.step_key}</Badge>
+                          
+                          {/* Editable description */}
+                          {editingDescription === item.id ? (
+                            <div className="flex gap-2 mt-2">
+                              <Textarea
+                                value={descriptionValue}
+                                onChange={(e) => setDescriptionValue(e.target.value)}
+                                placeholder="Beskrivelse af dette trin..."
+                                rows={2}
+                                className="flex-1"
+                              />
+                              <div className="flex flex-col gap-1">
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => saveDescription(item.id)}
+                                  disabled={savingDescription}
+                                >
+                                  {savingDescription ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => setEditingDescription(null)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p 
+                              className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                              onClick={() => startEditDescription(item)}
+                            >
+                              {item.description || <span className="italic">Klik for at tilføje beskrivelse...</span>}
+                            </p>
+                          )}
                         </div>
                       </div>
 
