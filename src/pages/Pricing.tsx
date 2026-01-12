@@ -205,29 +205,29 @@ const Pricing = () => {
                   </div>
                 )}
 
-                <div className="text-center mb-5 md:mb-8">
-                  <h2 className="text-xl md:text-2xl font-bold mb-1 md:mb-2">{plan.name}</h2>
-                  <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">{plan.description}</p>
+                <div className="text-center mb-4 sm:mb-4 md:mb-8">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-1">{plan.name}</h2>
+                  <p className="text-xs sm:text-sm md:text-base text-muted-foreground mb-3 sm:mb-3 md:mb-6">{plan.description}</p>
                   <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-4xl md:text-5xl font-bold">{plan.price}</span>
-                    <span className="text-lg md:text-xl text-muted-foreground">kr./md</span>
+                    <span className="text-3xl sm:text-4xl md:text-5xl font-bold">{plan.price}</span>
+                    <span className="text-base sm:text-lg md:text-xl text-muted-foreground">kr./md</span>
                   </div>
                 </div>
 
-                <ul className="space-y-3 md:space-y-4 mb-6 md:mb-8 flex-1">
+                <ul className="space-y-2 sm:space-y-2 md:space-y-4 mb-6 md:mb-8 flex-1">
                   {plan.features.map((feature, index) => (
                     <li 
                       key={index} 
-                      className={`flex items-start gap-2 md:gap-3 ${
-                        feature.highlight ? 'bg-primary/5 -mx-2 px-2 py-2 rounded-lg' : ''
+                      className={`flex items-start gap-2 ${
+                        feature.highlight ? 'bg-primary/5 -mx-2 px-2 py-1.5 sm:py-1.5 md:py-2 rounded-lg' : ''
                       }`}
                     >
                       {feature.included ? (
-                        <Check className="h-4 w-4 md:h-5 md:w-5 text-success flex-shrink-0 mt-0.5" />
+                        <Check className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
                       ) : (
-                        <X className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
+                        <X className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
                       )}
-                      <span className={`text-sm md:text-base ${!feature.included ? 'text-muted-foreground/50' : ''} ${feature.highlight ? 'font-medium' : ''}`}>
+                      <span className={`text-sm leading-tight ${!feature.included ? 'text-muted-foreground/50' : ''} ${feature.highlight ? 'font-medium' : ''}`}>
                         {feature.text}
                       </span>
                     </li>

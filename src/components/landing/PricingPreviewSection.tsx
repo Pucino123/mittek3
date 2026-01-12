@@ -76,26 +76,26 @@ export function PricingPreviewSection() {
                 </div>
               )}
 
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold mb-1">{plan.name}</h3>
-                <p className="text-muted-foreground text-sm mb-4">{plan.description}</p>
+              <div className="text-center mb-4 sm:mb-4 md:mb-6">
+                <h3 className="text-lg sm:text-xl font-semibold mb-1">{plan.name}</h3>
+                <p className="text-muted-foreground text-xs sm:text-sm mb-3 sm:mb-3 md:mb-4">{plan.description}</p>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground">kr./md</span>
+                  <span className="text-3xl sm:text-4xl font-bold">{plan.price}</span>
+                  <span className="text-muted-foreground text-sm sm:text-base">kr./md</span>
                 </div>
               </div>
 
               {/* Digital Helper highlight */}
-              <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg mb-4">
-                <MessageCircle className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-primary">Inkl. Din Digitale Hjælper 24/7</span>
+              <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-primary/10 rounded-lg mb-3 sm:mb-4">
+                <MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-primary">Inkl. Din Digitale Hjælper 24/7</span>
               </div>
 
-              <ul className="space-y-3 mb-6">
+              <ul className="space-y-2 sm:space-y-2 md:space-y-3 mb-4 sm:mb-6">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">{feature}</span>
+                    <Check className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
+                    <span className="text-xs sm:text-sm leading-tight">{feature}</span>
                   </li>
                 ))}
               </ul>
