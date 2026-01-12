@@ -12,7 +12,7 @@ import {
   Wrench,
   Lightbulb
 } from 'lucide-react';
-import { DeviceType } from '@/data/hardcodedGuides';
+import { DeviceType } from '@/components/ui/DeviceSelector';
 
 interface TroubleshootingQuestion {
   id: string;
