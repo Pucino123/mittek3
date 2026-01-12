@@ -12,7 +12,6 @@ import {
   Lock,
   Settings,
   LogOut,
-  ChevronRight,
   Wrench,
   Loader2,
   ShieldCheck,
@@ -123,14 +122,16 @@ const defaultCategoryTitles: Record<string, string> = {
 // Legacy alias for backwards compatibility
 const categoryTitles = defaultCategoryTitles;
 
-// Admin card (rendered separately if user is admin)
-const adminCard = {
+// Admin card (pinned first in the Tools section for admin users)
+const adminCardDefinition: CardDefinition = {
   id: 'admin',
   title: 'Admin Panel',
   description: 'Administrer alt',
   icon: ShieldCheck,
   href: '/admin',
-  color: 'bg-violet-500/10 text-violet-600',
+  color: 'bg-info/10 text-info',
+  minPlan: 'basic',
+  category: 'tools',
 };
 
 // Sortable card wrapper
@@ -544,6 +545,23 @@ const Dashboard = () => {
               </Button>
             )}
 
+            {/* Admin shortcut - only for admins */}
+            {profile?.is_admin && (
+              <>
+                <Link to="/admin" className="hidden sm:block">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <ShieldCheck className="h-4 w-4" />
+                    Admin
+                  </Button>
+                </Link>
+                <Link to="/admin" className="sm:hidden">
+                  <Button variant="ghost" size="icon" aria-label="Admin Panel">
+                    <ShieldCheck className="h-5 w-5" />
+                  </Button>
+                </Link>
+              </>
+            )}
+
             {/* Senior Mode Toggle - iOS Style */}
             <div className="hidden md:flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary">
               <IOSSwitch 
@@ -625,13 +643,14 @@ const Dashboard = () => {
             >
               <div className="space-y-10 sm:space-y-12" id="dashboard-wrapper">
                 {currentCategoryOrder.map((categoryId) => {
-                  const categoryCards = cardsByCategory[categoryId];
+                  const categoryCards = cardsByCategory[categoryId] || [];
                   // Also check custom categories that might be empty but should still render
                   const isCustomCategory = categoryId.startsWith('custom_');
                   const customCategoryData = customCategories.find(c => c.id === categoryId);
+                  const hasAdminCard = categoryId === 'tools' && !!profile?.is_admin;
                   
-                  // Skip if no cards AND not a custom category
-                  if ((!categoryCards || categoryCards.length === 0) && !isCustomCategory) return null;
+                  // Skip if no cards AND not a custom category AND no admin card for tools
+                  if (categoryCards.length === 0 && !isCustomCategory && !hasAdminCard) return null;
                   
                   const defaultTitle = customCategoryData?.title || defaultCategoryTitles[categoryId] || categoryId;
                   const customTitle = customCategoryTitles[categoryId];

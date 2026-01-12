@@ -43,7 +43,7 @@ export function Header() {
               {/* Admin shortcut - only for admins */}
               {profile?.is_admin && (
                 <Link to="/admin">
-                  <Button variant="outline" size="default" className="border-violet-500/50 text-violet-600 hover:bg-violet-500/10">
+                  <Button variant="outline" size="default" className="border-info/40 text-info hover:bg-info/10">
                     <ShieldCheck className="mr-2 h-4 w-4" />
                     Admin
                   </Button>
@@ -112,7 +112,7 @@ export function Header() {
                 {/* Admin shortcut - mobile - only for admins */}
                 {profile?.is_admin && (
                   <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block">
-                    <Button variant="outline" size="lg" className="w-full min-h-[52px] border-violet-500/50 text-violet-600 hover:bg-violet-500/10">
+                    <Button variant="outline" size="lg" className="w-full min-h-[52px] border-info/40 text-info hover:bg-info/10">
                       <ShieldCheck className="mr-2 h-5 w-5" />
                       Admin Panel
                     </Button>
