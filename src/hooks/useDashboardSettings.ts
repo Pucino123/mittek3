@@ -209,6 +209,26 @@ export function useDashboardSettings() {
     });
   }, [settings.custom_categories, settings.category_order, saveSettings]);
 
+  // Delete a custom category
+  const deleteCustomCategory = useCallback((categoryId: string) => {
+    // Only allow deleting custom categories
+    if (!categoryId.startsWith('custom_')) return;
+    
+    const newCustomCategories = settings.custom_categories.filter(c => c.id !== categoryId);
+    const currentOrder = settings.category_order || ['start', 'tools', 'safety', 'extras'];
+    const newOrder = currentOrder.filter(id => id !== categoryId);
+    
+    // Also remove the category title if any
+    const newCategoryTitles = { ...settings.category_titles };
+    delete newCategoryTitles[categoryId];
+    
+    saveSettings({ 
+      custom_categories: newCustomCategories,
+      category_order: newOrder,
+      category_titles: newCategoryTitles,
+    });
+  }, [settings.custom_categories, settings.category_order, settings.category_titles, saveSettings]);
+
   return {
     cardOrder: settings.card_order,
     hiddenCards: settings.hidden_cards,
@@ -222,6 +242,7 @@ export function useDashboardSettings() {
     updateCategoryTitle,
     updateCategoryOrder,
     addCustomCategory,
+    deleteCustomCategory,
     resetToDefault,
   };
 }

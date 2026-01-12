@@ -597,6 +597,30 @@ export type Database = {
         }
         Relationships: []
       }
+      system_content: {
+        Row: {
+          created_at: string
+          description: string | null
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          key: string
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       trusted_helpers: {
         Row: {
           can_view_checkins: boolean | null
