@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye } from 'lucide-react';
+import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,6 +21,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableGuideStep } from '@/components/admin/SortableGuideStep';
 import { VisualHelpManager } from '@/components/admin/VisualHelpManager';
+import { SystemContentEditor } from '@/components/admin/SystemContentEditor';
 
 interface Profile {
   id: string;
@@ -136,11 +137,11 @@ const Admin = () => {
     setIsLoading(true);
     try {
       const [profilesRes, subscriptionsRes, pendingRes, guidesRes, ticketsRes] = await Promise.all([
-        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-        supabase.from('subscriptions').select('*').order('created_at', { ascending: false }),
-        supabase.from('pending_subscriptions').select('*').order('created_at', { ascending: false }),
-        supabase.from('guides').select('*').order('sort_order', { ascending: true }),
-        supabase.from('support_tickets').select('*').order('updated_at', { ascending: false }),
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }).range(0, 999),
+        supabase.from('subscriptions').select('*').order('created_at', { ascending: false }).range(0, 999),
+        supabase.from('pending_subscriptions').select('*').order('created_at', { ascending: false }).range(0, 999),
+        supabase.from('guides').select('*').order('sort_order', { ascending: true }).range(0, 999),
+        supabase.from('support_tickets').select('*').order('updated_at', { ascending: false }).range(0, 999),
       ]);
 
       if (profilesRes.data) setProfiles(profilesRes.data);
@@ -801,6 +802,10 @@ const Admin = () => {
               <CreditCard className="mr-2 h-5 w-5" />
               <span className="hidden sm:inline">Pending</span> ({pendingSubscriptions.filter(p => !p.claimed).length})
             </TabsTrigger>
+            <TabsTrigger value="system" className="h-12 px-4 md:px-6">
+              <FileText className="mr-2 h-5 w-5" />
+              <span className="hidden sm:inline">System Tekster</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -1373,6 +1378,11 @@ const Admin = () => {
                 )}
               </DialogContent>
             </Dialog>
+          </TabsContent>
+
+          {/* System Content Tab */}
+          <TabsContent value="system">
+            <SystemContentEditor />
           </TabsContent>
         </Tabs>
       </div>

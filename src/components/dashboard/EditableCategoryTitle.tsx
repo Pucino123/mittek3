@@ -95,7 +95,7 @@ export function EditableCategoryTitle({
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDelete && isCustomCategory) {
+    if (onDelete) {
       onDelete(categoryId);
     }
   };
@@ -115,7 +115,7 @@ export function EditableCategoryTitle({
           className="text-xl sm:text-2xl md:text-3xl font-bold h-auto py-1 px-2 max-w-xs"
           placeholder={defaultTitle}
         />
-        {isCustomCategory && onDelete && (
+        {onDelete && (
           <button
             className="delete-btn p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
             onClick={handleDelete}
@@ -150,7 +150,7 @@ export function EditableCategoryTitle({
       {isEditMode && (
         <>
           <span className="text-xs text-muted-foreground ml-2">(klik for at omdøbe)</span>
-          {isCustomCategory && onDelete && (
+          {onDelete && (
             <button
               className="delete-btn p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors ml-2"
               onClick={handleDelete}

@@ -206,7 +206,7 @@ const Dashboard = () => {
     updateCategoryTitle,
     updateCategoryOrder,
     addCustomCategory,
-    deleteCustomCategory,
+    deleteCategory,
     resetToDefault 
   } = useDashboardSettings();
 
@@ -411,7 +411,21 @@ const Dashboard = () => {
       return;
     }
 
-    // Otherwise, dragging cards
+    // Dragging cards - check if moving between categories or within same category
+    const activeCard = allCards.find(c => c.id === activeId);
+    const overCard = allCards.find(c => c.id === overId);
+    
+    // Cross-category move: update the card's category
+    if (activeCard && overCard && activeCard.category !== overCard.category) {
+      // Find index in allCards to update category
+      const updatedCards = [...allCards];
+      const activeIndex = updatedCards.findIndex(c => c.id === activeId);
+      if (activeIndex !== -1) {
+        updatedCards[activeIndex] = { ...updatedCards[activeIndex], category: overCard.category };
+      }
+    }
+    
+    // Update card order (supports cross-category movement via visual position)
     const currentCardOrder = cardOrder || defaultCardOrder;
     const oldIndex = currentCardOrder.indexOf(activeId);
     const newIndex = currentCardOrder.indexOf(overId);
@@ -452,9 +466,9 @@ const Dashboard = () => {
     });
   };
 
-  // Handle delete custom category
+  // Handle delete category (any category, not just custom)
   const handleDeleteCategory = (categoryId: string) => {
-    deleteCustomCategory(categoryId);
+    deleteCategory(categoryId);
     toast.success('Kategori slettet');
   };
 
