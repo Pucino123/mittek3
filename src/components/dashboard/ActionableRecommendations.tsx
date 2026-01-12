@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ArrowUpCircle, 
@@ -9,7 +9,6 @@ import {
   Check
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Recommendation {
   id: string;
@@ -91,8 +90,26 @@ export function ActionableRecommendations() {
     });
   };
 
+  // Check if all recommendations are completed
+  const allCompleted = useMemo(() => {
+    return recommendations.every(rec => completedItems.has(rec.id));
+  }, [completedItems]);
+
+  // Don't render if all completed (with smooth collapse)
+  if (allCompleted) {
+    return null;
+  }
+
   return (
-    <div className="card-elevated p-4 sm:p-6 mb-6 sm:mb-8 overflow-hidden">
+    <div 
+      className="card-elevated p-4 sm:p-6 mb-6 sm:mb-8 overflow-hidden transition-all duration-500 ease-in-out"
+      style={{
+        opacity: allCompleted ? 0 : 1,
+        maxHeight: allCompleted ? 0 : '500px',
+        marginBottom: allCompleted ? 0 : undefined,
+        padding: allCompleted ? 0 : undefined,
+      }}
+    >
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
           <Sparkles className="h-5 w-5 text-primary" />
