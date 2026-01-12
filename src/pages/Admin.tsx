@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye, FileText } from 'lucide-react';
+import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye, FileText, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +23,7 @@ import { SortableGuideStep } from '@/components/admin/SortableGuideStep';
 import { SortableGuideRow } from '@/components/admin/SortableGuideRow';
 import { VisualHelpManager } from '@/components/admin/VisualHelpManager';
 import { SystemContentEditor } from '@/components/admin/SystemContentEditor';
+import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 
 
 interface Profile {
@@ -830,6 +831,10 @@ const Admin = () => {
               <FileText className="mr-2 h-5 w-5" />
               <span className="hidden sm:inline">System Tekster</span>
             </TabsTrigger>
+            <TabsTrigger value="audit" className="h-12 px-4 md:px-6">
+              <Shield className="mr-2 h-5 w-5" />
+              <span className="hidden sm:inline">Audit Log</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -1393,6 +1398,11 @@ const Admin = () => {
           {/* System Content Tab */}
           <TabsContent value="system">
             <SystemContentEditor />
+          </TabsContent>
+
+          {/* Audit Log Tab */}
+          <TabsContent value="audit">
+            <AuditLogViewer />
           </TabsContent>
         </Tabs>
       </div>
