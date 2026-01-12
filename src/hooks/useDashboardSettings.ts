@@ -4,11 +4,17 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const STORAGE_KEY = 'mittek_dashboard_settings';
 
+interface CustomCategory {
+  id: string;
+  title: string;
+}
+
 interface DashboardSettings {
   card_order: string[] | null;
   hidden_cards: string[];
   category_titles: Record<string, string>;
   category_order: string[] | null;
+  custom_categories: CustomCategory[];
 }
 
 // localStorage helpers
@@ -39,6 +45,7 @@ export function useDashboardSettings() {
     hidden_cards: [],
     category_titles: {},
     category_order: null,
+    custom_categories: [],
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -65,11 +72,14 @@ export function useDashboardSettings() {
         if (error) throw error;
 
         if (data) {
+          // Load from local storage for category_titles, category_order and custom_categories
+          const localSettings = loadFromLocalStorage();
           const loadedSettings: DashboardSettings = {
             card_order: data.card_order,
             hidden_cards: data.hidden_cards || [],
-            category_titles: {},
-            category_order: null,
+            category_titles: localSettings?.category_titles || {},
+            category_order: localSettings?.category_order || null,
+            custom_categories: localSettings?.custom_categories || [],
           };
           setSettings(loadedSettings);
           // Also save to localStorage as backup
@@ -150,7 +160,7 @@ export function useDashboardSettings() {
     }
     
     // Reset local state
-    setSettings({ card_order: null, hidden_cards: [], category_titles: {}, category_order: null });
+    setSettings({ card_order: null, hidden_cards: [], category_titles: {}, category_order: null, custom_categories: [] });
     
     // Clear from DB if authenticated
     if (user) {
@@ -181,17 +191,37 @@ export function useDashboardSettings() {
     saveSettings({ category_order: newOrder });
   }, [saveSettings]);
 
+  // Add a custom category
+  const addCustomCategory = useCallback((categoryName: string) => {
+    const newCategory: CustomCategory = {
+      id: `custom_${Date.now()}`,
+      title: categoryName,
+    };
+    const newCustomCategories = [...settings.custom_categories, newCategory];
+    
+    // Also add to category order if exists
+    const currentOrder = settings.category_order || ['start', 'tools', 'safety', 'extras'];
+    const newOrder = [...currentOrder, newCategory.id];
+    
+    saveSettings({ 
+      custom_categories: newCustomCategories,
+      category_order: newOrder,
+    });
+  }, [settings.custom_categories, settings.category_order, saveSettings]);
+
   return {
     cardOrder: settings.card_order,
     hiddenCards: settings.hidden_cards,
     categoryTitles: settings.category_titles,
     categoryOrder: settings.category_order,
+    customCategories: settings.custom_categories,
     isLoading,
     hideCard,
     showCard,
     updateCardOrder,
     updateCategoryTitle,
     updateCategoryOrder,
+    addCustomCategory,
     resetToDefault,
   };
 }

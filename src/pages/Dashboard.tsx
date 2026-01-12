@@ -198,11 +198,13 @@ const Dashboard = () => {
     hiddenCards,
     categoryTitles: customCategoryTitles,
     categoryOrder,
+    customCategories,
     hideCard, 
     showCard, 
     updateCardOrder,
     updateCategoryTitle,
     updateCategoryOrder,
+    addCustomCategory,
     resetToDefault 
   } = useDashboardSettings();
 
@@ -418,6 +420,14 @@ const Dashboard = () => {
     toast.success('Dashboard nulstillet');
   };
 
+  // Handle create new category
+  const handleCreateCategory = (categoryName: string) => {
+    addCustomCategory(categoryName);
+    toast.success(`Kategori "${categoryName}" oprettet`, {
+      description: 'Du kan nu trække værktøjer ind i den nye kategori',
+    });
+  };
+
   const displayName = profile?.display_name || 'der';
   const isOwner = user?.email === 'kevin.therkildsen@icloud.com';
 
@@ -630,6 +640,7 @@ const Dashboard = () => {
         hiddenCards={hiddenCardDefinitions}
         onAddCard={handleAddCard}
         onResetAll={handleResetAll}
+        onCreateCategory={handleCreateCategory}
       />
 
       {/* Floating AI Chat Widget - Only show if subscription is active */}

@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw, FolderPlus } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
 interface HiddenCard {
@@ -18,6 +20,7 @@ interface AddToolModalProps {
   hiddenCards: HiddenCard[];
   onAddCard: (cardId: string) => void;
   onResetAll: () => void;
+  onCreateCategory?: (categoryName: string) => void;
 }
 
 export function AddToolModal({ 
@@ -25,10 +28,29 @@ export function AddToolModal({
   onOpenChange, 
   hiddenCards, 
   onAddCard,
-  onResetAll 
+  onResetAll,
+  onCreateCategory
 }: AddToolModalProps) {
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const handleCreateCategory = () => {
+    if (newCategoryName.trim() && onCreateCategory) {
+      onCreateCategory(newCategoryName.trim());
+      setNewCategoryName('');
+      setShowNewCategoryInput(false);
+      onOpenChange(false);
+    }
+  };
+
+  const handleClose = () => {
+    setShowNewCategoryInput(false);
+    setNewCategoryName('');
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -40,12 +62,65 @@ export function AddToolModal({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Create New Category Section */}
+        {onCreateCategory && (
+          <div className="border-b pb-4 mb-2">
+            {showNewCategoryInput ? (
+              <div className="space-y-2">
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Kategori navn..."
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateCategory();
+                    if (e.key === 'Escape') {
+                      setShowNewCategoryInput(false);
+                      setNewCategoryName('');
+                    }
+                  }}
+                />
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    onClick={handleCreateCategory}
+                    disabled={!newCategoryName.trim()}
+                    className="flex-1"
+                  >
+                    Opret
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setShowNewCategoryInput(false);
+                      setNewCategoryName('');
+                    }}
+                    className="flex-1"
+                  >
+                    Annuller
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => setShowNewCategoryInput(true)}
+              >
+                <FolderPlus className="h-4 w-4" />
+                Opret ny kategori
+              </Button>
+            )}
+          </div>
+        )}
+
         {hiddenCards.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-muted-foreground mb-4">
               Alle værktøjer er allerede på dit dashboard
             </p>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={handleClose}>
               Luk
             </Button>
           </div>
@@ -59,7 +134,7 @@ export function AddToolModal({
                     onClick={() => {
                       onAddCard(card.id);
                       if (hiddenCards.length === 1) {
-                        onOpenChange(false);
+                        handleClose();
                       }
                     }}
                     className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
@@ -78,7 +153,7 @@ export function AddToolModal({
             </ScrollArea>
 
             <div className="pt-4 border-t space-y-3">
-              <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" className="w-full" onClick={handleClose}>
                 Luk
               </Button>
               
@@ -87,7 +162,7 @@ export function AddToolModal({
                 size="sm"
                 onClick={() => {
                   onResetAll();
-                  onOpenChange(false);
+                  handleClose();
                 }}
                 className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
               >

@@ -123,6 +123,9 @@ const Admin = () => {
   const [grantPlanDialogOpen, setGrantPlanDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'plus' | 'pro'>('plus');
+  
+  // Sync guides state
+  const [isSyncingGuides, setIsSyncingGuides] = useState(false);
   const [isGranting, setIsGranting] = useState(false);
 
   useEffect(() => {
@@ -209,6 +212,49 @@ const Admin = () => {
       toast.error('Kunne ikke give plan');
     } finally {
       setIsGranting(false);
+    }
+  };
+
+  // Sync guides to database
+  const syncGuidesToDb = async () => {
+    setIsSyncingGuides(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Ikke logget ind');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('sync-guides', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const result = response.data;
+      if (result.synced > 0) {
+        toast.success(`${result.synced} guides importeret`, {
+          description: result.skipped > 0 ? `${result.skipped} allerede eksisterende sprunget over` : undefined,
+        });
+      } else if (result.skipped > 0) {
+        toast.info(`Alle ${result.skipped} guides eksisterer allerede`);
+      } else {
+        toast.info('Ingen guides at importere');
+      }
+
+      // Refresh the guides list
+      fetchData();
+    } catch (error: any) {
+      console.error('Sync guides error:', error);
+      toast.error('Kunne ikke synkronisere guides', {
+        description: error.message || 'Prøv igen senere',
+      });
+    } finally {
+      setIsSyncingGuides(false);
     }
   };
 
@@ -1100,67 +1146,81 @@ const Admin = () => {
           <TabsContent value="content">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
                     <CardTitle>Guides</CardTitle>
                     <CardDescription>Administrer mini-guides og deres trin</CardDescription>
                   </div>
-                  <Dialog open={isGuideDialogOpen} onOpenChange={setIsGuideDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button onClick={() => openGuideEditor()}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Ny guide
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>
-                          {editingGuide ? 'Rediger guide' : 'Opret ny guide'}
-                        </DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 pt-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="title">Titel</Label>
-                          <Input
-                            id="title"
-                            value={guideTitle}
-                            onChange={(e) => setGuideTitle(e.target.value)}
-                            placeholder="F.eks. Sådan tager du et screenshot"
-                          />
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={syncGuidesToDb}
+                      disabled={isSyncingGuides}
+                    >
+                      {isSyncingGuides ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      Synkroniser Guides
+                    </Button>
+                    <Dialog open={isGuideDialogOpen} onOpenChange={setIsGuideDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button onClick={() => openGuideEditor()}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Ny guide
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>
+                            {editingGuide ? 'Rediger guide' : 'Opret ny guide'}
+                          </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 pt-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="title">Titel</Label>
+                            <Input
+                              id="title"
+                              value={guideTitle}
+                              onChange={(e) => setGuideTitle(e.target.value)}
+                              placeholder="F.eks. Sådan tager du et screenshot"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="description">Beskrivelse</Label>
+                            <Textarea
+                              id="description"
+                              value={guideDescription}
+                              onChange={(e) => setGuideDescription(e.target.value)}
+                              placeholder="Kort beskrivelse af guiden..."
+                              rows={3}
+                            />
+                          </div>
+                          <div className="flex gap-2 pt-4">
+                            <Button
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => setIsGuideDialogOpen(false)}
+                            >
+                              Annuller
+                            </Button>
+                            <Button
+                              className="flex-1"
+                              onClick={saveGuide}
+                              disabled={isSaving}
+                            >
+                              {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Gem'
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="description">Beskrivelse</Label>
-                          <Textarea
-                            id="description"
-                            value={guideDescription}
-                            onChange={(e) => setGuideDescription(e.target.value)}
-                            placeholder="Kort beskrivelse af guiden..."
-                            rows={3}
-                          />
-                        </div>
-                        <div className="flex gap-2 pt-4">
-                          <Button
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => setIsGuideDialogOpen(false)}
-                          >
-                            Annuller
-                          </Button>
-                          <Button
-                            className="flex-1"
-                            onClick={saveGuide}
-                            disabled={isSaving}
-                          >
-                            {isSaving ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              'Gem'
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -1169,7 +1229,17 @@ const Admin = () => {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : guides.length === 0 ? (
-                  <p className="text-center py-8 text-muted-foreground">Ingen guides endnu</p>
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">Ingen guides endnu</p>
+                    <Button variant="outline" onClick={syncGuidesToDb} disabled={isSyncingGuides}>
+                      {isSyncingGuides ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      Importer fra hardcoded guides
+                    </Button>
+                  </div>
                 ) : (
                   <Table>
                     <TableHeader>
