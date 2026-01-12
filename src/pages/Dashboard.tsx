@@ -649,23 +649,43 @@ const Dashboard = () => {
   const handleRemoveCard = (cardId: string) => {
     // Save delete action to undo stack with full context
     const cardCategory = getCardCategory(cardId);
+    const savedCardOrder = cardOrder ? [...cardOrder] : null;
+    const savedHiddenCards = [...hiddenCards];
+    const savedCardCategories = { ...cardCategories };
+    
     setUndoStack(prev => [
       ...prev.slice(-9),
       {
         type: 'delete' as const,
         cardId,
         cardCategory,
-        cardOrder: cardOrder ? [...cardOrder] : null,
-        hiddenCards: [...hiddenCards],
-        cardCategories: { ...cardCategories },
+        cardOrder: savedCardOrder,
+        hiddenCards: savedHiddenCards,
+        cardCategories: savedCardCategories,
       }
     ]);
     
     hideCard(cardId);
     haptics.tick();
+    
+    // Show toast with undo action button
     toast.success('Værktøj skjult', {
-      description: 'Tryk Ctrl+Z for at fortryde',
-      duration: 3000,
+      description: 'Klik for at fortryde',
+      duration: 5000,
+      action: {
+        label: 'Fortryd',
+        onClick: () => {
+          // Restore the card to its original category
+          showCard(cardId, cardCategory);
+          if (savedCardOrder) {
+            updateCardOrder(savedCardOrder);
+          }
+          // Remove this action from undo stack
+          setUndoStack(prev => prev.filter(a => !(a.type === 'delete' && a.cardId === cardId)));
+          haptics.success();
+          toast.success('Værktøj gendannet', { duration: 2000 });
+        },
+      },
     });
   };
 
