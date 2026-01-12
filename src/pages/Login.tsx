@@ -6,15 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PasswordInput } from '@/components/ui/PasswordInput';
-import { Shield, Mail, Lock, ArrowRight, CheckCircle, AlertCircle, Smartphone, ArrowLeft } from 'lucide-react';
+import { Shield, Mail, Lock, ArrowRight, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { trackLogin } from '@/utils/analytics';
 
 const Login = () => {
-  const [authMethod, setAuthMethod] = useState<'magic-link' | 'password' | 'forgot-password' | 'sms'>('magic-link');
+  const [authMethod, setAuthMethod] = useState<'magic-link' | 'password' | 'forgot-password'>('magic-link');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -22,12 +21,6 @@ const Login = () => {
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // SMS login state
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [smsSent, setSmsSent] = useState(false);
-  const [smsNotConfigured, setSmsNotConfigured] = useState(false);
   
   const { signInWithMagicLink, signInWithPassword, resetPassword } = useAuth();
   const { toast } = useToast();
@@ -114,91 +107,6 @@ const Login = () => {
     }
     
     setIsLoading(false);
-  };
-
-  // SMS OTP handlers
-  const handleSendSms = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setSmsNotConfigured(false);
-
-    // Ensure phone is in E.164 format
-    let formattedPhone = phone.trim();
-    if (!formattedPhone.startsWith('+')) {
-      // Default to Danish country code if none provided
-      formattedPhone = '+45' + formattedPhone.replace(/\s/g, '');
-    }
-
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-        options: { channel: 'sms' }
-      });
-
-      if (error) {
-        // Check if SMS is not configured
-        const errorMsg = error.message.toLowerCase();
-        if (
-          errorMsg.includes('phone') && 
-          (errorMsg.includes('not enabled') || errorMsg.includes('disabled') || errorMsg.includes('provider'))
-        ) {
-          setSmsNotConfigured(true);
-        } else {
-          setError(error.message);
-          toast({
-            title: 'Fejl',
-            description: error.message,
-            variant: 'destructive',
-          });
-        }
-      } else {
-        setSmsSent(true);
-        setPhone(formattedPhone); // Store formatted phone for verification
-        toast({
-          title: 'SMS sendt',
-          description: 'Indtast koden fra SMS\'en for at logge ind.',
-        });
-      }
-    } catch (err: any) {
-      setError(err?.message ?? 'Kunne ikke sende SMS.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        phone,
-        token: otp,
-        type: 'sms'
-      });
-
-      if (error) {
-        setError(error.message);
-        toast({
-          title: 'Fejl',
-          description: 'Forkert kode. Prøv igen.',
-          variant: 'destructive',
-        });
-      } else {
-        trackLogin('sms');
-        toast({
-          title: 'Velkommen!',
-          description: 'Du er nu logget ind.',
-        });
-        navigate('/dashboard');
-      }
-    } catch (err: any) {
-      setError(err?.message ?? 'Kunne ikke bekræfte koden.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   if (resetEmailSent) {
@@ -340,18 +248,6 @@ const Login = () => {
                 <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
               </Button>
 
-              {/* SMS login option */}
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                className="w-full min-h-[44px] md:min-h-[48px] text-muted-foreground hover:text-foreground"
-                onClick={() => setAuthMethod('sms')}
-              >
-                <Smartphone className="mr-2 h-4 w-4 md:h-5 md:w-5" />
-                Log ind med SMS
-              </Button>
-
               <p className="text-xs md:text-sm text-muted-foreground text-center">
                 Vi sender en mail til dig. Klik på linket i mailen for at logge ind.
               </p>
@@ -444,133 +340,6 @@ const Login = () => {
                 Log ind med email-link
               </Button>
             </form>
-          ) : authMethod === 'sms' ? (
-            <div className="space-y-5 md:space-y-6">
-              {smsNotConfigured ? (
-                <div className="text-center">
-                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4 md:mb-6">
-                    <Smartphone className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground" />
-                  </div>
-                  <h2 className="text-lg font-semibold mb-2">SMS-login er ikke aktiveret</h2>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    SMS-login kræver opsætning af en SMS-udbyder. Brug email-link eller adgangskode imens.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="w-full min-h-[48px] md:min-h-[52px]"
-                    onClick={() => {
-                      setSmsNotConfigured(false);
-                      setAuthMethod('magic-link');
-                    }}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Tilbage til andre metoder
-                  </Button>
-                </div>
-              ) : !smsSent ? (
-                <form onSubmit={handleSendSms} className="space-y-5 md:space-y-6">
-                  <div className="text-center mb-4">
-                    <h2 className="text-lg font-semibold mb-2">Log ind med SMS</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Indtast dit telefonnummer, så sender vi dig en engangskode.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm md:text-base">Telefonnummer</Label>
-                    <div className="relative">
-                      <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="+45 12 34 56 78"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="pl-9 md:pl-10 h-12 md:h-14 text-base"
-                        required
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Brug landekode (fx +45 for Danmark)
-                    </p>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    variant="hero" 
-                    size="lg" 
-                    className="w-full min-h-[48px] md:min-h-[52px]"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Sender...' : 'Send SMS-kode'}
-                    <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    className="w-full min-h-[48px] md:min-h-[52px]"
-                    onClick={() => setAuthMethod('magic-link')}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Tilbage
-                  </Button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyOtp} className="space-y-5 md:space-y-6">
-                  <div className="text-center mb-4">
-                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
-                      <CheckCircle className="h-7 w-7 md:h-8 md:w-8 text-success" />
-                    </div>
-                    <h2 className="text-lg font-semibold mb-2">Indtast koden</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Vi har sendt en kode til <strong>{phone}</strong>
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="otp" className="text-sm md:text-base">Engangskode</Label>
-                    <Input
-                      id="otp"
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="123456"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                      className="h-12 md:h-14 text-base text-center tracking-widest font-mono"
-                      maxLength={6}
-                      required
-                    />
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    variant="hero" 
-                    size="lg" 
-                    className="w-full min-h-[48px] md:min-h-[52px]"
-                    disabled={isLoading || otp.length < 6}
-                  >
-                    {isLoading ? 'Bekræfter...' : 'Bekræft kode'}
-                    <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    className="w-full min-h-[48px] md:min-h-[52px]"
-                    onClick={() => {
-                      setSmsSent(false);
-                      setOtp('');
-                    }}
-                  >
-                    Send kode igen
-                  </Button>
-                </form>
-              )}
-            </div>
           ) : (
             <form onSubmit={handleForgotPassword} className="space-y-5 md:space-y-6">
               <div className="text-center mb-4">
@@ -614,6 +383,7 @@ const Login = () => {
                 className="w-full min-h-[48px] md:min-h-[52px]"
                 onClick={() => setAuthMethod('password')}
               >
+                <ArrowLeft className="mr-2 h-4 w-4" />
                 Tilbage til log ind
               </Button>
             </form>

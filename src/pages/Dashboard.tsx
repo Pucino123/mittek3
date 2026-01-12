@@ -26,7 +26,8 @@ import {
   ShieldAlert,
   Smartphone,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Check
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
@@ -42,182 +43,79 @@ import { SecurityCheckWidget } from '@/components/dashboard/SecurityCheckWidget'
 import { AIChatTooltip } from '@/components/dashboard/AIChatTooltip';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
-import { ContextualHelpButton } from '@/components/help/ContextualHelpButton';
 import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
 import { OnboardingTracker } from '@/components/dashboard/OnboardingTracker';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { useDashboardSettings } from '@/hooks/useDashboardSettings';
+import { DashboardCard } from '@/components/dashboard/DashboardCard';
+import { AddToolCard } from '@/components/dashboard/AddToolCard';
+import { AddToolModal } from '@/components/dashboard/AddToolModal';
 
-// Kategorier med kort - simpelt og overskueligt
-const cardCategories = [
-  {
-    id: 'start',
-    title: '🏠 Kom i gang',
-    cards: [
-      {
-        id: 'checkin',
-        title: 'Månedligt Tjek',
-        description: 'Tjek din enheds sundhed',
-        icon: ClipboardCheck,
-        href: '/checkin',
-        color: 'bg-primary/10 text-primary',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'guides',
-        title: 'Mini-guides',
-        description: 'Trin-for-trin vejledninger',
-        icon: BookOpen,
-        href: '/guides',
-        color: 'bg-info/10 text-info',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'help',
-        title: 'Hjælp',
-        description: 'Få personlig hjælp',
-        icon: HelpCircle,
-        href: '/help',
-        color: 'bg-accent/10 text-accent',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'dictionary',
-        title: 'Ordbogen',
-        description: 'Forstå tekniske ord',
-        icon: BookText,
-        href: '/tools/dictionary',
-        color: 'bg-info/10 text-info',
-        minPlan: 'basic' as const,
-      },
-    ],
-  },
-  {
-    id: 'tools',
-    title: '🔧 Værktøjer',
-    cards: [
-      {
-        id: 'password-generator',
-        title: 'Kode-generator',
-        description: 'Lav sikre koder',
-        icon: Key,
-        href: '/tools/password-generator',
-        color: 'bg-success/10 text-success',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'battery-doctor',
-        title: 'Batteri-Doktor',
-        description: 'Hvorfor løber batteriet tør?',
-        icon: Battery,
-        href: '/tools/battery-doctor',
-        color: 'bg-warning/10 text-warning',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'cleaning',
-        title: 'Oprydning',
-        description: 'Få mere plads',
-        icon: Trash2,
-        href: '/tools/cleaning-guide',
-        color: 'bg-success/10 text-success',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'hardware',
-        title: 'Hardware-Detektiv',
-        description: 'Lær dine knapper',
-        icon: Smartphone,
-        href: '/tools/hardware',
-        color: 'bg-primary/10 text-primary',
-        minPlan: 'basic' as const,
-      },
-    ],
-  },
-  {
-    id: 'safety',
-    title: '🛡️ Sikkerhed',
-    cards: [
-      {
-        id: 'scam-quiz',
-        title: 'Svindel-Quiz',
-        description: 'Test dig selv',
-        icon: ShieldAlert,
-        href: '/tools/scam-quiz',
-        color: 'bg-destructive/10 text-destructive',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'panic',
-        title: 'Tryghedsknap',
-        description: 'Usikker? Få hjælp',
-        icon: AlertTriangle,
-        href: '/panic',
-        color: 'bg-destructive/10 text-destructive',
-        minPlan: 'plus' as const,
-      },
-      {
-        id: 'safety',
-        title: 'Sikkerhedsskjold',
-        description: 'Tjek mistænkelige beskeder',
-        icon: Shield,
-        href: '/safety',
-        color: 'bg-primary/10 text-primary',
-        minPlan: 'plus' as const,
-      },
-      {
-        id: 'vault',
-        title: 'Kode-mappe',
-        description: 'Gem dine koder sikkert',
-        icon: Lock,
-        href: '/kode-mappe',
-        color: 'bg-secondary text-secondary-foreground',
-        minPlan: 'plus' as const,
-      },
-    ],
-  },
-  {
-    id: 'extras',
-    title: '⭐ Ekstra',
-    cards: [
-      {
-        id: 'wishlist',
-        title: 'Ønskeseddel',
-        description: 'Hvad vil du lære?',
-        icon: Star,
-        href: '/tools/wishlist',
-        color: 'bg-accent/10 text-accent',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'medical-id',
-        title: 'Nød-ID',
-        description: 'Dit digitale nødkort',
-        icon: HeartPulse,
-        href: '/tools/medical-id',
-        color: 'bg-destructive/10 text-destructive',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'guest-wifi',
-        title: 'Gæste-net',
-        description: 'Del Wi-Fi nemt',
-        icon: Wifi,
-        href: '/tools/guest-wifi',
-        color: 'bg-info/10 text-info',
-        minPlan: 'basic' as const,
-      },
-      {
-        id: 'screenshot',
-        title: 'Screenshot → AI',
-        description: 'Få billeder forklaret',
-        icon: Camera,
-        href: '/screenshot-ai',
-        color: 'bg-success/10 text-success',
-        minPlan: 'plus' as const,
-      },
-    ],
-  },
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { LucideIcon } from 'lucide-react';
+
+// Card definition type
+interface CardDefinition {
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  href: string;
+  color: string;
+  minPlan: 'basic' | 'plus' | 'pro';
+  category: string;
+}
+
+// All available cards (flat list)
+const allCards: CardDefinition[] = [
+  // Start category
+  { id: 'checkin', title: 'Månedligt Tjek', description: 'Tjek din enheds sundhed', icon: ClipboardCheck, href: '/checkin', color: 'bg-primary/10 text-primary', minPlan: 'basic', category: 'start' },
+  { id: 'guides', title: 'Mini-guides', description: 'Trin-for-trin vejledninger', icon: BookOpen, href: '/guides', color: 'bg-info/10 text-info', minPlan: 'basic', category: 'start' },
+  { id: 'help', title: 'Hjælp', description: 'Få personlig hjælp', icon: HelpCircle, href: '/help', color: 'bg-accent/10 text-accent', minPlan: 'basic', category: 'start' },
+  { id: 'dictionary', title: 'Ordbogen', description: 'Forstå tekniske ord', icon: BookText, href: '/tools/dictionary', color: 'bg-info/10 text-info', minPlan: 'basic', category: 'start' },
+  // Tools category
+  { id: 'password-generator', title: 'Kode-generator', description: 'Lav sikre koder', icon: Key, href: '/tools/password-generator', color: 'bg-success/10 text-success', minPlan: 'basic', category: 'tools' },
+  { id: 'battery-doctor', title: 'Batteri-Doktor', description: 'Hvorfor løber batteriet tør?', icon: Battery, href: '/tools/battery-doctor', color: 'bg-warning/10 text-warning', minPlan: 'basic', category: 'tools' },
+  { id: 'cleaning', title: 'Oprydning', description: 'Få mere plads', icon: Trash2, href: '/tools/cleaning-guide', color: 'bg-success/10 text-success', minPlan: 'basic', category: 'tools' },
+  { id: 'hardware', title: 'Hardware-Detektiv', description: 'Lær dine knapper', icon: Smartphone, href: '/tools/hardware', color: 'bg-primary/10 text-primary', minPlan: 'basic', category: 'tools' },
+  // Safety category
+  { id: 'scam-quiz', title: 'Svindel-Quiz', description: 'Test dig selv', icon: ShieldAlert, href: '/tools/scam-quiz', color: 'bg-destructive/10 text-destructive', minPlan: 'basic', category: 'safety' },
+  { id: 'panic', title: 'Tryghedsknap', description: 'Usikker? Få hjælp', icon: AlertTriangle, href: '/panic', color: 'bg-destructive/10 text-destructive', minPlan: 'plus', category: 'safety' },
+  { id: 'safety', title: 'Sikkerhedsskjold', description: 'Tjek mistænkelige beskeder', icon: Shield, href: '/safety', color: 'bg-primary/10 text-primary', minPlan: 'plus', category: 'safety' },
+  { id: 'vault', title: 'Kode-mappe', description: 'Gem dine koder sikkert', icon: Lock, href: '/kode-mappe', color: 'bg-secondary text-secondary-foreground', minPlan: 'plus', category: 'safety' },
+  // Extras category
+  { id: 'wishlist', title: 'Ønskeseddel', description: 'Hvad vil du lære?', icon: Star, href: '/tools/wishlist', color: 'bg-accent/10 text-accent', minPlan: 'basic', category: 'extras' },
+  { id: 'medical-id', title: 'Nød-ID', description: 'Dit digitale nødkort', icon: HeartPulse, href: '/tools/medical-id', color: 'bg-destructive/10 text-destructive', minPlan: 'basic', category: 'extras' },
+  { id: 'guest-wifi', title: 'Gæste-net', description: 'Del Wi-Fi nemt', icon: Wifi, href: '/tools/guest-wifi', color: 'bg-info/10 text-info', minPlan: 'basic', category: 'extras' },
+  { id: 'screenshot', title: 'Screenshot → AI', description: 'Få billeder forklaret', icon: Camera, href: '/screenshot-ai', color: 'bg-success/10 text-success', minPlan: 'plus', category: 'extras' },
 ];
+
+// Default card order
+const defaultCardOrder = allCards.map(c => c.id);
+
+// Category titles
+const categoryTitles: Record<string, string> = {
+  start: '🏠 Kom i gang',
+  tools: '🔧 Værktøjer',
+  safety: '🛡️ Sikkerhed',
+  extras: '⭐ Ekstra',
+};
 
 // Admin card (rendered separately if user is admin)
 const adminCard = {
@@ -229,6 +127,51 @@ const adminCard = {
   color: 'bg-violet-500/10 text-violet-600',
 };
 
+// Sortable card wrapper
+function SortableCard({ 
+  card, 
+  hasAccess, 
+  isEditMode, 
+  onRemove 
+}: { 
+  card: CardDefinition; 
+  hasAccess: boolean; 
+  isEditMode: boolean; 
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: card.id, disabled: !isEditMode });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <DashboardCard
+        id={card.id}
+        title={card.title}
+        description={card.description}
+        icon={card.icon}
+        href={card.href}
+        color={card.color}
+        minPlan={card.minPlan}
+        hasAccess={hasAccess}
+        isEditMode={isEditMode}
+        onRemove={onRemove}
+        isDragging={isDragging}
+      />
+    </div>
+  );
+}
+
 const Dashboard = () => {
   // Enable scroll restoration for dashboard
   useScrollRestoration();
@@ -236,9 +179,60 @@ const Dashboard = () => {
   const [isFixingAccount, setIsFixingAccount] = useState(false);
   const [checkinData, setCheckinData] = useState<any>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+  
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
   const { user, profile, hasAccess, signOut, isSubscriptionActive, subscription } = useAuth();
   const navigate = useNavigate();
+  
+  const { 
+    cardOrder, 
+    hiddenCards, 
+    hideCard, 
+    showCard, 
+    updateCardOrder,
+    resetToDefault 
+  } = useDashboardSettings();
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Calculate visible cards based on order and hidden status
+  const visibleCards = useMemo(() => {
+    const order = cardOrder || defaultCardOrder;
+    return order
+      .filter(id => !hiddenCards.includes(id))
+      .map(id => allCards.find(c => c.id === id))
+      .filter((c): c is CardDefinition => c !== undefined);
+  }, [cardOrder, hiddenCards]);
+
+  // Get hidden card definitions for the modal
+  const hiddenCardDefinitions = useMemo(() => {
+    return allCards.filter(c => hiddenCards.includes(c.id));
+  }, [hiddenCards]);
+
+  // Group cards by category for display
+  const cardsByCategory = useMemo(() => {
+    const grouped: Record<string, CardDefinition[]> = {};
+    visibleCards.forEach(card => {
+      if (!grouped[card.category]) {
+        grouped[card.category] = [];
+      }
+      grouped[card.category].push(card);
+    });
+    return grouped;
+  }, [visibleCards]);
 
   // Calculate trial days remaining
   const trialDaysRemaining = useMemo(() => {
@@ -279,6 +273,22 @@ const Dashboard = () => {
     }
   }, [profile]);
 
+  // Exit edit mode when clicking outside cards
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (isEditMode) {
+        const target = e.target as HTMLElement;
+        // Check if click is on background (main element)
+        if (target.tagName === 'MAIN' || target.classList.contains('container')) {
+          setIsEditMode(false);
+        }
+      }
+    };
+
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [isEditMode]);
+
   const handleCheckinStatus = useCallback((hasRecent: boolean, data?: any) => {
     if (hasRecent && data) {
       setCheckinData(data);
@@ -318,6 +328,61 @@ const Dashboard = () => {
     } finally {
       setIsFixingAccount(false);
     }
+  };
+
+  // Long press handlers for entering edit mode
+  const handleLongPressStart = () => {
+    const timer = setTimeout(() => {
+      setIsEditMode(true);
+      // Haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 500); // 500ms long press
+    setLongPressTimer(timer);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  // Handle drag end
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const currentOrder = cardOrder || defaultCardOrder;
+      const oldIndex = currentOrder.indexOf(active.id as string);
+      const newIndex = currentOrder.indexOf(over.id as string);
+      
+      const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
+      updateCardOrder(newOrder);
+    }
+  };
+
+  // Handle card removal
+  const handleRemoveCard = (cardId: string) => {
+    hideCard(cardId);
+    toast.success('Værktøj skjult', {
+      description: 'Du kan tilføje det igen via + knappen',
+      duration: 3000,
+    });
+  };
+
+  // Handle adding card back
+  const handleAddCard = (cardId: string) => {
+    showCard(cardId);
+    toast.success('Værktøj tilføjet');
+  };
+
+  // Handle reset all
+  const handleResetAll = () => {
+    resetToDefault();
+    setShowAddModal(false);
+    toast.success('Dashboard nulstillet');
   };
 
   const displayName = profile?.display_name || 'der';
@@ -362,6 +427,19 @@ const Dashboard = () => {
           </Link>
 
           <div className="flex items-center gap-4">
+            {/* Edit Mode Indicator */}
+            {isEditMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditMode(false)}
+                className="gap-2"
+              >
+                <Check className="h-4 w-4" />
+                Færdig
+              </Button>
+            )}
+
             {/* Senior Mode Toggle - iOS Style */}
             <div className="hidden md:flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary">
               <IOSSwitch 
@@ -440,69 +518,78 @@ const Dashboard = () => {
         <div className="flex items-center justify-between mb-6 sm:mb-8">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold">Dine værktøjer</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isEditMode ? 'Træk for at flytte • Tryk X for at skjule' : 'Hold nede for at tilpasse'}
+            </p>
           </div>
           <ToolPageHelpButton inline />
         </div>
 
         {/* Categories with Cards */}
-        <div className="space-y-10 sm:space-y-12">
-          {cardCategories.map((category) => (
-            <section key={category.id}>
-              {/* Category Header - Large and clear */}
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">
-                {category.title}
-              </h2>
-              
-              {/* Cards Grid - 4 per row on desktop */}
-              <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-                {category.cards.map((card) => {
-                  const hasCardAccess = hasAccess(card.minPlan);
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="space-y-10 sm:space-y-12">
+            {Object.entries(categoryTitles).map(([categoryId, title]) => {
+              const categoryCards = cardsByCategory[categoryId];
+              if (!categoryCards || categoryCards.length === 0) return null;
+
+              return (
+                <section key={categoryId}>
+                  {/* Category Header - Large and clear */}
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">
+                    {title}
+                  </h2>
                   
-                  return (
-                    <Link
-                      key={card.id}
-                      to={hasCardAccess ? card.href : '/settings/subscription'}
-                      className={`card-interactive p-3 sm:p-5 flex flex-col ${!hasCardAccess ? 'opacity-60 grayscale-[20%]' : ''}`}
+                  {/* Cards Grid - 4 per row on desktop */}
+                  <SortableContext
+                    items={categoryCards.map(c => c.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <div 
+                      className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4"
+                      onMouseDown={handleLongPressStart}
+                      onMouseUp={handleLongPressEnd}
+                      onMouseLeave={handleLongPressEnd}
+                      onTouchStart={handleLongPressStart}
+                      onTouchEnd={handleLongPressEnd}
                     >
-                      <div className="flex items-start justify-between mb-2 sm:mb-3">
-                        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${card.color} flex items-center justify-center shrink-0 relative`}>
-                          <card.icon className="h-5 w-5 sm:h-6 sm:w-6" />
-                          {/* Lock overlay for locked cards */}
-                          {!hasCardAccess && (
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-primary rounded-full flex items-center justify-center shadow-sm">
-                              <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
-                            </div>
-                          )}
-                        </div>
-                        {!hasCardAccess && (
-                          <span className="px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-semibold bg-primary text-primary-foreground rounded-full">
-                            Plus
-                          </span>
-                        )}
-                      </div>
-                      
-                      <h3 className="text-sm sm:text-lg font-semibold mb-0.5 sm:mb-1 leading-tight">{card.title}</h3>
-                      <p className="text-muted-foreground text-[11px] sm:text-sm flex-1 line-clamp-2">{card.description}</p>
-                      
-                      <div className="mt-2 sm:mt-3 flex items-center text-primary font-medium text-xs sm:text-sm">
-                        {hasCardAccess ? (
-                          <>Åbn</>
-                        ) : (
-                          <>
-                            <Lock className="mr-1 h-3 w-3" />
-                            Kræver Plus
-                          </>
-                        )}
-                        <ChevronRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                      {categoryCards.map((card) => (
+                        <SortableCard
+                          key={card.id}
+                          card={card}
+                          hasAccess={hasAccess(card.minPlan)}
+                          isEditMode={isEditMode}
+                          onRemove={() => handleRemoveCard(card.id)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </section>
+              );
+            })}
+          </div>
+        </DndContext>
+
+        {/* Add Tool Card - Always at the end */}
+        <div className="mt-10 sm:mt-12">
+          <AddToolCard 
+            onClick={() => setShowAddModal(true)} 
+            isEditMode={isEditMode}
+          />
         </div>
       </main>
+
+      {/* Add Tool Modal */}
+      <AddToolModal
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
+        hiddenCards={hiddenCardDefinitions}
+        onAddCard={handleAddCard}
+        onResetAll={handleResetAll}
+      />
 
       {/* Floating AI Chat Widget - Only show if subscription is active */}
       {isSubscriptionActive && (
@@ -512,8 +599,7 @@ const Dashboard = () => {
         </>
       )}
 
-      {/* Contextual Help Button */}
-      <ContextualHelpButton />
+      {/* Contextual Help Button removed - users should use the inline help button */}
 
       {/* Onboarding Wizard for new users */}
       <OnboardingWizard 
