@@ -164,6 +164,7 @@ const Admin = () => {
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'plus' | 'pro'>('plus');
   
   const [isGranting, setIsGranting] = useState(false);
+  const [isSyncingStripe, setIsSyncingStripe] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -321,6 +322,56 @@ const Admin = () => {
       toast.error('Kunne ikke give plan');
     } finally {
       setIsGranting(false);
+    }
+  };
+
+  // Sync from Stripe function
+  const syncFromStripe = async () => {
+    setIsSyncingStripe(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Ikke logget ind');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('sync-stripe-customers', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const result = response.data;
+      
+      if (result.success) {
+        toast.success(
+          `Stripe synkronisering fuldført!\n` +
+          `Fundet: ${result.total_stripe_customers} kunder\n` +
+          `Oprettet: ${result.created} nye brugere\n` +
+          `Opdateret: ${result.updated} profiler\n` +
+          `Sprunget over: ${result.skipped}`,
+          { duration: 5000 }
+        );
+        
+        if (result.errors?.length > 0) {
+          console.error('Sync errors:', result.errors);
+          toast.warning(`${result.errors.length} fejl under synkronisering - se konsol`);
+        }
+        
+        // Refresh data
+        fetchData();
+      } else {
+        throw new Error(result.error || 'Ukendt fejl');
+      }
+    } catch (error) {
+      console.error('Stripe sync error:', error);
+      toast.error(`Kunne ikke synkronisere fra Stripe: ${error instanceof Error ? error.message : 'Ukendt fejl'}`);
+    } finally {
+      setIsSyncingStripe(false);
     }
   };
   // Guide functions
@@ -1015,7 +1066,7 @@ const Admin = () => {
                     <CardTitle>Brugere</CardTitle>
                     <CardDescription>Alle registrerede brugere</CardDescription>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <div className="relative w-64">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -1025,6 +1076,18 @@ const Admin = () => {
                         className="pl-9"
                       />
                     </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={syncFromStripe} 
+                      disabled={isSyncingStripe}
+                    >
+                      {isSyncingStripe ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      Synk fra Stripe
+                    </Button>
                     <CreateUserDialog onUserCreated={fetchData} />
                   </div>
                 </div>
