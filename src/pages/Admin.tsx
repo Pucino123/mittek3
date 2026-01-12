@@ -771,22 +771,9 @@ const Admin = () => {
     p.display_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Check if current user is admin
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-          <div className="container flex h-18 items-center">
-            <BackButton />
-          </div>
-        </header>
-        <div className="container py-16 text-center">
-          <h1 className="text-2xl font-bold mb-4">Ingen adgang</h1>
-          <p className="text-muted-foreground">Du har ikke adgang til denne side.</p>
-        </div>
-      </div>
-    );
-  }
+  // Admin check is now handled by AdminRoute in App.tsx
+  // This component will only render for verified admins
+
 
   return (
     <div className="min-h-screen bg-background">
