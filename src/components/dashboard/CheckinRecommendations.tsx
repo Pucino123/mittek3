@@ -176,8 +176,23 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
   const totalCount = recommendations.length;
   const allCompleted = completedCount === totalCount && totalCount > 0;
 
+  // If all completed, hide the entire component with smooth animation
+  if (allCompleted) {
+    return (
+      <div 
+        className="overflow-hidden transition-all duration-500 ease-out"
+        style={{ 
+          maxHeight: 0, 
+          opacity: 0, 
+          marginBottom: 0,
+          padding: 0 
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="card-elevated p-5 sm:p-6 mb-6">
+    <div className="card-elevated p-5 sm:p-6 mb-6 transition-all duration-300">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
@@ -241,14 +256,6 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
             );
           })}
         </ul>
-      )}
-
-      {allCompleted && (
-        <div className="mt-4 p-3 sm:p-4 rounded-xl bg-success/10 text-center">
-          <p className="text-sm sm:text-base font-medium text-success">
-            🎉 Flot klaret! Du har gennemført alle anbefalinger.
-          </p>
-        </div>
       )}
     </div>
   );
