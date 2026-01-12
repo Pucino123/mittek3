@@ -24,7 +24,7 @@ const helpContentMap: Record<string, HelpContent> = {
     tips: [
       'Start med det månedlige tjek for at holde din enhed sund',
       'Brug mini-guides til at lære nye ting',
-      'Klik på AI-chatten nederst, hvis du har spørgsmål',
+      'Brug Din Digitale Hjælper nederst, hvis du har spørgsmål',
     ],
   },
   '/guides': {
@@ -79,7 +79,7 @@ const defaultHelp: HelpContent = {
   title: 'Brug for hjælp?',
   description: 'Vi er her for at hjælpe dig.',
   tips: [
-    'Brug AI-chatten nederst på skærmen',
+    'Brug Din Digitale Hjælper nederst på skærmen',
     'Se vores mini-guides for trin-for-trin hjælp',
     'Kontakt support, hvis du sidder fast',
   ],

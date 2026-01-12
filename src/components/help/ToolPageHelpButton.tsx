@@ -24,7 +24,7 @@ const helpContentMap: Record<string, HelpContent> = {
     tips: [
       'Tryk på et værktøj for at åbne det',
       'Hold fingeren nede på en knap for at flytte rundt på dem',
-      'Brug AI-chatten nederst, hvis du har spørgsmål',
+      'Brug Din Digitale Hjælper nederst, hvis du har spørgsmål',
     ],
   },
   '/settings': {
@@ -179,7 +179,7 @@ const defaultHelp: HelpContent = {
   description: 'Vi er her for at hjælpe dig.',
   tips: [
     'Følg trinene på skærmen',
-    'Brug AI-chatten i højre hjørne for spørgsmål',
+    'Brug Din Digitale Hjælper i højre hjørne for spørgsmål',
     'Gå tilbage til dashboard hvis du vil prøve noget andet',
   ],
 };
