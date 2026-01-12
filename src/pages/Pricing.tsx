@@ -183,13 +183,13 @@ const Pricing = () => {
             </div>
           </div>
 
-          {/* Pricing cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto">
+          {/* Pricing cards - 1 col mobile, 2 col tablet, 3 col desktop */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto">
             {plans.map((plan) => (
               <div
                 key={plan.id}
                 className={`card-elevated p-5 sm:p-6 md:p-8 relative flex flex-col ${
-                  plan.popular ? 'ring-2 ring-primary shadow-xl shadow-primary/10 order-first md:order-none' : ''
+                  plan.popular ? 'ring-2 ring-primary shadow-xl shadow-primary/10 order-first sm:order-none sm:col-span-2 lg:col-span-1' : ''
                 }`}
               >
                 {plan.popular && (
