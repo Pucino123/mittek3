@@ -625,22 +625,37 @@ const SubscriptionManagement = () => {
             )}
           </div>
 
-          {/* Danger Zone */}
-          {subscription && currentPlan !== 'basic' && !cancelAtPeriodEnd && (
+          {/* Subscription Status & Danger Zone */}
+          {subscription && currentPlan !== 'basic' && (
             <div className="border-t border-border pt-8">
-              <h2 className="font-semibold text-lg mb-2 text-destructive">
-                Farezone
-              </h2>
-              <p className="text-muted-foreground text-sm mb-4">
-                Hvis du afmelder dit abonnement, mister du adgangen til dine betalte funktioner ved periodens udløb.
-              </p>
-              <Button
-                variant="ghost"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => setShowCancelDialog(true)}
-              >
-                Afmeld abonnement
-              </Button>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="font-semibold text-lg mb-1">
+                    Abonnementsstatus
+                  </h2>
+                  <p className="text-muted-foreground text-sm">
+                    {cancelAtPeriodEnd 
+                      ? 'Dit abonnement stopper ved periodens udløb.' 
+                      : 'Dit abonnement fornyes automatisk.'}
+                  </p>
+                </div>
+                <Badge 
+                  variant={cancelAtPeriodEnd ? 'destructive' : 'default'}
+                  className="text-sm px-3 py-1"
+                >
+                  {cancelAtPeriodEnd ? 'Afmeldt' : subscription.status === 'trialing' ? 'Prøveperiode' : 'Aktiv'}
+                </Badge>
+              </div>
+
+              {!cancelAtPeriodEnd && (
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setShowCancelDialog(true)}
+                >
+                  Afmeld abonnement
+                </Button>
+              )}
             </div>
           )}
         </div>
