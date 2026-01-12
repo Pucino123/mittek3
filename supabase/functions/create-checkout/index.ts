@@ -160,12 +160,7 @@ serve(async (req) => {
       cancel_url: `${origin}/pricing`,
       allow_promotion_codes: true,
       tax_id_collection: { enabled: true },
-      invoice_creation: {
-        enabled: true,
-        invoice_data: {
-          footer: "Alle priser er inkl. 25% dansk moms.",
-        },
-      },
+      // Note: invoice_creation is not allowed for subscription mode - invoices are created automatically
       custom_text: {
         submit: {
           message: "Alle priser er inkl. 25% dansk moms. Du modtager en kvittering på email efter køb.",
