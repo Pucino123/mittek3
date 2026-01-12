@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useSearchParams, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { hardcodedGuides, HardcodedGuide, DeviceType } from '@/data/hardcodedGuides';
+import { DeviceType } from '@/data/hardcodedGuides';
 import { DeviceSelector } from '@/components/ui/DeviceSelector';
 import { CategoryFilter, GuideCategory } from '@/components/guides/CategoryFilter';
 import { GuideStepCard } from '@/components/guides/GuideStepCard';
@@ -21,7 +21,12 @@ import {
   Loader2,
   CheckCircle2,
   PartyPopper,
-  Search
+  Search,
+  Shield,
+  Battery,
+  Cloud,
+  MessageSquare,
+  AppWindow
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -51,48 +56,16 @@ interface Guide {
   stepsByDevice?: Record<DeviceType, GuideStep[]>;
 }
 
-const getGuideIcon = (icon: string | undefined) => {
-  switch (icon) {
-    case 'update': return RefreshCw;
-    case 'popup': return XCircle;
-    case 'text': return Type;
-    case 'tv': return Tv;
-    case 'audio': return Headphones;
+const getGuideIcon = (category: string | undefined) => {
+  switch (category) {
+    case 'hverdag': return RefreshCw;
+    case 'sikkerhed': return Shield;
+    case 'batteri': return Battery;
+    case 'icloud': return Cloud;
+    case 'beskeder': return MessageSquare;
+    case 'apps': return AppWindow;
     default: return BookOpen;
   }
-};
-
-
-// Convert hardcoded guide to Guide format with device support
-const convertHardcodedGuide = (hardcodedGuide: HardcodedGuide): Guide => {
-  const defaultSteps = hardcodedGuide.stepsByDevice?.iphone || hardcodedGuide.steps;
-  return {
-    id: hardcodedGuide.id,
-    title: hardcodedGuide.title,
-    description: hardcodedGuide.description,
-    icon: hardcodedGuide.icon,
-    supportsDevices: hardcodedGuide.supportsDevices,
-    titleByDevice: hardcodedGuide.titleByDevice,
-    stepsByDevice: hardcodedGuide.stepsByDevice ? Object.fromEntries(
-      Object.entries(hardcodedGuide.stepsByDevice).map(([device, steps]) => [
-        device,
-        steps.map(s => ({
-          id: `${hardcodedGuide.id}-${device}-${s.step_number}`,
-          step_number: s.step_number,
-          title: s.title,
-          instruction: s.instruction,
-          image_url: s.image_url,
-        })),
-      ])
-    ) as Record<DeviceType, GuideStep[]> : undefined,
-    steps: defaultSteps.map(s => ({
-      id: `${hardcodedGuide.id}-${s.step_number}`,
-      step_number: s.step_number,
-      title: s.title,
-      instruction: s.instruction,
-      image_url: s.image_url,
-    })),
-  };
 };
 
 const Guides = () => {
@@ -136,20 +109,13 @@ const Guides = () => {
   }, [location.hash, searchParams]);
 
   // Get current steps based on device selection
-  // For hardcoded guides: use stepsByDevice
-  // For database guides: filter by device_type array (includes current device or 'universal')
+  // Database guides: filter by device_type array (includes current device or 'universal')
   const getCurrentSteps = () => {
     if (!selectedGuide) return [];
     
-    // Hardcoded guides with stepsByDevice
-    if (selectedGuide.supportsDevices && selectedGuide.stepsByDevice?.[device]) {
-      return selectedGuide.stepsByDevice[device];
-    }
-    
-    // Database guides: filter steps by device_type
-    // A step is shown if its device_type includes the current device OR 'universal'
+    // Filter steps by device_type
     const filteredSteps = selectedGuide.steps.filter(step => {
-      const deviceTypes = (step as any).device_type as string[] | undefined;
+      const deviceTypes = step.device_type as string[] | undefined;
       if (!deviceTypes || deviceTypes.length === 0) {
         return true; // No device_type means universal
       }
@@ -162,17 +128,14 @@ const Guides = () => {
   // Get current title based on device selection
   const getCurrentTitle = () => {
     if (!selectedGuide) return '';
-    if (selectedGuide.supportsDevices && selectedGuide.titleByDevice?.[device]) {
-      return selectedGuide.titleByDevice[device];
-    }
     return selectedGuide.title;
   };
 
-  // Check if database guide has any device-specific steps
+  // Check if guide has any device-specific steps
   const hasDeviceSpecificSteps = () => {
     if (!selectedGuide) return false;
     return selectedGuide.steps.some(step => {
-      const deviceTypes = (step as any).device_type as string[] | undefined;
+      const deviceTypes = step.device_type as string[] | undefined;
       return deviceTypes && deviceTypes.length > 0 && !deviceTypes.includes('universal');
     });
   };
@@ -180,38 +143,9 @@ const Guides = () => {
   const currentSteps = getCurrentSteps();
   const currentTitle = getCurrentTitle();
 
-  // Fetch guides on mount and handle deep links
+  // Fetch guides on mount
   useEffect(() => {
-    const initGuides = async () => {
-      const guideId = routeGuideId || searchParams.get('guide') || searchParams.get('id');
-      const initialStep = getInitialStepFromUrl();
-      
-      // If we have a guideId, first check hardcoded guides for immediate response
-      if (guideId) {
-        const hardcodedGuide = hardcodedGuides.find(g => g.id === guideId);
-        if (hardcodedGuide) {
-          const convertedGuide = convertHardcodedGuide(hardcodedGuide);
-          setSelectedGuide(convertedGuide);
-          // Set initial step from URL if provided
-          if (initialStep !== null && initialStep >= 0) {
-            setCurrentStep(Math.min(initialStep, convertedGuide.steps.length - 1));
-            setHighlightedStep(Math.min(initialStep, convertedGuide.steps.length - 1));
-          } else {
-            setCurrentStep(0);
-          }
-          setLoading(false);
-          trackGuideView(hardcodedGuide.id, hardcodedGuide.title);
-          // Still fetch DB guides in background for the list
-          fetchGuides();
-          return;
-        }
-      }
-      
-      // Fetch database guides
-      await fetchGuides();
-    };
-    
-    initGuides();
+    fetchGuides();
   }, []);
 
   // Handle step highlighting and scrolling
@@ -242,23 +176,7 @@ const Guides = () => {
     // Skip if no guideId, still loading, or already have a selected guide
     if (!guideId || loading || selectedGuide) return;
     
-    // Check hardcoded guides first
-    const hardcodedGuide = hardcodedGuides.find(g => g.id === guideId);
-    if (hardcodedGuide) {
-      const convertedGuide = convertHardcodedGuide(hardcodedGuide);
-      setSelectedGuide(convertedGuide);
-      // Set initial step from URL if provided
-      if (initialStep !== null && initialStep >= 0) {
-        setCurrentStep(Math.min(initialStep, convertedGuide.steps.length - 1));
-        setHighlightedStep(Math.min(initialStep, convertedGuide.steps.length - 1));
-      } else {
-        setCurrentStep(0);
-      }
-      trackGuideView(hardcodedGuide.id, hardcodedGuide.title);
-      return;
-    }
-    
-    // Then check DB guides
+    // Find guide in DB guides
     const guide = guides.find(g => g.id === guideId);
     if (guide) {
       setSelectedGuide(guide);
@@ -635,20 +553,12 @@ const Guides = () => {
           </div>
 
           {(() => {
-            // Combine database guides with hardcoded guides
-            const allGuides: Guide[] = [
-              // First, add all hardcoded guides converted to Guide format
-              ...hardcodedGuides.map(hg => convertHardcodedGuide(hg)),
-              // Then add database guides that aren't duplicates
-              ...guides.filter(dbGuide => !hardcodedGuides.some(hg => hg.id === dbGuide.id)),
-            ];
+            // Use only database guides
+            const allGuides: Guide[] = guides;
 
             // Filter guides by category and search
             const filteredGuides = allGuides.filter(guide => {
-              // Get category from guide or default to 'hverdag'
-              const guideCategory = (guide as any).category || 
-                hardcodedGuides.find(hg => hg.id === guide.id)?.category || 
-                'hverdag';
+              const guideCategory = guide.category || 'hverdag';
               
               const matchesCategory = selectedCategory === 'alle' || guideCategory === selectedCategory;
               const matchesSearch = searchQuery === '' || 
@@ -662,6 +572,9 @@ const Guides = () => {
                 <div className="text-center py-12">
                   <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">Ingen guides tilgængelige endnu</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Admin kan synkronisere guides fra Admin-panelet
+                  </p>
                 </div>
               );
             }
@@ -681,9 +594,7 @@ const Guides = () => {
             return (
               <div className="space-y-4">
                 {filteredGuides.map((guide) => {
-                  // Get icon from hardcoded guide if available
-                  const hardcodedGuide = hardcodedGuides.find(hg => hg.id === guide.id);
-                  const IconComponent = getGuideIcon(hardcodedGuide?.icon || guide.icon);
+                  const IconComponent = getGuideIcon(guide.category);
                   const isRead = isGuideRead(guide.id);
                   return (
                     <button

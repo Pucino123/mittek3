@@ -21,7 +21,7 @@ type IncomingStep = {
 };
 
 type IncomingGuide = {
-  id?: string;
+  id: string; // Required - use as unique slug
   title: string;
   description?: string;
   category?: string;
@@ -40,6 +40,13 @@ type StepInsertRow = {
   animated_gif_url?: string | null;
   tip_text?: string | null;
   warning_text?: string | null;
+};
+
+// Map hardcoded guide ID to existing DB guide for deduplication
+type GuideMapping = {
+  hardcoded_id: string;
+  db_id: string;
+  title: string;
 };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
@@ -89,6 +96,14 @@ const extractStepsForGuide = (guide: IncomingGuide): Omit<StepInsertRow, "guide_
 
 const logStep = (step: string, details?: any) => {
   console.log(`[SYNC-GUIDES] ${step}`, details ? JSON.stringify(details) : "");
+};
+
+// Normalize title for matching (handles minor differences)
+const normalizeTitle = (title: string): string => {
+  return title.toLowerCase().trim()
+    .replace(/é/g, 'e')
+    .replace(/[^\w\s]/g, '')
+    .replace(/\s+/g, ' ');
 };
 
 serve(async (req) => {
@@ -164,8 +179,23 @@ serve(async (req) => {
 
     logStep("Incoming guides", { count: incomingGuides.length, mode: isUpsertMode ? "upsert" : "insert" });
 
-    // Log all incoming guide titles for debugging
-    logStep("Guide titles received", { titles: incomingGuides.map(g => g.title) });
+    // Log all incoming guide IDs and titles for debugging
+    logStep("Guide IDs received", { 
+      guides: incomingGuides.map(g => ({ id: g.id, title: g.title })) 
+    });
+
+    // Check for duplicates in incoming guides
+    const seenIds = new Set<string>();
+    const duplicateIds: string[] = [];
+    for (const g of incomingGuides) {
+      if (seenIds.has(g.id)) {
+        duplicateIds.push(g.id);
+      }
+      seenIds.add(g.id);
+    }
+    if (duplicateIds.length > 0) {
+      logStep("WARNING: Duplicate IDs in hardcoded guides", { duplicates: duplicateIds });
+    }
 
     // Fetch ALL existing guides (override default pagination limit)
     const { data: existingGuides, error: countError } = await supabaseAdmin
@@ -176,32 +206,55 @@ serve(async (req) => {
     if (countError) throw countError;
 
     const existingCount = existingGuides?.length || 0;
-    logStep("Existing guides", { count: existingCount, titles: existingGuides?.map(g => g.title) });
+    logStep("Existing guides", { count: existingCount });
+
+    // Build normalized title map for matching
+    const existingByNormalizedTitle = new Map<string, { id: string; title: string }>();
+    for (const g of existingGuides || []) {
+      const normalized = normalizeTitle(g.title);
+      existingByNormalizedTitle.set(normalized, { id: g.id, title: g.title });
+    }
 
     let syncedCount = 0;
     let skippedCount = 0;
     let updatedCount = 0;
     const errors: string[] = [];
+    const mappings: GuideMapping[] = [];
 
     // Process each guide
     for (const guideData of incomingGuides) {
+      if (!guideData?.id || typeof guideData.id !== "string") {
+        logStep("Skipping invalid guide (no id)", { guide: guideData });
+        continue;
+      }
       if (!guideData?.title || typeof guideData.title !== "string") {
         logStep("Skipping invalid guide (no title)", { guide: guideData });
         continue;
       }
 
-      const existingGuide = existingGuides?.find(
-        (g) => g.title.toLowerCase() === guideData.title.toLowerCase()
-      );
+      // Match by normalized title to handle duplicates/variants
+      const normalizedTitle = normalizeTitle(guideData.title);
+      const existingGuide = existingByNormalizedTitle.get(normalizedTitle);
 
       if (existingGuide) {
+        mappings.push({
+          hardcoded_id: guideData.id,
+          db_id: existingGuide.id,
+          title: guideData.title,
+        });
+
         if (isUpsertMode) {
           // UPSERT MODE: Update existing guide
-          logStep("Updating existing guide", { id: existingGuide.id, title: guideData.title });
+          logStep("Updating existing guide", { 
+            hardcoded_id: guideData.id, 
+            db_id: existingGuide.id, 
+            title: guideData.title 
+          });
 
           const { error: updateError } = await supabaseAdmin
             .from("guides")
             .update({
+              title: guideData.title, // Update to match hardcoded exactly
               description: guideData.description || null,
               category: guideData.category || null,
             })
@@ -241,13 +294,18 @@ serve(async (req) => {
 
             if (stepsError) {
               logStep("Error reinserting steps", { guide_id: existingGuide.id, error: stepsError });
+            } else {
+              logStep("Reinserted steps", { guide_id: existingGuide.id, count: stepsToInsert.length });
             }
           }
 
           updatedCount++;
         } else {
           // INSERT MODE: Skip existing
-          logStep("Skipping existing guide", { title: guideData.title });
+          logStep("Skipping existing guide", { 
+            hardcoded_id: guideData.id, 
+            matched_title: existingGuide.title 
+          });
           skippedCount++;
         }
         continue;
@@ -275,7 +333,13 @@ serve(async (req) => {
         continue;
       }
 
-      logStep("Inserted guide", { id: newGuide.id, title: guideData.title });
+      logStep("Inserted guide", { db_id: newGuide.id, hardcoded_id: guideData.id, title: guideData.title });
+      
+      mappings.push({
+        hardcoded_id: guideData.id,
+        db_id: newGuide.id,
+        title: guideData.title,
+      });
 
       // Insert steps (supports both `steps` and `stepsByDevice`)
       const steps = extractStepsForGuide(guideData);
@@ -308,7 +372,14 @@ serve(async (req) => {
       syncedCount++;
     }
 
-    logStep("Sync complete", { synced: syncedCount, updated: updatedCount, skipped: skippedCount, errors: errors.length });
+    logStep("Sync complete", { 
+      synced: syncedCount, 
+      updated: updatedCount, 
+      skipped: skippedCount, 
+      errors: errors.length,
+      totalIncoming: incomingGuides.length,
+      totalMapped: mappings.length
+    });
 
     return new Response(
       JSON.stringify({
@@ -317,6 +388,7 @@ serve(async (req) => {
         synced: syncedCount,
         updated: updatedCount,
         skipped: skippedCount,
+        totalGuides: existingCount + syncedCount,
         errors: errors.length > 0 ? errors : undefined,
       }),
       {

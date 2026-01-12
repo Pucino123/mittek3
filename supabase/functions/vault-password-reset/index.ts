@@ -13,10 +13,88 @@ interface ResetRequest {
   token?: string;
 }
 
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 5;
+
 const generateToken = () => {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+};
+
+// Get client IP from request
+const getClientIP = (req: Request): string => {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  const realIP = req.headers.get("x-real-ip");
+  if (realIP) {
+    return realIP;
+  }
+  return "unknown";
+};
+
+// Check rate limit using database
+const checkRateLimit = async (
+  supabase: any,
+  identifier: string,
+  endpoint: string
+): Promise<{ allowed: boolean; remaining: number; retryAfter?: number }> => {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+
+  // Count requests in current window
+  const { data: existingRecords, error: countError } = await supabase
+    .from("rate_limits")
+    .select("id, request_count")
+    .eq("identifier", identifier)
+    .eq("endpoint", endpoint)
+    .gte("window_start", windowStart);
+
+  if (countError) {
+    console.error("Rate limit check error:", countError);
+    // Fail open - allow request if rate limit check fails
+    return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW };
+  }
+
+  const totalRequests = (existingRecords || []).reduce(
+    (sum: number, r: any) => sum + (r.request_count || 1),
+    0
+  );
+
+  if (totalRequests >= MAX_REQUESTS_PER_WINDOW) {
+    // Calculate retry-after time
+    const oldestRecord = existingRecords?.[0];
+    const retryAfter = oldestRecord 
+      ? Math.ceil((new Date(oldestRecord.window_start).getTime() + RATE_LIMIT_WINDOW_MS - Date.now()) / 1000)
+      : 60;
+
+    return { 
+      allowed: false, 
+      remaining: 0,
+      retryAfter: Math.max(retryAfter, 1)
+    };
+  }
+
+  // Record this request
+  const { error: insertError } = await supabase
+    .from("rate_limits")
+    .insert({
+      identifier,
+      endpoint,
+      request_count: 1,
+      window_start: new Date().toISOString(),
+    });
+
+  if (insertError) {
+    console.error("Rate limit insert error:", insertError);
+  }
+
+  return { 
+    allowed: true, 
+    remaining: MAX_REQUESTS_PER_WINDOW - totalRequests - 1 
+  };
 };
 
 const handler = async (req: Request): Promise<Response> => {
@@ -30,8 +108,33 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
+    // Get client IP for rate limiting
+    const clientIP = getClientIP(req);
+    const endpoint = "vault-password-reset";
+
+    // Check rate limit before processing
+    const rateLimit = await checkRateLimit(supabase, clientIP, endpoint);
+    
+    if (!rateLimit.allowed) {
+      console.log(`Rate limit exceeded for IP: ${clientIP}`);
+      return new Response(
+        JSON.stringify({ 
+          error: "For mange forsøg. Vent venligst før du prøver igen.",
+          retryAfter: rateLimit.retryAfter
+        }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimit.retryAfter || 60)
+          } 
+        }
+      );
+    }
+
     const { action, email, token }: ResetRequest = await req.json();
-    console.log(`Vault password reset action: ${action}`);
+    console.log(`Vault password reset action: ${action}, IP: ${clientIP}, remaining: ${rateLimit.remaining}`);
 
     if (action === "request") {
       if (!email) {
@@ -215,6 +318,12 @@ const handler = async (req: Request): Promise<Response> => {
       // Delete all vault items for user
       await supabase
         .from("vault_items")
+        .delete()
+        .eq("user_id", matchingReset.user_id);
+
+      // Delete vault folders for user
+      await supabase
+        .from("vault_folders")
         .delete()
         .eq("user_id", matchingReset.user_id);
 
