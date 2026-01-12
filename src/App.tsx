@@ -6,9 +6,11 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SeniorModeProvider } from "@/contexts/SeniorModeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AdminRoute } from "@/components/auth/AdminRoute";
 import { AIChatWidget } from "@/components/chat/AIChatWidget";
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import { RouteTracker } from "@/components/analytics/RouteTracker";
+import { AdminDebugPanel } from "@/components/debug/AdminDebugPanel";
 
 // Pages
 import Index from "./pages/Index";
@@ -191,8 +193,12 @@ const App = () => (
                 </ProtectedRoute>
               } />
               
-              {/* Admin */}
-              <Route path="/admin" element={<Admin />} />
+              {/* Admin - Strict admin-only route */}
+              <Route path="/admin" element={
+                <AdminRoute>
+                  <Admin />
+                </AdminRoute>
+              } />
               
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
@@ -203,6 +209,9 @@ const App = () => (
             
             {/* Cookie Consent Banner */}
             <CookieConsent />
+            
+            {/* Admin Debug Panel - only renders for admins */}
+            <AdminDebugPanel />
           </BrowserRouter>
         </TooltipProvider>
       </SeniorModeProvider>
