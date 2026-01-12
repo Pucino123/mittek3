@@ -550,7 +550,7 @@ const Dashboard = () => {
             )}
 
             {/* Admin shortcut - only for admins */}
-            {profile?.is_admin && (
+            {isAdmin && (
               <>
                 <Link to="/admin" className="hidden sm:block">
                   <Button variant="outline" size="sm" className="gap-2">
@@ -565,6 +565,7 @@ const Dashboard = () => {
                 </Link>
               </>
             )}
+
 
             {/* Senior Mode Toggle - iOS Style */}
             <div className="hidden md:flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary">
