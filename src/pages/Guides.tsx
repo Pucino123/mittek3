@@ -46,6 +46,7 @@ interface GuideStep {
 
 interface Guide {
   id: string;
+  slug: string | null;
   title: string;
   description: string | null;
   icon?: string;
@@ -170,14 +171,14 @@ const Guides = () => {
 
   // Handle deep link navigation after guides are loaded
   useEffect(() => {
-    const guideId = routeGuideId || searchParams.get('guide') || searchParams.get('id');
+    const guideIdentifier = routeGuideId || searchParams.get('guide') || searchParams.get('id');
     const initialStep = getInitialStepFromUrl();
     
-    // Skip if no guideId, still loading, or already have a selected guide
-    if (!guideId || loading || selectedGuide) return;
+    // Skip if no guideIdentifier, still loading, or already have a selected guide
+    if (!guideIdentifier || loading || selectedGuide) return;
     
-    // Find guide in DB guides
-    const guide = guides.find(g => g.id === guideId);
+    // Find guide by slug first, then by id
+    const guide = guides.find(g => g.slug === guideIdentifier || g.id === guideIdentifier);
     if (guide) {
       setSelectedGuide(guide);
       // Set initial step from URL if provided
@@ -226,6 +227,7 @@ const Guides = () => {
       // Combine guides with their steps, including device_type, tip_text, warning_text for filtering
       const guidesWithSteps: Guide[] = guidesData.map(guide => ({
         id: guide.id,
+        slug: (guide as any).slug || null,
         title: guide.title,
         description: guide.description,
         category: (guide as any).category || 'hverdag',

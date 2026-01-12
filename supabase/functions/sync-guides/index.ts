@@ -200,7 +200,7 @@ serve(async (req) => {
     // Fetch ALL existing guides (override default pagination limit)
     const { data: existingGuides, error: countError } = await supabaseAdmin
       .from("guides")
-      .select("id, title, sort_order")
+      .select("id, title, sort_order, slug")
       .range(0, 9999);
 
     if (countError) throw countError;
@@ -208,11 +208,15 @@ serve(async (req) => {
     const existingCount = existingGuides?.length || 0;
     logStep("Existing guides", { count: existingCount });
 
-    // Build normalized title map for matching
-    const existingByNormalizedTitle = new Map<string, { id: string; title: string }>();
+    // Build normalized title map AND slug map for matching
+    const existingByNormalizedTitle = new Map<string, { id: string; title: string; slug: string | null }>();
+    const existingBySlug = new Map<string, { id: string; title: string }>();
     for (const g of existingGuides || []) {
       const normalized = normalizeTitle(g.title);
-      existingByNormalizedTitle.set(normalized, { id: g.id, title: g.title });
+      existingByNormalizedTitle.set(normalized, { id: g.id, title: g.title, slug: g.slug });
+      if (g.slug) {
+        existingBySlug.set(g.slug, { id: g.id, title: g.title });
+      }
     }
 
     let syncedCount = 0;
@@ -232,9 +236,12 @@ serve(async (req) => {
         continue;
       }
 
-      // Match by normalized title to handle duplicates/variants
+      // Match by slug first (exact match), then by normalized title
+      const existingBySlugMatch = existingBySlug.get(guideData.id);
       const normalizedTitle = normalizeTitle(guideData.title);
-      const existingGuide = existingByNormalizedTitle.get(normalizedTitle);
+      const existingByTitleMatch = existingByNormalizedTitle.get(normalizedTitle);
+      
+      const existingGuide = existingBySlugMatch || existingByTitleMatch;
 
       if (existingGuide) {
         mappings.push({
@@ -257,6 +264,7 @@ serve(async (req) => {
               title: guideData.title, // Update to match hardcoded exactly
               description: guideData.description || null,
               category: guideData.category || null,
+              slug: guideData.id, // Ensure slug is set
             })
             .eq("id", existingGuide.id);
 
@@ -311,7 +319,7 @@ serve(async (req) => {
         continue;
       }
 
-      // INSERT new guide
+      // INSERT new guide with slug
       const sortOrder = existingCount + syncedCount;
 
       const { data: newGuide, error: guideError } = await supabaseAdmin
@@ -323,6 +331,7 @@ serve(async (req) => {
           is_published: true,
           min_plan: "basic",
           sort_order: sortOrder,
+          slug: guideData.id, // Use the hardcoded ID as the slug
         })
         .select()
         .single();
