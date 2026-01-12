@@ -18,6 +18,24 @@ interface HelpContent {
 }
 
 const helpContentMap: Record<string, HelpContent> = {
+  '/dashboard': {
+    title: 'Dit overblik',
+    description: 'Her er dit overblik. Under "Dine Værktøjer" finder du dine hjælpemidler.',
+    tips: [
+      'Tryk på et værktøj for at åbne det',
+      'Hold fingeren nede på en knap for at flytte rundt på dem',
+      'Brug AI-chatten nederst, hvis du har spørgsmål',
+    ],
+  },
+  '/settings': {
+    title: 'Indstillinger',
+    description: 'Her kan du styre din konto og se dit abonnement.',
+    tips: [
+      'Se og administrer dit abonnement',
+      'Inviter en hjælper (Trusted Helper) til at hjælpe dig',
+      'Opdater dine kontaktoplysninger',
+    ],
+  },
   '/tools/medical-id': {
     title: 'Dit Nød-ID',
     description: 'Sæt dine helbredsoplysninger op så reddere kan se dem.',
@@ -111,11 +129,29 @@ const helpContentMap: Record<string, HelpContent> = {
   },
   '/safety': {
     title: 'Sikkerhedsskjoldet',
-    description: 'Få tjekket mistænkelige beskeder.',
+    description: 'Her ser du, om din enhed er opdateret og sikker. Vi tjekker automatisk for dig.',
     tips: [
-      'Upload et screenshot af beskeden',
+      'Upload et screenshot af en mistænkelig besked',
       'AI\'en analyserer om det er svindel',
       'Du får en klar vurdering: trygt eller farligt',
+    ],
+  },
+  '/guides': {
+    title: 'Mini-guides',
+    description: 'Her finder du trin-for-trin vejledninger, der hjælper dig med hverdagens IT-udfordringer.',
+    tips: [
+      'Brug søgefeltet øverst til at finde guides',
+      'Vælg en kategori for at filtrere',
+      'Klik på en guide for at se alle trin med billeder',
+    ],
+  },
+  '/help': {
+    title: 'Hjælp & Support',
+    description: 'Her kan du skrive til os, hvis du har problemer.',
+    tips: [
+      'Du kan se dine tidligere sager her',
+      'Du får svar fra os i din indbakke',
+      'Beskriv dit problem så tydeligt som muligt',
     ],
   },
   '/tools/scam-quiz': {
