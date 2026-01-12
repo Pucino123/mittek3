@@ -35,19 +35,25 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: callerUser } } = await userClient.auth.getUser();
-    if (!callerUser) {
+    // Use getClaims for JWT validation
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error("Claims error:", claimsError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const callerId = claimsData.claims.sub;
+
     // Check if caller is admin
     const { data: profile } = await userClient
       .from("profiles")
       .select("is_admin")
-      .eq("user_id", callerUser.id)
+      .eq("user_id", callerId)
       .single();
 
     if (!profile?.is_admin) {
@@ -130,7 +136,7 @@ Deno.serve(async (req) => {
 
     // Log the action
     await adminClient.from("audit_logs").insert({
-      user_id: callerUser.id,
+      user_id: callerId,
       action: "admin_create_user",
       resource_type: "user",
       resource_id: newUser.user?.id,
