@@ -223,7 +223,7 @@ function SortableCard({
 function DragOverlayCard({ card, hasAccess }: { card: CardDefinition; hasAccess: boolean }) {
   return (
     <motion.div 
-      className="pointer-events-none"
+      className="pointer-events-none drag-overlay-glow"
       initial={{ scale: 1, opacity: 0.9, rotate: 0 }}
       animate={{ 
         scale: 1.05,
@@ -261,7 +261,6 @@ function DragOverlayCard({ card, hasAccess }: { card: CardDefinition; hasAccess:
         isDragging={false}
         style={{
           height: '100%',
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.05)',
           transform: 'none',
         }}
       />
@@ -316,6 +315,13 @@ const Dashboard = () => {
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const toolsSectionRef = useRef<HTMLDivElement>(null);
+  
+  // Undo history stack for drag operations
+  const [undoStack, setUndoStack] = useState<Array<{
+    cardCategories: Record<string, string>;
+    cardOrder: string[] | null;
+    hiddenCards: string[];
+  }>>([]);
   
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
   const { user, profile, isAdmin, hasAccess, signOut, isSubscriptionActive, subscription, refetchProfile } = useAuth();
@@ -539,6 +545,7 @@ const Dashboard = () => {
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     setActiveDragId(String(active.id));
+    saveUndoState(); // Save state before drag for undo
     haptics.tick(); // Haptic on drag start
   };
 
@@ -647,16 +654,108 @@ const Dashboard = () => {
     });
   };
 
-  // Handle adding card back
+  // Handle adding card back - place in last category
   const handleAddCard = (cardId: string) => {
-    showCard(cardId);
-    toast.success('Værktøj tilføjet');
+    // Get the last category in the current order
+    const lastCategoryId = currentCategoryOrder[currentCategoryOrder.length - 1];
+    
+    // Show the card and assign it to the last category
+    showCard(cardId, lastCategoryId);
+    
+    haptics.success();
+    toast.success('Værktøj tilføjet', {
+      description: `Placeret i bunden af dit dashboard`,
+      duration: 2000,
+    });
   };
+
+  // Undo functionality
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    
+    const previousState = undoStack[undoStack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+    
+    // Restore previous state
+    updateCardCategoryAndOrder(
+      '', // No specific card
+      '', // No specific category  
+      previousState.cardOrder || defaultCardOrder
+    );
+    
+    haptics.tick();
+    toast.success('Handling fortrudt', { duration: 2000 });
+  }, [undoStack, updateCardCategoryAndOrder]);
+
+  // Save state before drag operations
+  const saveUndoState = useCallback(() => {
+    setUndoStack(prev => [
+      ...prev.slice(-9), // Keep last 10 states
+      {
+        cardCategories: { ...cardCategories },
+        cardOrder: cardOrder ? [...cardOrder] : null,
+        hiddenCards: [...hiddenCards],
+      }
+    ]);
+  }, [cardCategories, cardOrder, hiddenCards]);
+
+  // Keyboard undo listener (Ctrl+Z / Cmd+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo]);
+
+  // Shake gesture detection for mobile undo
+  useEffect(() => {
+    let lastX = 0, lastY = 0, lastZ = 0;
+    let lastTime = 0;
+    const SHAKE_THRESHOLD = 15;
+    const SHAKE_TIMEOUT = 1000;
+
+    const handleMotion = (e: DeviceMotionEvent) => {
+      const acceleration = e.accelerationIncludingGravity;
+      if (!acceleration) return;
+
+      const currentTime = Date.now();
+      if (currentTime - lastTime < 100) return;
+
+      const deltaX = Math.abs((acceleration.x || 0) - lastX);
+      const deltaY = Math.abs((acceleration.y || 0) - lastY);
+      const deltaZ = Math.abs((acceleration.z || 0) - lastZ);
+
+      if ((deltaX > SHAKE_THRESHOLD && deltaY > SHAKE_THRESHOLD) ||
+          (deltaX > SHAKE_THRESHOLD && deltaZ > SHAKE_THRESHOLD) ||
+          (deltaY > SHAKE_THRESHOLD && deltaZ > SHAKE_THRESHOLD)) {
+        
+        if (currentTime - lastTime > SHAKE_TIMEOUT) {
+          handleUndo();
+        }
+      }
+
+      lastX = acceleration.x || 0;
+      lastY = acceleration.y || 0;
+      lastZ = acceleration.z || 0;
+      lastTime = currentTime;
+    };
+
+    if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
+      window.addEventListener('devicemotion', handleMotion);
+      return () => window.removeEventListener('devicemotion', handleMotion);
+    }
+  }, [handleUndo]);
 
   // Handle reset all
   const handleResetAll = () => {
     resetToDefault();
     setShowAddModal(false);
+    setUndoStack([]);
     toast.success('Dashboard nulstillet');
   };
 
@@ -671,6 +770,8 @@ const Dashboard = () => {
   // Handle delete category (any category, not just custom)
   // SAFE: Moves all cards from the category to the hidden pool
   const handleDeleteCategory = (categoryId: string) => {
+    saveUndoState();
+    
     // Find all card IDs that belong to this category
     const categoryCards = cardsByCategory[categoryId] || [];
     const cardIdsToHide = categoryCards.map(card => card.id);
