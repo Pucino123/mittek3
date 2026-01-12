@@ -606,13 +606,13 @@ const Dashboard = () => {
 
         {/* Tools Section Header */}
         <div className="flex items-center justify-between mb-6 sm:mb-8">
-          <div>
+          <div className="flex items-center gap-2 md:gap-2.5">
             <h2 className="text-xl sm:text-2xl font-bold">Dine værktøjer</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {isEditMode ? 'Træk for at flytte • Tryk X for at skjule' : 'Hold nede for at tilpasse'}
-            </p>
+            <ToolPageHelpButton inline />
           </div>
-          <ToolPageHelpButton inline />
+          <p className="text-sm text-muted-foreground hidden sm:block">
+            {isEditMode ? 'Træk for at flytte • Tryk X for at skjule' : 'Hold nede for at tilpasse'}
+          </p>
         </div>
 
         {/* Categories with Cards */}
