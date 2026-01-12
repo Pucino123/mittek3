@@ -316,12 +316,12 @@ const Dashboard = () => {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const toolsSectionRef = useRef<HTMLDivElement>(null);
   
-  // Undo history stack for drag operations
-  const [undoStack, setUndoStack] = useState<Array<{
-    cardCategories: Record<string, string>;
-    cardOrder: string[] | null;
-    hiddenCards: string[];
-  }>>([]);
+  // Undo history stack for drag and delete operations
+  type UndoAction = 
+    | { type: 'move'; cardCategories: Record<string, string>; cardOrder: string[] | null; hiddenCards: string[]; }
+    | { type: 'delete'; cardId: string; cardCategory: string; cardOrder: string[] | null; hiddenCards: string[]; cardCategories: Record<string, string>; };
+  
+  const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
   
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
   const { user, profile, isAdmin, hasAccess, signOut, isSubscriptionActive, subscription, refetchProfile } = useAuth();
@@ -645,11 +645,26 @@ const Dashboard = () => {
     }
   };
 
-  // Handle card removal
+  // Handle card removal - save delete state for undo
   const handleRemoveCard = (cardId: string) => {
+    // Save delete action to undo stack with full context
+    const cardCategory = getCardCategory(cardId);
+    setUndoStack(prev => [
+      ...prev.slice(-9),
+      {
+        type: 'delete' as const,
+        cardId,
+        cardCategory,
+        cardOrder: cardOrder ? [...cardOrder] : null,
+        hiddenCards: [...hiddenCards],
+        cardCategories: { ...cardCategories },
+      }
+    ]);
+    
     hideCard(cardId);
+    haptics.tick();
     toast.success('Værktøj skjult', {
-      description: 'Du kan tilføje det igen via + knappen',
+      description: 'Tryk Ctrl+Z for at fortryde',
       duration: 3000,
     });
   };
@@ -669,29 +684,46 @@ const Dashboard = () => {
     });
   };
 
-  // Undo functionality
+  // Undo functionality - handles both move and delete actions
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return;
     
-    const previousState = undoStack[undoStack.length - 1];
+    const lastAction = undoStack[undoStack.length - 1];
     setUndoStack(prev => prev.slice(0, -1));
     
-    // Restore previous state
-    updateCardCategoryAndOrder(
-      '', // No specific card
-      '', // No specific category  
-      previousState.cardOrder || defaultCardOrder
-    );
-    
-    haptics.tick();
-    toast.success('Handling fortrudt', { duration: 2000 });
-  }, [undoStack, updateCardCategoryAndOrder]);
+    if (lastAction.type === 'delete') {
+      // Restore deleted card to its original category and position
+      showCard(lastAction.cardId, lastAction.cardCategory);
+      
+      // Restore full order if available
+      if (lastAction.cardOrder) {
+        updateCardOrder(lastAction.cardOrder);
+      }
+      
+      haptics.success();
+      toast.success('Værktøj gendannet', { 
+        description: 'Værktøjet er tilbage på dit dashboard',
+        duration: 2000 
+      });
+    } else {
+      // Handle move undo - restore previous state
+      updateCardCategoryAndOrder(
+        '', // No specific card
+        '', // No specific category  
+        lastAction.cardOrder || defaultCardOrder
+      );
+      
+      haptics.tick();
+      toast.success('Handling fortrudt', { duration: 2000 });
+    }
+  }, [undoStack, updateCardCategoryAndOrder, showCard, updateCardOrder]);
 
-  // Save state before drag operations
+  // Save state before drag operations (move type)
   const saveUndoState = useCallback(() => {
     setUndoStack(prev => [
       ...prev.slice(-9), // Keep last 10 states
       {
+        type: 'move' as const,
         cardCategories: { ...cardCategories },
         cardOrder: cardOrder ? [...cardOrder] : null,
         hiddenCards: [...hiddenCards],
