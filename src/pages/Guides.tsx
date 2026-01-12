@@ -6,6 +6,7 @@ import { DeviceSelector, DeviceType } from '@/components/ui/DeviceSelector';
 import { CategoryFilter, GuideCategory } from '@/components/guides/CategoryFilter';
 import { GuideStepCard } from '@/components/guides/GuideStepCard';
 import { useUserAchievements } from '@/hooks/useUserAchievements';
+import { useAuth } from '@/contexts/AuthContext';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { 
@@ -14,9 +15,6 @@ import {
   ChevronLeft,
   RefreshCw,
   XCircle,
-  Type,
-  Tv,
-  Headphones,
   Loader2,
   CheckCircle2,
   PartyPopper,
@@ -25,7 +23,8 @@ import {
   Battery,
   Cloud,
   MessageSquare,
-  AppWindow
+  AppWindow,
+  Sparkles
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -72,6 +71,7 @@ const Guides = () => {
   // Enable scroll restoration
   useScrollRestoration();
   
+  const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const { guideId: routeGuideId } = useParams<{ guideId?: string }>();
   const navigate = useNavigate();
@@ -544,6 +544,40 @@ const Guides = () => {
     return sortedGroups;
   };
 
+  // Get recommended guides based on user's owned devices
+  const getRecommendedGuides = (allGuides: Guide[]): Guide[] => {
+    const ownedDevices = profile?.owned_devices || [];
+    if (ownedDevices.length === 0) return [];
+
+    // Map device types to relevant categories
+    const deviceToCategoryMap: Record<string, string[]> = {
+      'iphone': ['hverdag', 'sikkerhed', 'beskeder', 'batteri'],
+      'ipad': ['hverdag', 'sikkerhed', 'apps', 'batteri'],
+      'mac': ['hverdag', 'sikkerhed', 'apps'],
+      'apple-watch': ['hverdag', 'batteri'],
+      'airpods': ['hverdag', 'batteri'],
+    };
+
+    // Get relevant categories based on owned devices
+    const relevantCategories = new Set<string>();
+    ownedDevices.forEach(device => {
+      const categories = deviceToCategoryMap[device] || ['hverdag'];
+      categories.forEach(cat => relevantCategories.add(cat));
+    });
+
+    // Filter guides that match the user's devices and haven't been read yet
+    const recommended = allGuides
+      .filter(guide => {
+        const guideCategory = guide.category || 'hverdag';
+        const isRelevant = relevantCategories.has(guideCategory);
+        const notRead = !isGuideRead(guide.id);
+        return isRelevant && notRead;
+      })
+      .slice(0, 3); // Max 3 recommendations
+
+    return recommended;
+  };
+
   // Guides list
   return (
     <div className="min-h-screen bg-background">
@@ -596,6 +630,7 @@ const Guides = () => {
 
           {(() => {
             const allGuides: Guide[] = guides;
+            const recommendedGuides = getRecommendedGuides(allGuides);
 
             // Filter guides by category and search
             const filteredGuides = allGuides.filter(guide => {
@@ -648,6 +683,66 @@ const Guides = () => {
               
               return (
                 <div className="space-y-8">
+                  {/* Recommended Section - Only show if user has devices configured */}
+                  {recommendedGuides.length > 0 && (
+                    <section className="mb-2">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Sparkles className="h-5 w-5 text-primary" />
+                        </div>
+                        <h2 className="text-lg font-bold text-foreground">
+                          Anbefalet til dig
+                        </h2>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Baseret på dine enheder: {profile?.owned_devices?.map(d => {
+                          const deviceLabels: Record<string, string> = {
+                            'iphone': 'iPhone',
+                            'ipad': 'iPad', 
+                            'mac': 'Mac',
+                            'apple-watch': 'Apple Watch',
+                            'airpods': 'AirPods'
+                          };
+                          return deviceLabels[d] || d;
+                        }).join(', ')}
+                      </p>
+                      
+                      <div className="space-y-3">
+                        {recommendedGuides.map((guide) => {
+                          const IconComponent = getGuideIcon(guide.category);
+                          
+                          return (
+                            <button
+                              key={guide.id}
+                              onClick={() => {
+                                setSelectedGuide(guide);
+                                setCurrentStep(0);
+                                trackGuideView(guide.id, guide.title);
+                              }}
+                              className="w-full text-left rounded-2xl border-2 border-primary/30 bg-primary/5 transition-all p-5 flex items-center gap-4 hover:border-primary hover:shadow-md"
+                            >
+                              <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/15">
+                                <IconComponent className="h-7 w-7 text-primary" />
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-base md:text-lg mb-1 leading-tight">
+                                  {guide.title}
+                                </h3>
+                                {guide.description && (
+                                  <p className="text-sm text-muted-foreground line-clamp-2">
+                                    {guide.description}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <ChevronRight className="h-6 w-6 text-primary flex-shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
                   {groupedGuides.map(group => (
                     <section key={group.category}>
                       {/* Category Header */}
@@ -780,12 +875,6 @@ const Guides = () => {
             );
           })()}
 
-          {/* Quick tip at bottom */}
-          <div className="mt-12 p-4 bg-muted/50 rounded-xl text-center">
-            <p className="text-sm text-muted-foreground">
-              💡 <strong>Tip:</strong> Når du har læst en guide, får du et stempel på dit stempelkort!
-            </p>
-          </div>
         </div>
       </main>
     </div>
