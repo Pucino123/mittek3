@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { MoreHorizontal, Mail, Edit, UserX, UserCheck, Loader2, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Mail, Edit, UserX, UserCheck, Loader2, Trash2, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -17,6 +17,7 @@ interface UserActionsMenuProps {
 
 export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onActionComplete }: UserActionsMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [editPlanOpen, setEditPlanOpen] = useState(false);
   const [confirmDeactivateOpen, setConfirmDeactivateOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -24,7 +25,6 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'plus' | 'pro'>(
     (currentPlan as 'basic' | 'plus' | 'pro') || 'basic'
   );
-
   const handleResetPassword = async () => {
     setIsLoading(true);
     try {
@@ -103,6 +103,32 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
     }
   };
 
+  const handleSyncFromStripe = async () => {
+    setIsSyncing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Ikke logget ind');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('sync-user-subscription', {
+        body: { userId, email: userEmail },
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.error);
+
+      toast.success(response.data.message || 'Abonnement synkroniseret fra Stripe');
+      onActionComplete();
+    } catch (error: any) {
+      toast.error(error.message || 'Kunne ikke synkronisere fra Stripe');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     setIsLoading(true);
     try {
@@ -139,6 +165,14 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
           <DropdownMenuItem onClick={() => setEditPlanOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Rediger plan
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSyncFromStripe} disabled={isSyncing}>
+            {isSyncing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Synk fra Stripe
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
