@@ -22,6 +22,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { SortableGuideStep } from '@/components/admin/SortableGuideStep';
 import { VisualHelpManager } from '@/components/admin/VisualHelpManager';
 import { SystemContentEditor } from '@/components/admin/SystemContentEditor';
+import { hardcodedGuides } from '@/data/hardcodedGuides';
 
 interface Profile {
   id: string;
@@ -229,6 +230,9 @@ const Admin = () => {
       const response = await supabase.functions.invoke('sync-guides', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          guides: hardcodedGuides,
         },
       });
 
