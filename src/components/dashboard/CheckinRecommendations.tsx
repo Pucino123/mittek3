@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { CheckCircle, Sparkles, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
@@ -131,7 +131,8 @@ const getGuideForRecommendation = (rec: string): { guideId: string; label: strin
   return null;
 };
 
-export function CheckinRecommendations({ checkinData }: CheckinRecommendationsProps) {
+export const CheckinRecommendations = forwardRef<HTMLDivElement, CheckinRecommendationsProps>(
+  function CheckinRecommendationsComponent({ checkinData }, ref) {
   const { user } = useAuth();
   const [completedItems, setCompletedItems] = useState<string[]>([]);
 
@@ -203,6 +204,7 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
   if (isCollapsing) {
     return (
       <div 
+        ref={ref}
         className="overflow-hidden transition-all duration-500 ease-out"
         style={{ 
           maxHeight: 0, 
@@ -215,7 +217,7 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
   }
 
   return (
-    <div className="card-elevated p-5 sm:p-6 mb-6 transition-all duration-300">
+    <div ref={ref} className="card-elevated p-5 sm:p-6 mb-6 transition-all duration-300">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
@@ -282,4 +284,6 @@ export function CheckinRecommendations({ checkinData }: CheckinRecommendationsPr
       )}
     </div>
   );
-}
+});
+
+CheckinRecommendations.displayName = 'CheckinRecommendations';

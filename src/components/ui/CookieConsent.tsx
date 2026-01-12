@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Cookie, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -9,7 +9,7 @@ const COOKIE_CONSENT_KEY = 'cookie-consent';
 
 type ConsentStatus = 'accepted' | 'declined' | null;
 
-export function CookieConsent() {
+export const CookieConsent = forwardRef<HTMLDivElement, object>(function CookieConsentComponent(_, ref) {
   const [showBanner, setShowBanner] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -45,6 +45,7 @@ export function CookieConsent() {
 
   return (
     <div
+      ref={ref}
       className={`fixed bottom-4 right-4 z-50 transition-all duration-300 ${
         isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
       }`}
@@ -94,7 +95,9 @@ export function CookieConsent() {
       </div>
     </div>
   );
-}
+});
+
+CookieConsent.displayName = 'CookieConsent';
 
 // Utility function to check if user has consented to cookies
 export function hasConsentedToCookies(): boolean {
