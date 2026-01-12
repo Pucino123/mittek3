@@ -262,18 +262,49 @@ serve(async (req) => {
           });
         }
 
-        const defaultPaymentMethodId = (customer as Stripe.Customer).invoice_settings?.default_payment_method;
+        // Try multiple sources for payment method
+        let paymentMethodId: string | null = null;
+        
+        // 1. Check customer's default payment method
+        const customerDefault = (customer as Stripe.Customer).invoice_settings?.default_payment_method;
+        if (customerDefault) {
+          paymentMethodId = typeof customerDefault === 'string' ? customerDefault : customerDefault.id;
+        }
+        
+        // 2. If not found, check the subscription's default payment method
+        if (!paymentMethodId && subData?.stripe_subscription_id) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(subData.stripe_subscription_id);
+            const subDefault = subscription.default_payment_method;
+            if (subDefault) {
+              paymentMethodId = typeof subDefault === 'string' ? subDefault : subDefault.id;
+            }
+          } catch (err) {
+            logStep("Could not retrieve subscription for payment method", err);
+          }
+        }
+        
+        // 3. If still not found, list customer's payment methods
+        if (!paymentMethodId) {
+          const paymentMethods = await stripe.paymentMethods.list({
+            customer: customerId,
+            type: 'card',
+            limit: 1,
+          });
+          if (paymentMethods.data.length > 0) {
+            paymentMethodId = paymentMethods.data[0].id;
+          }
+        }
 
-        if (!defaultPaymentMethodId) {
+        if (!paymentMethodId) {
+          logStep("No payment method found", { customerId });
           return new Response(JSON.stringify({ payment_method: null }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
             status: 200,
           });
         }
 
-        const paymentMethod = await stripe.paymentMethods.retrieve(
-          typeof defaultPaymentMethodId === 'string' ? defaultPaymentMethodId : defaultPaymentMethodId.id
-        );
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
 
         logStep("Payment method fetched", { 
           brand: paymentMethod.card?.brand, 
