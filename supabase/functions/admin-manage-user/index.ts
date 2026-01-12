@@ -191,7 +191,34 @@ Deno.serve(async (req) => {
       }
 
       case "delete_user": {
-        // Delete user completely - this cascades to profile and subscriptions via FK
+        // Delete all related data first (tables without CASCADE)
+        await adminClient.from("chat_messages").delete().eq("conversation_id", 
+          adminClient.from("chat_conversations").select("id").eq("user_id", userId)
+        );
+        await adminClient.from("chat_conversations").delete().eq("user_id", userId);
+        await adminClient.from("checkins").delete().eq("user_id", userId);
+        await adminClient.from("check_history").delete().eq("user_id", userId);
+        await adminClient.from("panic_cases").delete().eq("user_id", userId);
+        await adminClient.from("support_messages").delete().eq("ticket_id",
+          adminClient.from("support_tickets").select("id").eq("user_id", userId)
+        );
+        await adminClient.from("support_tickets").delete().eq("user_id", userId);
+        await adminClient.from("support_credits").delete().eq("user_id", userId);
+        await adminClient.from("trusted_helpers").delete().eq("user_id", userId);
+        await adminClient.from("trusted_helpers").delete().eq("helper_user_id", userId);
+        await adminClient.from("user_achievements").delete().eq("user_id", userId);
+        await adminClient.from("user_dashboard_settings").delete().eq("user_id", userId);
+        await adminClient.from("user_notes").delete().eq("user_id", userId);
+        await adminClient.from("user_wishlist").delete().eq("user_id", userId);
+        await adminClient.from("vault_items").delete().eq("user_id", userId);
+        await adminClient.from("vault_folders").delete().eq("user_id", userId);
+        await adminClient.from("vault_settings").delete().eq("user_id", userId);
+        await adminClient.from("vault_password_resets").delete().eq("user_id", userId);
+        await adminClient.from("subscriptions").delete().eq("user_id", userId);
+        await adminClient.from("user_roles").delete().eq("user_id", userId);
+        await adminClient.from("profiles").delete().eq("user_id", userId);
+        
+        // Now delete the auth user
         const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
         
         if (deleteError) throw deleteError;
