@@ -29,7 +29,7 @@ interface CategoryFilterProps {
 export const CategoryFilter = ({ value, onChange }: CategoryFilterProps) => {
   return (
     <div className="w-full overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-      <div className="flex gap-2 min-w-max">
+      <div className="flex gap-3 min-w-max">
         {categories.map((category) => {
           const IconComponent = category.icon;
           const isActive = value === category.id;
@@ -38,15 +38,14 @@ export const CategoryFilter = ({ value, onChange }: CategoryFilterProps) => {
             <Button
               key={category.id}
               variant={isActive ? 'default' : 'outline'}
-              size="sm"
               onClick={() => onChange(category.id)}
-              className={`flex-shrink-0 gap-2 rounded-full transition-all min-h-[44px] px-4 ${
+              className={`flex-shrink-0 gap-2 rounded-xl transition-all min-h-[52px] px-5 text-base font-medium ${
                 isActive 
-                  ? 'bg-primary text-primary-foreground shadow-md' 
-                  : 'bg-background hover:bg-muted border-border'
+                  ? 'bg-primary text-primary-foreground shadow-lg scale-[1.02]' 
+                  : 'bg-card hover:bg-muted border-2 border-border hover:border-primary/30'
               }`}
             >
-              <IconComponent className="h-4 w-4" />
+              <IconComponent className="h-5 w-5" />
               {category.label}
             </Button>
           );
