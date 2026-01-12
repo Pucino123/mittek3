@@ -55,10 +55,39 @@ interface Guide {
   id: string;
   title: string;
   description: string | null;
+  category: string | null;
+  icon: string | null;
   is_published: boolean;
   min_plan: string;
   sort_order: number;
 }
+
+const GUIDE_CATEGORIES = [
+  { value: 'hverdag', label: 'Hverdag' },
+  { value: 'sikkerhed', label: 'Sikkerhed' },
+  { value: 'batteri', label: 'Batteri' },
+  { value: 'icloud', label: 'iCloud' },
+  { value: 'beskeder', label: 'Beskeder' },
+  { value: 'apps', label: 'Apps' },
+];
+
+const GUIDE_ICONS = [
+  { value: 'smartphone', label: 'Smartphone' },
+  { value: 'shield', label: 'Sikkerhed' },
+  { value: 'battery', label: 'Batteri' },
+  { value: 'cloud', label: 'Cloud' },
+  { value: 'message-circle', label: 'Beskeder' },
+  { value: 'grid-3x3', label: 'Apps' },
+  { value: 'settings', label: 'Indstillinger' },
+  { value: 'refresh-cw', label: 'Opdatering' },
+  { value: 'eye', label: 'Visning' },
+  { value: 'lock', label: 'Lås' },
+  { value: 'bell', label: 'Notifikationer' },
+  { value: 'wifi', label: 'Wifi' },
+  { value: 'volume-2', label: 'Lyd' },
+  { value: 'camera', label: 'Kamera' },
+  { value: 'image', label: 'Billede' },
+];
 
 interface GuideStep {
   id: string;
@@ -103,6 +132,8 @@ const Admin = () => {
   const [editingGuide, setEditingGuide] = useState<Guide | null>(null);
   const [guideTitle, setGuideTitle] = useState('');
   const [guideDescription, setGuideDescription] = useState('');
+  const [guideCategory, setGuideCategory] = useState('');
+  const [guideIcon, setGuideIcon] = useState('');
   const [isGuideDialogOpen, setIsGuideDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -221,10 +252,14 @@ const Admin = () => {
       setEditingGuide(guide);
       setGuideTitle(guide.title);
       setGuideDescription(guide.description || '');
+      setGuideCategory(guide.category || '');
+      setGuideIcon(guide.icon || '');
     } else {
       setEditingGuide(null);
       setGuideTitle('');
       setGuideDescription('');
+      setGuideCategory('');
+      setGuideIcon('');
     }
     setIsGuideDialogOpen(true);
   };
@@ -243,6 +278,8 @@ const Admin = () => {
           .update({
             title: guideTitle,
             description: guideDescription,
+            category: guideCategory || null,
+            icon: guideIcon || null,
           })
           .eq('id', editingGuide.id);
 
@@ -254,6 +291,8 @@ const Admin = () => {
           .insert({
             title: guideTitle,
             description: guideDescription,
+            category: guideCategory || null,
+            icon: guideIcon || null,
             is_published: false,
             min_plan: 'basic',
             sort_order: guides.length,
@@ -1175,6 +1214,38 @@ const Admin = () => {
                               rows={3}
                             />
                           </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="category">Kategori</Label>
+                              <Select value={guideCategory} onValueChange={setGuideCategory}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Vælg kategori" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {GUIDE_CATEGORIES.map((cat) => (
+                                    <SelectItem key={cat.value} value={cat.value}>
+                                      {cat.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="icon">Ikon</Label>
+                              <Select value={guideIcon} onValueChange={setGuideIcon}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Vælg ikon" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {GUIDE_ICONS.map((icon) => (
+                                    <SelectItem key={icon.value} value={icon.value}>
+                                      {icon.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
                           <div className="flex gap-2 pt-4">
                             <Button
                               variant="outline"
@@ -1229,7 +1300,7 @@ const Admin = () => {
                           <TableRow>
                             <TableHead className="w-10"></TableHead>
                             <TableHead>Titel</TableHead>
-                            <TableHead>Min. plan</TableHead>
+                            <TableHead>Kategori</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Handlinger</TableHead>
                           </TableRow>
