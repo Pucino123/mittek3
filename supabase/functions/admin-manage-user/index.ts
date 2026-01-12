@@ -191,17 +191,34 @@ Deno.serve(async (req) => {
       }
 
       case "delete_user": {
-        // Delete all related data first (tables without CASCADE)
-        await adminClient.from("chat_messages").delete().eq("conversation_id", 
-          adminClient.from("chat_conversations").select("id").eq("user_id", userId)
-        );
+        // First, get conversation IDs and ticket IDs for this user
+        const { data: conversations } = await adminClient
+          .from("chat_conversations")
+          .select("id")
+          .eq("user_id", userId);
+        
+        const { data: tickets } = await adminClient
+          .from("support_tickets")
+          .select("id")
+          .eq("user_id", userId);
+
+        // Delete messages from conversations
+        if (conversations && conversations.length > 0) {
+          const conversationIds = conversations.map(c => c.id);
+          await adminClient.from("chat_messages").delete().in("conversation_id", conversationIds);
+        }
+        
+        // Delete messages from tickets
+        if (tickets && tickets.length > 0) {
+          const ticketIds = tickets.map(t => t.id);
+          await adminClient.from("support_messages").delete().in("ticket_id", ticketIds);
+        }
+
+        // Delete all related data (tables without CASCADE)
         await adminClient.from("chat_conversations").delete().eq("user_id", userId);
         await adminClient.from("checkins").delete().eq("user_id", userId);
         await adminClient.from("check_history").delete().eq("user_id", userId);
         await adminClient.from("panic_cases").delete().eq("user_id", userId);
-        await adminClient.from("support_messages").delete().eq("ticket_id",
-          adminClient.from("support_tickets").select("id").eq("user_id", userId)
-        );
         await adminClient.from("support_tickets").delete().eq("user_id", userId);
         await adminClient.from("support_credits").delete().eq("user_id", userId);
         await adminClient.from("trusted_helpers").delete().eq("user_id", userId);
@@ -214,6 +231,7 @@ Deno.serve(async (req) => {
         await adminClient.from("vault_folders").delete().eq("user_id", userId);
         await adminClient.from("vault_settings").delete().eq("user_id", userId);
         await adminClient.from("vault_password_resets").delete().eq("user_id", userId);
+        await adminClient.from("pending_subscriptions").delete().eq("claimed_by", userId);
         await adminClient.from("subscriptions").delete().eq("user_id", userId);
         await adminClient.from("user_roles").delete().eq("user_id", userId);
         await adminClient.from("profiles").delete().eq("user_id", userId);
