@@ -128,6 +128,10 @@ const Admin = () => {
   
   // Sync guides state
   const [isSyncingGuides, setIsSyncingGuides] = useState(false);
+  const [isPreviewingSync, setIsPreviewingSync] = useState(false);
+  const [isRestoringGuides, setIsRestoringGuides] = useState(false);
+  const [syncPreview, setSyncPreview] = useState<{ missing: string[]; duplicates: string[] } | null>(null);
+  const [showSyncPreviewDialog, setShowSyncPreviewDialog] = useState(false);
   const [isGranting, setIsGranting] = useState(false);
 
   useEffect(() => {
@@ -217,6 +221,59 @@ const Admin = () => {
     }
   };
 
+  // Preview sync - check what's missing before syncing
+  const previewGuideSync = async () => {
+    setIsPreviewingSync(true);
+    try {
+      // Get all existing guide titles from DB
+      const { data: existingGuides, error } = await supabase
+        .from('guides')
+        .select('title')
+        .range(0, 9999);
+
+      if (error) throw error;
+
+      const existingTitles = new Set(
+        (existingGuides || []).map(g => g.title.toLowerCase())
+      );
+
+      // Check for missing guides
+      const missing: string[] = [];
+      const seenIds = new Set<string>();
+      const duplicates: string[] = [];
+
+      hardcodedGuides.forEach(guide => {
+        // Check for duplicate IDs in hardcoded list
+        if (seenIds.has(guide.id)) {
+          duplicates.push(`Duplikat ID: ${guide.id} (${guide.title})`);
+        }
+        seenIds.add(guide.id);
+
+        // Check if missing from DB
+        if (!existingTitles.has(guide.title.toLowerCase())) {
+          missing.push(guide.title);
+        }
+      });
+
+      console.log('[SYNC PREVIEW] Hardcoded guides count:', hardcodedGuides.length);
+      console.log('[SYNC PREVIEW] Existing in DB:', existingGuides?.length || 0);
+      console.log('[SYNC PREVIEW] Missing:', missing.length, missing);
+      console.log('[SYNC PREVIEW] Duplicates:', duplicates);
+
+      setSyncPreview({ missing, duplicates });
+      setShowSyncPreviewDialog(true);
+
+      if (missing.length === 0 && duplicates.length === 0) {
+        toast.info(`Alle ${hardcodedGuides.length} hardcoded guides findes allerede i databasen`);
+      }
+    } catch (error: any) {
+      console.error('Preview sync error:', error);
+      toast.error('Kunne ikke tjekke guides');
+    } finally {
+      setIsPreviewingSync(false);
+    }
+  };
+
   // Sync guides to database
   const syncGuidesToDb = async () => {
     setIsSyncingGuides(true);
@@ -226,6 +283,9 @@ const Admin = () => {
         toast.error('Ikke logget ind');
         return;
       }
+
+      console.log('[SYNC] Sending', hardcodedGuides.length, 'guides to sync function');
+      console.log('[SYNC] Guide IDs:', hardcodedGuides.map(g => g.id));
 
       const response = await supabase.functions.invoke('sync-guides', {
         headers: {
@@ -241,6 +301,8 @@ const Admin = () => {
       }
 
       const result = response.data;
+      console.log('[SYNC] Result:', result);
+      
       if (result.synced > 0) {
         toast.success(`${result.synced} guides importeret`, {
           description: result.skipped > 0 ? `${result.skipped} allerede eksisterende sprunget over` : undefined,
@@ -251,7 +313,9 @@ const Admin = () => {
         toast.info('Ingen guides at importere');
       }
 
-      // Refresh the guides list
+      // Close preview dialog and refresh
+      setShowSyncPreviewDialog(false);
+      setSyncPreview(null);
       fetchData();
     } catch (error: any) {
       console.error('Sync guides error:', error);
@@ -260,6 +324,44 @@ const Admin = () => {
       });
     } finally {
       setIsSyncingGuides(false);
+    }
+  };
+
+  // Restore/Upsert standard guides (updates existing, inserts missing)
+  const restoreStandardGuides = async () => {
+    setIsRestoringGuides(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Ikke logget ind');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('sync-guides', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          guides: hardcodedGuides,
+          mode: 'upsert', // Signal to upsert instead of skip existing
+        },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const result = response.data;
+      toast.success('Standard guides gendannet', {
+        description: `${result.synced || 0} opdateret/tilføjet`,
+      });
+
+      fetchData();
+    } catch (error: any) {
+      console.error('Restore guides error:', error);
+      toast.error('Kunne ikke gendanne guides');
+    } finally {
+      setIsRestoringGuides(false);
     }
   };
 
@@ -1160,7 +1262,19 @@ const Admin = () => {
                     <CardTitle>Guides</CardTitle>
                     <CardDescription>Administrer mini-guides og deres trin</CardDescription>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <Button 
+                      variant="outline" 
+                      onClick={previewGuideSync}
+                      disabled={isPreviewingSync}
+                    >
+                      {isPreviewingSync ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="mr-2 h-4 w-4" />
+                      )}
+                      Tjek Sync
+                    </Button>
                     <Button 
                       variant="outline" 
                       onClick={syncGuidesToDb}
@@ -1171,7 +1285,19 @@ const Admin = () => {
                       ) : (
                         <RefreshCw className="mr-2 h-4 w-4" />
                       )}
-                      Synkroniser Guides
+                      Synkroniser
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      onClick={restoreStandardGuides}
+                      disabled={isRestoringGuides}
+                    >
+                      {isRestoringGuides ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      Gendan Standard
                     </Button>
                     <Dialog open={isGuideDialogOpen} onOpenChange={setIsGuideDialogOpen}>
                       <DialogTrigger asChild>
@@ -1390,6 +1516,80 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Sync Preview Dialog */}
+      <Dialog open={showSyncPreviewDialog} onOpenChange={setShowSyncPreviewDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Guide Sync Preview</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="flex items-center gap-4 text-sm">
+              <div className="px-3 py-1 bg-primary/10 rounded-lg">
+                <span className="font-semibold">{hardcodedGuides.length}</span> hardcoded
+              </div>
+              <div className="px-3 py-1 bg-secondary rounded-lg">
+                <span className="font-semibold">{guides.length}</span> i database
+              </div>
+              <div className="px-3 py-1 bg-success/10 text-success rounded-lg">
+                <span className="font-semibold">{syncPreview?.missing.length || 0}</span> mangler
+              </div>
+            </div>
+
+            {syncPreview?.duplicates && syncPreview.duplicates.length > 0 && (
+              <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+                <h4 className="font-semibold text-destructive mb-2">⚠️ Duplikater fundet:</h4>
+                <ul className="text-sm space-y-1">
+                  {syncPreview.duplicates.map((dup, i) => (
+                    <li key={i}>{dup}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {syncPreview?.missing && syncPreview.missing.length > 0 ? (
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-semibold mb-2">Følgende guides mangler i databasen:</h4>
+                <ul className="text-sm space-y-1 max-h-60 overflow-y-auto">
+                  {syncPreview.missing.map((title, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <span className="text-success">+</span> {title}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-center py-4 text-muted-foreground">
+                ✓ Alle hardcoded guides findes allerede i databasen
+              </p>
+            )}
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowSyncPreviewDialog(false)}
+              >
+                Luk
+              </Button>
+              {syncPreview?.missing && syncPreview.missing.length > 0 && (
+                <Button
+                  className="flex-1"
+                  onClick={syncGuidesToDb}
+                  disabled={isSyncingGuides}
+                >
+                  {isSyncingGuides ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="mr-2 h-4 w-4" />
+                  )}
+                  Importer {syncPreview.missing.length} guides
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
