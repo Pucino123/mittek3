@@ -155,12 +155,19 @@ serve(async (req) => {
       payment_method_collection: "always",
       subscription_data: {
         trial_period_days: 14,
+        invoice_settings: {
+          custom_fields: [
+            {
+              name: "Support",
+              value: "mittek@webilax.com",
+            },
+          ],
+        },
       },
       success_url: `${origin}/finish-signup?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing`,
       allow_promotion_codes: true,
       tax_id_collection: { enabled: true },
-      // Note: invoice_creation is not allowed for subscription mode - invoices are created automatically
       custom_text: {
         submit: {
           message: "Alle priser er inkl. 25% dansk moms. Du modtager en kvittering på email efter køb.",
