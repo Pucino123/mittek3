@@ -316,65 +316,65 @@ const Settings = () => {
               Vælg alle de enheder du bruger – tjek og guides tilpasses hver enhed
             </p>
             
-            {/* Multi-Select Device Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Multi-Select Device Cards - responsive grid */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <button
                 onClick={() => handleDeviceToggle('iphone')}
                 disabled={isSavingDevice}
-                className={`relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all min-h-[100px] ${
+                className={`relative flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 transition-all min-h-[80px] sm:min-h-[100px] ${
                   ownedDevices.includes('iphone')
                     ? 'border-primary bg-primary/5 shadow-md'
-                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                    : 'border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-muted/50'
                 }`}
               >
                 {ownedDevices.includes('iphone') && (
-                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="h-3 w-3 text-primary-foreground" />
+                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
                   </div>
                 )}
-                <Smartphone className={`h-8 w-8 ${ownedDevices.includes('iphone') ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`font-medium ${ownedDevices.includes('iphone') ? 'text-primary' : ''}`}>
-                  📱 iPhone
+                <Smartphone className={`h-6 w-6 sm:h-8 sm:w-8 ${ownedDevices.includes('iphone') ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className={`font-medium text-xs sm:text-base ${ownedDevices.includes('iphone') ? 'text-primary' : ''}`}>
+                  iPhone
                 </span>
               </button>
               
               <button
                 onClick={() => handleDeviceToggle('ipad')}
                 disabled={isSavingDevice}
-                className={`relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all min-h-[100px] ${
+                className={`relative flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 transition-all min-h-[80px] sm:min-h-[100px] ${
                   ownedDevices.includes('ipad')
                     ? 'border-primary bg-primary/5 shadow-md'
-                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                    : 'border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-muted/50'
                 }`}
               >
                 {ownedDevices.includes('ipad') && (
-                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="h-3 w-3 text-primary-foreground" />
+                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
                   </div>
                 )}
-                <Tablet className={`h-8 w-8 ${ownedDevices.includes('ipad') ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`font-medium ${ownedDevices.includes('ipad') ? 'text-primary' : ''}`}>
-                  📱 iPad
+                <Tablet className={`h-6 w-6 sm:h-8 sm:w-8 ${ownedDevices.includes('ipad') ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className={`font-medium text-xs sm:text-base ${ownedDevices.includes('ipad') ? 'text-primary' : ''}`}>
+                  iPad
                 </span>
               </button>
               
               <button
                 onClick={() => handleDeviceToggle('mac')}
                 disabled={isSavingDevice}
-                className={`relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all min-h-[100px] ${
+                className={`relative flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 transition-all min-h-[80px] sm:min-h-[100px] ${
                   ownedDevices.includes('mac')
                     ? 'border-primary bg-primary/5 shadow-md'
-                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                    : 'border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-muted/50'
                 }`}
               >
                 {ownedDevices.includes('mac') && (
-                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="h-3 w-3 text-primary-foreground" />
+                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
                   </div>
                 )}
-                <Monitor className={`h-8 w-8 ${ownedDevices.includes('mac') ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`font-medium ${ownedDevices.includes('mac') ? 'text-primary' : ''}`}>
-                  💻 Mac
+                <Monitor className={`h-6 w-6 sm:h-8 sm:w-8 ${ownedDevices.includes('mac') ? 'text-primary' : 'text-muted-foreground'}`} />
+                <span className={`font-medium text-xs sm:text-base ${ownedDevices.includes('mac') ? 'text-primary' : ''}`}>
+                  Mac
                 </span>
               </button>
             </div>

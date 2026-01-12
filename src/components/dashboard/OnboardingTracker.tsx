@@ -144,8 +144,8 @@ export function OnboardingTracker() {
     }
   };
 
-  // Don't show if dismissed, loading, or complete (after confetti)
-  if (isDismissed || loading) return null;
+  // Don't show if dismissed, loading, or complete (auto-hide when all done)
+  if (isDismissed || loading || isComplete) return null;
 
   const displayName = profile?.display_name || 'der';
 
@@ -182,8 +182,8 @@ export function OnboardingTracker() {
             <Progress value={progress} className="h-2" />
           </div>
 
-          {/* Steps grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-stretch">
+          {/* Steps grid - 1 column on mobile, 2 on sm, 4 on md+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-stretch">
             {onboardingSteps.map((step) => {
               const isStepComplete = step.checkComplete(profile, achievements, manualSteps);
               const isManuallyCompleted = manualSteps.includes(step.id);
