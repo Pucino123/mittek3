@@ -28,6 +28,15 @@ import { CreateUserDialog } from '@/components/admin/CreateUserDialog';
 import { UserActionsMenu } from '@/components/admin/UserActionsMenu';
 
 
+interface Subscription {
+  id: string;
+  user_id: string;
+  plan_tier: string;
+  status: string;
+  current_period_end: string | null;
+  trial_end: string | null;
+}
+
 interface Profile {
   id: string;
   user_id: string;
@@ -35,14 +44,7 @@ interface Profile {
   display_name: string | null;
   is_admin: boolean;
   created_at: string;
-}
-
-interface Subscription {
-  id: string;
-  user_id: string;
-  plan_tier: string;
-  status: string;
-  current_period_end: string | null;
+  subscriptions?: Subscription | null;
 }
 
 interface PendingSubscription {
@@ -170,15 +172,34 @@ const Admin = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      // Use LEFT JOIN approach: fetch profiles with their subscriptions embedded
       const [profilesRes, subscriptionsRes, pendingRes, guidesRes, ticketsRes] = await Promise.all([
-        supabase.from('profiles').select('*').order('created_at', { ascending: false }).range(0, 999),
+        supabase
+          .from('profiles')
+          .select('*, subscriptions(*)')
+          .order('created_at', { ascending: false })
+          .range(0, 999),
         supabase.from('subscriptions').select('*').order('created_at', { ascending: false }).range(0, 999),
         supabase.from('pending_subscriptions').select('*').order('created_at', { ascending: false }).range(0, 999),
         supabase.from('guides').select('*').order('sort_order', { ascending: true }).range(0, 999),
         supabase.from('support_tickets').select('*').order('updated_at', { ascending: false }).range(0, 999),
       ]);
 
-      if (profilesRes.data) setProfiles(profilesRes.data);
+      if (profilesRes.data) {
+        // Transform the data: subscriptions comes as array, we want the most recent active/trialing one
+        const transformedProfiles = profilesRes.data.map((p: any) => {
+          const subs = p.subscriptions as Subscription[] | null;
+          // Get the best subscription (prioritize active > trialing > others)
+          const bestSub = subs?.length 
+            ? subs.sort((a, b) => {
+                const priority = { active: 3, trialing: 2, past_due: 1, canceled: 0, incomplete: -1 };
+                return (priority[b.status as keyof typeof priority] ?? -1) - (priority[a.status as keyof typeof priority] ?? -1);
+              })[0]
+            : null;
+          return { ...p, subscriptions: bestSub };
+        });
+        setProfiles(transformedProfiles);
+      }
       if (subscriptionsRes.data) setSubscriptions(subscriptionsRes.data);
       if (pendingRes.data) setPendingSubscriptions(pendingRes.data);
       if (guidesRes.data) setGuides(guidesRes.data);
@@ -191,8 +212,50 @@ const Admin = () => {
     }
   };
 
-  const getUserSubscription = (userId: string) => {
-    return subscriptions.find(s => s.user_id === userId && s.status === 'active');
+  // Get subscription from embedded data or fallback to separate list
+  const getUserSubscription = (userProfile: Profile) => {
+    // First check embedded subscription
+    if (userProfile.subscriptions) return userProfile.subscriptions;
+    // Fallback to subscriptions list
+    return subscriptions.find(s => s.user_id === userProfile.user_id);
+  };
+  
+  // Format subscription status for display
+  const getStatusBadge = (sub: Subscription | null | undefined) => {
+    if (!sub) {
+      return { label: 'Ingen plan', variant: 'outline' as const, className: 'border-muted-foreground/50 text-muted-foreground' };
+    }
+    switch (sub.status) {
+      case 'active':
+        return { label: 'Aktiv', variant: 'default' as const, className: 'bg-success text-success-foreground' };
+      case 'trialing':
+        return { label: 'Prøveperiode', variant: 'default' as const, className: 'bg-info text-info-foreground' };
+      case 'past_due':
+        return { label: 'Manglende betaling', variant: 'destructive' as const, className: '' };
+      case 'canceled':
+        return { label: 'Opsagt', variant: 'secondary' as const, className: '' };
+      case 'incomplete':
+        return { label: 'Afventer', variant: 'outline' as const, className: 'border-warning text-warning' };
+      default:
+        return { label: sub.status, variant: 'outline' as const, className: '' };
+    }
+  };
+  
+  // Format next billing date
+  const getNextBillingText = (sub: Subscription | null | undefined) => {
+    if (!sub || !sub.current_period_end) return '-';
+    
+    const date = new Date(sub.current_period_end);
+    const formattedDate = format(date, 'd. MMM yyyy', { locale: da });
+    
+    if (sub.status === 'active') {
+      return `Trækkes d. ${formattedDate}`;
+    } else if (sub.status === 'trialing') {
+      return `Starter d. ${formattedDate}`;
+    } else if (sub.status === 'canceled') {
+      return `Udløber d. ${formattedDate}`;
+    }
+    return formattedDate;
   };
 
   const getUserEmail = (userId: string) => {
@@ -858,38 +921,46 @@ const Admin = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Navn</TableHead>
+                        <TableHead>Bruger</TableHead>
                         <TableHead>Plan</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Oprettet</TableHead>
+                        <TableHead>Næste Trækning</TableHead>
                         <TableHead className="text-right">Handling</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredProfiles.map((userProfile) => {
-                        const sub = getUserSubscription(userProfile.user_id);
+                        const sub = getUserSubscription(userProfile);
+                        const statusBadge = getStatusBadge(sub);
+                        const nextBilling = getNextBillingText(sub);
                         return (
                           <TableRow key={userProfile.id}>
-                            <TableCell className="font-medium">
-                              {userProfile.email || '-'}
-                              {userProfile.is_admin && (
-                                <Badge variant="secondary" className="ml-2">Admin</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>{userProfile.display_name || '-'}</TableCell>
                             <TableCell>
-                              <Badge variant={sub ? 'default' : 'outline'}>
+                              <div className="flex flex-col">
+                                <span className="font-medium flex items-center gap-2">
+                                  {userProfile.email || '-'}
+                                  {userProfile.is_admin && (
+                                    <Badge variant="secondary" className="text-xs">Admin</Badge>
+                                  )}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {userProfile.display_name ? `${userProfile.display_name} • ` : ''}
+                                  Oprettet {format(new Date(userProfile.created_at), 'd. MMM yyyy', { locale: da })}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={sub ? 'default' : 'outline'} className={sub ? 'bg-primary' : ''}>
                                 {sub?.plan_tier?.toUpperCase() || 'Ingen'}
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={sub?.status === 'active' ? 'default' : 'secondary'}>
-                                {sub?.status || 'Inaktiv'}
+                              <Badge variant={statusBadge.variant} className={statusBadge.className}>
+                                {statusBadge.label}
                               </Badge>
                             </TableCell>
-                            <TableCell>
-                              {new Date(userProfile.created_at).toLocaleDateString('da-DK')}
+                            <TableCell className="text-sm text-muted-foreground">
+                              {nextBilling}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
