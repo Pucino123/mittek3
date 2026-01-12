@@ -33,8 +33,8 @@ const FinishSignup = () => {
   const [planTier, setPlanTier] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [hasFailed, setHasFailed] = useState(false);
+  const [isEmailLocked, setIsEmailLocked] = useState(false);
 
-  // Fetch email from session ID on mount
   useEffect(() => {
     const fetchSessionEmail = async () => {
       if (!sessionId) return;
@@ -52,6 +52,7 @@ const FinishSignup = () => {
 
         if (data?.found && data?.email) {
           setEmail(data.email);
+          setIsEmailLocked(true);
           if (data.planTier) {
             setPlanTier(data.planTier);
           }
@@ -327,15 +328,26 @@ const FinishSignup = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="h-14 text-lg"
+                      className={`h-14 text-lg ${isEmailLocked ? 'bg-muted/50 cursor-not-allowed' : ''}`}
                       disabled={isLoadingEmail}
+                      readOnly={isEmailLocked}
                     />
                     {isLoadingEmail && (
                       <div className="absolute right-4 top-1/2 -translate-y-1/2">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                       </div>
                     )}
+                    {isEmailLocked && !isLoadingEmail && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <CheckCircle className="h-5 w-5 text-success" />
+                      </div>
+                    )}
                   </div>
+                  {isEmailLocked && (
+                    <p className="text-xs text-muted-foreground">
+                      Denne email stammer fra din betaling og kan ikke ændres.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
