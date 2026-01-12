@@ -74,7 +74,7 @@ const Terms = () => {
       Som forbruger har du ret til at fortryde dit køb inden for 14 dage fra tilmeldingsdatoen.
       
       **Sådan fortryder du:**
-      Kontakt os på support@mittek.dk med dit fulde navn og e-mail.
+      Kontakt os på mittek@webilax.com med dit fulde navn og e-mail.
       
       **Refusion:**
       Ved fortrydelse refunderer vi det fulde beløb inden for 14 dage.
@@ -105,7 +105,7 @@ const Terms = () => {
       
       **Tvistløsning:**
       Vi opfordrer til, at vi først forsøger at løse eventuelle uenigheder direkte. 
-      Kontakt os på support@mittek.dk.
+      Kontakt os på mittek@webilax.com.
       
       **Klageadgang:**
       Du kan klage til Forbrugerklagenævnet:
@@ -211,7 +211,7 @@ const Terms = () => {
                     </p>
                     <div className="space-y-2 text-sm">
                       <p className="text-foreground">
-                        <strong>E-mail:</strong> support@mittek.dk
+                        <strong>E-mail:</strong> mittek@webilax.com
                       </p>
                       <p className="text-muted-foreground">
                         Vi svarer normalt inden for 1-2 hverdage.

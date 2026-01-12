@@ -188,7 +188,7 @@ const Privacy = () => {
                     </p>
                     <div className="space-y-2 text-sm">
                       <p className="text-foreground">
-                        <strong>E-mail:</strong> privacy@mittek.dk
+                        <strong>E-mail:</strong> mittek@webilax.com
                       </p>
                       <p className="text-muted-foreground">
                         Vi bestræber os på at besvare henvendelser inden for 30 dage.

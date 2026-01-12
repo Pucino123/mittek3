@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface ManageUserRequest {
-  action: "reset_password" | "update_plan" | "toggle_status" | "delete_user";
+  action: "reset_password" | "update_plan" | "toggle_status" | "delete_user" | "remove_plan";
   userId: string;
   planTier?: "basic" | "plus" | "pro";
 }
@@ -197,6 +197,21 @@ Deno.serve(async (req) => {
         if (deleteError) throw deleteError;
         
         result = { success: true, message: "User deleted permanently" };
+        break;
+      }
+
+      case "remove_plan": {
+        // Remove all subscriptions for the user (set status to canceled)
+        await adminClient
+          .from("subscriptions")
+          .update({
+            status: "canceled",
+            cancel_at_period_end: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId);
+        
+        result = { success: true, message: "Plan removed - user now has no active subscription" };
         break;
       }
 
