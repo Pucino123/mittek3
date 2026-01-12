@@ -24,6 +24,7 @@ import { SortableGuideRow } from '@/components/admin/SortableGuideRow';
 import { VisualHelpManager } from '@/components/admin/VisualHelpManager';
 import { SystemContentEditor } from '@/components/admin/SystemContentEditor';
 import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
+import { CreateUserDialog } from '@/components/admin/CreateUserDialog';
 
 
 interface Profile {
@@ -846,14 +847,17 @@ const Admin = () => {
                     <CardTitle>Brugere</CardTitle>
                     <CardDescription>Alle registrerede brugere</CardDescription>
                   </div>
-                  <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Søg efter email eller navn..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Søg efter email eller navn..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <CreateUserDialog onUserCreated={fetchData} />
                   </div>
                 </div>
               </CardHeader>
