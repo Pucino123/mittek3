@@ -254,7 +254,7 @@ const Pricing = () => {
                           <TooltipTrigger asChild>
                             <span
                               className={cn(
-                                "text-sm leading-tight cursor-help underline decoration-dotted underline-offset-4",
+                                "text-sm leading-tight cursor-help",
                                 !feature.included && "text-muted-foreground/50",
                                 feature.highlight && "font-medium"
                               )}

@@ -71,7 +71,7 @@ export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
         </div>
         
         <h3 className="text-sm sm:text-lg font-semibold mb-0.5 sm:mb-1 leading-tight line-clamp-1">{title}</h3>
-        <p className="text-muted-foreground text-sm sm:text-sm line-clamp-2">{description}</p>
+        <p className="text-muted-foreground text-[13px] sm:text-sm line-clamp-2">{description}</p>
         
         {/* Spacer to push action to bottom */}
         <div className="flex-1" />
