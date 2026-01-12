@@ -123,18 +123,6 @@ const defaultCategoryTitles: Record<string, string> = {
 // Legacy alias for backwards compatibility
 const categoryTitles = defaultCategoryTitles;
 
-// Admin card (pinned first in the Tools section for admin users)
-const adminCardDefinition: CardDefinition = {
-  id: 'admin',
-  title: 'Admin Panel',
-  description: 'Administrer alt',
-  icon: ShieldCheck,
-  href: '/admin',
-  color: 'bg-info/10 text-info',
-  minPlan: 'basic',
-  category: 'tools',
-};
-
 // Sortable card wrapper
 function SortableCard({ 
   card, 
@@ -196,8 +184,6 @@ const Dashboard = () => {
   const { user, profile, isAdmin, hasAccess, signOut, isSubscriptionActive, subscription, refetchProfile } = useAuth();
   const navigate = useNavigate();
 
-  const adminCard = adminCardDefinition;
-  const AdminIcon = adminCard.icon;
   
   const { 
     cardOrder, 
@@ -633,30 +619,6 @@ const Dashboard = () => {
             {isEditMode ? 'Træk for at flytte • Tryk X for at skjule' : 'Hold nede for at tilpasse'}
           </p>
         </div>
-
-        {/* Admin Card - directly under "Dine værktøjer" (admins only) */}
-        {isAdmin && !isEditMode && (
-          <div className="mb-6 sm:mb-8">
-            <Link
-              to={adminCard.href}
-              className="card-interactive p-3 sm:p-5 flex flex-col h-[180px] sm:h-[200px] md:h-[210px] border-2 border-primary/30"
-            >
-              <div className="flex items-start justify-between mb-2 sm:mb-3">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${adminCard.color} flex items-center justify-center shrink-0`}>
-                  <AdminIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-                </div>
-              </div>
-              <h3 className="text-sm sm:text-lg font-semibold mb-0.5 sm:mb-1 leading-tight line-clamp-1">{adminCard.title}</h3>
-              <p className="text-muted-foreground text-[11px] sm:text-sm line-clamp-2">{adminCard.description}</p>
-              <div className="flex-1" />
-              <div className="mt-2 sm:mt-3 flex items-center text-primary font-medium text-xs sm:text-sm">
-                Åbn
-                <ChevronRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
-              </div>
-            </Link>
-          </div>
-        )}
-
         {/* Categories with Cards */}
         <div ref={toolsSectionRef}>
           <DndContext
