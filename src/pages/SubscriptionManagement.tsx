@@ -232,6 +232,13 @@ const SubscriptionManagement = () => {
   };
 
   const handleCancelSubscription = async () => {
+    // Pre-check: abort if no stripe_subscription_id
+    if (!subscription?.stripe_subscription_id) {
+      toast.error('Dit abonnement er ikke forbundet til Stripe. Kontakt support for at opsige.');
+      setShowCancelDialog(false);
+      return;
+    }
+
     setIsCancelling(true);
     
     try {

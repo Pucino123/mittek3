@@ -90,12 +90,17 @@ const FinishSignup = () => {
     return pollForSubscription(userId, attempts + 1);
   }, []);
 
-  // If user is logged in and we have a session ID, try to claim it
+  // Track if we've already attempted to claim to prevent loops
+  const [hasAttemptedClaim, setHasAttemptedClaim] = useState(false);
+
+  // If user is logged in and we have a session ID, try to claim it (only once)
   useEffect(() => {
-    if (user && (sessionId || foundSessionId)) {
-      claimSubscription(sessionId || foundSessionId!);
+    const effectiveSessionId = sessionId || foundSessionId;
+    if (user && effectiveSessionId && !hasAttemptedClaim && !isClaiming && !isFinalizing) {
+      setHasAttemptedClaim(true);
+      claimSubscription(effectiveSessionId);
     }
-  }, [user, sessionId, foundSessionId]);
+  }, [user, sessionId, foundSessionId, hasAttemptedClaim, isClaiming, isFinalizing]);
 
   const claimSubscription = async (claimSessionId: string) => {
     if (!user) return;
