@@ -7,6 +7,8 @@ const STORAGE_KEY = 'mittek_dashboard_settings';
 interface DashboardSettings {
   card_order: string[] | null;
   hidden_cards: string[];
+  category_titles: Record<string, string>;
+  category_order: string[] | null;
 }
 
 // localStorage helpers
@@ -35,6 +37,8 @@ export function useDashboardSettings() {
   const [settings, setSettings] = useState<DashboardSettings>({
     card_order: null,
     hidden_cards: [],
+    category_titles: {},
+    category_order: null,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -61,9 +65,11 @@ export function useDashboardSettings() {
         if (error) throw error;
 
         if (data) {
-          const loadedSettings = {
+          const loadedSettings: DashboardSettings = {
             card_order: data.card_order,
             hidden_cards: data.hidden_cards || [],
+            category_titles: {},
+            category_order: null,
           };
           setSettings(loadedSettings);
           // Also save to localStorage as backup
@@ -144,7 +150,7 @@ export function useDashboardSettings() {
     }
     
     // Reset local state
-    setSettings({ card_order: null, hidden_cards: [] });
+    setSettings({ card_order: null, hidden_cards: [], category_titles: {}, category_order: null });
     
     // Clear from DB if authenticated
     if (user) {
@@ -159,13 +165,33 @@ export function useDashboardSettings() {
     }
   }, [user]);
 
+  // Update category title
+  const updateCategoryTitle = useCallback((categoryId: string, newTitle: string) => {
+    const newCategoryTitles = { ...settings.category_titles };
+    if (newTitle) {
+      newCategoryTitles[categoryId] = newTitle;
+    } else {
+      delete newCategoryTitles[categoryId]; // Remove to use default
+    }
+    saveSettings({ category_titles: newCategoryTitles });
+  }, [settings.category_titles, saveSettings]);
+
+  // Update category order
+  const updateCategoryOrder = useCallback((newOrder: string[]) => {
+    saveSettings({ category_order: newOrder });
+  }, [saveSettings]);
+
   return {
     cardOrder: settings.card_order,
     hiddenCards: settings.hidden_cards,
+    categoryTitles: settings.category_titles,
+    categoryOrder: settings.category_order,
     isLoading,
     hideCard,
     showCard,
     updateCardOrder,
+    updateCategoryTitle,
+    updateCategoryOrder,
     resetToDefault,
   };
 }

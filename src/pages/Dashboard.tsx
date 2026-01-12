@@ -51,6 +51,7 @@ import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import { AddToolCard } from '@/components/dashboard/AddToolCard';
 import { AddToolModal } from '@/components/dashboard/AddToolModal';
 import { DashboardOnboardingTip } from '@/components/dashboard/DashboardOnboardingTip';
+import { EditableCategoryTitle } from '@/components/dashboard/EditableCategoryTitle';
 
 import {
   DndContext,
@@ -110,13 +111,16 @@ const allCards: CardDefinition[] = [
 // Default card order
 const defaultCardOrder = allCards.map(c => c.id);
 
-// Category titles
-const categoryTitles: Record<string, string> = {
+// Default category titles (used as fallback)
+const defaultCategoryTitles: Record<string, string> = {
   start: '🏠 Kom i gang',
   tools: '🔧 Værktøjer',
   safety: '🛡️ Sikkerhed',
   extras: '⭐ Ekstra',
 };
+
+// Legacy alias for backwards compatibility
+const categoryTitles = defaultCategoryTitles;
 
 // Admin card (rendered separately if user is admin)
 const adminCard = {
@@ -191,10 +195,14 @@ const Dashboard = () => {
   
   const { 
     cardOrder, 
-    hiddenCards, 
+    hiddenCards,
+    categoryTitles: customCategoryTitles,
+    categoryOrder,
     hideCard, 
     showCard, 
     updateCardOrder,
+    updateCategoryTitle,
+    updateCategoryOrder,
     resetToDefault 
   } = useDashboardSettings();
 
@@ -275,15 +283,38 @@ const Dashboard = () => {
     }
   }, [profile]);
 
+  // Exit edit mode with ESC key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isEditMode) {
+        setIsEditMode(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isEditMode]);
+
   // Exit edit mode when clicking outside cards
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (isEditMode) {
-        const target = e.target as HTMLElement;
-        // Check if click is on background (main element)
-        if (target.tagName === 'MAIN' || target.classList.contains('container')) {
-          setIsEditMode(false);
-        }
+      if (!isEditMode) return;
+      
+      const target = e.target as HTMLElement;
+      
+      // Check if click is on the background, main, or container (not on cards)
+      const isBackground = 
+        target.tagName === 'MAIN' || 
+        target.classList.contains('container') ||
+        target.classList.contains('space-y-10') ||
+        target.classList.contains('space-y-12') ||
+        target.id === 'dashboard-wrapper';
+      
+      // Also check if click is NOT on a card or interactive element
+      const isOnCard = target.closest('.card-interactive, [data-radix-collection-item], button, input');
+      
+      if (isBackground && !isOnCard) {
+        setIsEditMode(false);
       }
     };
 
@@ -534,17 +565,23 @@ const Dashboard = () => {
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <div className="space-y-10 sm:space-y-12">
-              {Object.entries(categoryTitles).map(([categoryId, title]) => {
+            <div className="space-y-10 sm:space-y-12" id="dashboard-wrapper">
+              {(categoryOrder || Object.keys(defaultCategoryTitles)).map((categoryId) => {
                 const categoryCards = cardsByCategory[categoryId];
                 if (!categoryCards || categoryCards.length === 0) return null;
+                const defaultTitle = defaultCategoryTitles[categoryId] || categoryId;
+                const customTitle = customCategoryTitles[categoryId];
 
-              return (
-                <section key={categoryId}>
-                  {/* Category Header - Large and clear */}
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">
-                    {title}
-                  </h2>
+                return (
+                  <section key={categoryId}>
+                    {/* Category Header - Editable in edit mode */}
+                    <EditableCategoryTitle
+                      categoryId={categoryId}
+                      defaultTitle={defaultTitle}
+                      customTitle={customTitle}
+                      isEditMode={isEditMode}
+                      onTitleChange={updateCategoryTitle}
+                    />
                   
                   {/* Cards Grid - 4 per row on desktop */}
                   <SortableContext
