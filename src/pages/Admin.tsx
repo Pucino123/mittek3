@@ -908,23 +908,35 @@ const Admin = () => {
     .filter(p => p.email && excludedEmails.includes(p.email.toLowerCase()))
     .map(p => p.user_id);
   
+  // Get MRR contributors for breakdown display
+  const mrrContributors = subscriptions
+    .filter(s => s.status === 'active')
+    .map(s => {
+      const profile = profiles.find(p => p.user_id === s.user_id);
+      const email = profile?.email || 'Ukendt';
+      const isExcluded = excludedUserIds.includes(s.user_id);
+      const prices: Record<string, number> = { basic: 49, plus: 99, pro: 199 };
+      const amount = prices[s.plan_tier] || 0;
+      return { email, plan: s.plan_tier, amount, isExcluded, user_id: s.user_id };
+    });
+  
   const kpiMetrics = {
     totalUsers: profiles.length,
     payingUsers: subscriptions.filter(s => s.status === 'active' && !excludedUserIds.includes(s.user_id)).length,
     trialingUsers: subscriptions.filter(s => s.status === 'trialing' && !excludedUserIds.includes(s.user_id)).length,
     canceledUsers: subscriptions.filter(s => s.status === 'canceled').length,
     // MRR calculation: ONLY count 'active' subscriptions, exclude specific emails
-    mrr: subscriptions
-      .filter(s => s.status === 'active' && !excludedUserIds.includes(s.user_id))
-      .reduce((sum, s) => {
-        const prices: Record<string, number> = { basic: 49, plus: 99, pro: 199 };
-        return sum + (prices[s.plan_tier] || 0);
-      }, 0),
+    mrr: mrrContributors
+      .filter(c => !c.isExcluded)
+      .reduce((sum, c) => sum + c.amount, 0),
     // Churn rate: canceled / (active + canceled) last 30 days (simplified)
     churnRate: subscriptions.length > 0 
       ? Math.round((subscriptions.filter(s => s.status === 'canceled').length / subscriptions.length) * 100)
       : 0,
   };
+
+  // State for MRR breakdown dialog
+  const [showMrrBreakdown, setShowMrrBreakdown] = useState(false);
 
   // Admin check is now handled by AdminRoute in App.tsx
   // This component will only render for verified admins
@@ -1007,7 +1019,10 @@ const Admin = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-accent/10 to-accent/5">
+          <Card 
+            className="bg-gradient-to-br from-accent/10 to-accent/5 cursor-pointer hover:ring-2 ring-accent/50 transition-all"
+            onClick={() => setShowMrrBreakdown(true)}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-accent/20">
@@ -1015,7 +1030,7 @@ const Admin = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{kpiMetrics.mrr} kr</p>
-                  <p className="text-xs text-muted-foreground">MRR</p>
+                  <p className="text-xs text-muted-foreground">MRR (klik for detaljer)</p>
                 </div>
               </div>
             </CardContent>
@@ -1035,6 +1050,66 @@ const Admin = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* MRR Breakdown Dialog */}
+        <Dialog open={showMrrBreakdown} onOpenChange={setShowMrrBreakdown}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                MRR Breakdown
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                <span className="font-medium">Total MRR</span>
+                <span className="text-xl font-bold text-success">{kpiMetrics.mrr} kr</span>
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-muted-foreground">Aktive abonnementer</h4>
+                {mrrContributors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">Ingen aktive abonnementer</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {mrrContributors.map((contributor, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`flex justify-between items-center p-3 rounded-lg border ${
+                          contributor.isExcluded 
+                            ? 'bg-muted/50 border-dashed opacity-60' 
+                            : 'bg-card border-border'
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{contributor.email}</span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {contributor.plan.toUpperCase()}
+                            </Badge>
+                            {contributor.isExcluded && (
+                              <Badge variant="secondary" className="text-xs">
+                                Ekskluderet
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`font-medium ${contributor.isExcluded ? 'line-through text-muted-foreground' : 'text-success'}`}>
+                          {contributor.amount} kr
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="pt-2 border-t text-xs text-muted-foreground">
+                <p>• Kun "active" abonnementer tælles i MRR</p>
+                <p>• Ekskluderede emails: {excludedEmails.join(', ')}</p>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Tabs defaultValue="users" className="space-y-6">
           <TabsList className="h-14 w-full justify-start overflow-x-auto">
