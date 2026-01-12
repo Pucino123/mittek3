@@ -77,6 +77,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let profileChannel: ReturnType<typeof supabase.channel> | null = null;
+    let subscriptionChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupRealtimeChannels = (userId: string) => {
+      // Set up realtime subscription for profile changes (e.g. admin status)
+      profileChannel = supabase
+        .channel(`profile-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            console.log('Profile updated via realtime:', payload.new);
+            setProfile(payload.new as Profile);
+          }
+        )
+        .subscribe();
+
+      // Set up realtime subscription for subscription changes (plan upgrades/downgrades)
+      subscriptionChannel = supabase
+        .channel(`subscription-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to INSERT, UPDATE, DELETE
+            schema: 'public',
+            table: 'subscriptions',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            console.log('Subscription updated via realtime:', payload.new);
+            if (payload.eventType === 'DELETE') {
+              setSubscription(null);
+            } else {
+              const newSub = payload.new as Subscription;
+              // Only update if subscription is active or trialing
+              if (newSub.status === 'active' || newSub.status === 'trialing') {
+                setSubscription(newSub);
+              } else {
+                // Re-fetch to get the latest active subscription if any
+                fetchSubscription(userId);
+              }
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    const cleanupChannels = () => {
+      if (profileChannel) {
+        supabase.removeChannel(profileChannel);
+        profileChannel = null;
+      }
+      if (subscriptionChannel) {
+        supabase.removeChannel(subscriptionChannel);
+        subscriptionChannel = null;
+      }
+    };
 
     // Set up auth state listener FIRST
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
@@ -91,30 +152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fetchSubscription(session.user.id);
           }, 0);
           
-          // Set up realtime subscription for profile changes (e.g. admin status)
-          profileChannel = supabase
-            .channel(`profile-${session.user.id}`)
-            .on(
-              'postgres_changes',
-              {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'profiles',
-                filter: `user_id=eq.${session.user.id}`,
-              },
-              (payload) => {
-                console.log('Profile updated via realtime:', payload.new);
-                setProfile(payload.new as Profile);
-              }
-            )
-            .subscribe();
+          // Set up realtime channels
+          setupRealtimeChannels(session.user.id);
         } else {
           setProfile(null);
           setSubscription(null);
-          if (profileChannel) {
-            supabase.removeChannel(profileChannel);
-            profileChannel = null;
-          }
+          cleanupChannels();
         }
         
         setIsLoading(false);
@@ -130,23 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchProfile(session.user.id);
         fetchSubscription(session.user.id);
         
-        // Set up realtime subscription for profile changes
-        profileChannel = supabase
-          .channel(`profile-${session.user.id}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'profiles',
-              filter: `user_id=eq.${session.user.id}`,
-            },
-            (payload) => {
-              console.log('Profile updated via realtime:', payload.new);
-              setProfile(payload.new as Profile);
-            }
-          )
-          .subscribe();
+        // Set up realtime channels
+        setupRealtimeChannels(session.user.id);
       }
       
       setIsLoading(false);
@@ -154,9 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       authSubscription.unsubscribe();
-      if (profileChannel) {
-        supabase.removeChannel(profileChannel);
-      }
+      cleanupChannels();
     };
   }, []);
 
