@@ -340,6 +340,13 @@ const FinishSignup = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="password">Vælg en adgangskode</Label>
+                  {/* Visual confirmation of auto-filled email */}
+                  {(sessionId || foundSessionId) && email && !isLoadingEmail && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      <span>Brug denne email: <strong className="text-foreground">{email}</strong></span>
+                    </p>
+                  )}
                   <Input
                     id="password"
                     type="password"
