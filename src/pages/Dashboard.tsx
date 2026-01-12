@@ -470,9 +470,20 @@ const Dashboard = () => {
   };
 
   // Handle delete category (any category, not just custom)
+  // SAFE: Moves all cards from the category to the hidden pool
   const handleDeleteCategory = (categoryId: string) => {
-    deleteCategory(categoryId);
-    toast.success('Kategori slettet');
+    // Find all card IDs that belong to this category
+    const categoryCards = cardsByCategory[categoryId] || [];
+    const cardIdsToHide = categoryCards.map(card => card.id);
+    
+    // Delete category and move its cards to hidden pool
+    deleteCategory(categoryId, cardIdsToHide);
+    
+    toast.success('Kategori slettet', {
+      description: cardIdsToHide.length > 0 
+        ? `${cardIdsToHide.length} værktøj${cardIdsToHide.length > 1 ? 'er' : ''} flyttet til skjulte`
+        : undefined,
+    });
   };
 
   // Get current category order for sortable context
@@ -588,24 +599,6 @@ const Dashboard = () => {
         {checkinData && <CheckinRecommendations checkinData={checkinData} />}
 
 
-        {/* Admin Card - Top of page for admins */}
-        {profile?.is_admin && (
-          <div className="mb-8">
-            <Link
-              to={adminCard.href}
-              className="card-interactive p-5 sm:p-6 flex items-center gap-4 border-2 border-violet-500/30 max-w-md"
-            >
-              <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl ${adminCard.color} flex items-center justify-center shrink-0`}>
-                <adminCard.icon className="h-6 w-6 sm:h-7 sm:w-7" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg sm:text-xl font-semibold">{adminCard.title}</h3>
-                <p className="text-muted-foreground text-sm">{adminCard.description}</p>
-              </div>
-              <ChevronRight className="h-5 w-5 text-violet-600 shrink-0" />
-            </Link>
-          </div>
-        )}
 
         {/* Tools Section Header */}
         <div className="mb-6 sm:mb-8">
@@ -670,6 +663,26 @@ const Dashboard = () => {
                             onTouchStart={handleLongPressStart}
                             onTouchEnd={handleLongPressEnd}
                           >
+                            {/* Admin Card - First position in first category for admin users */}
+                            {categoryId === currentCategoryOrder[0] && profile?.is_admin && !isEditMode && (
+                              <Link
+                                to={adminCard.href}
+                                className="card-interactive p-3 sm:p-5 flex flex-col h-[180px] sm:h-[200px] md:h-[210px] border-2 border-violet-500/30"
+                              >
+                                <div className="flex items-start justify-between mb-2 sm:mb-3">
+                                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${adminCard.color} flex items-center justify-center shrink-0`}>
+                                    <adminCard.icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                                  </div>
+                                </div>
+                                <h3 className="text-sm sm:text-lg font-semibold mb-0.5 sm:mb-1 leading-tight line-clamp-1">{adminCard.title}</h3>
+                                <p className="text-muted-foreground text-[11px] sm:text-sm line-clamp-2">{adminCard.description}</p>
+                                <div className="flex-1" />
+                                <div className="mt-2 sm:mt-3 flex items-center text-violet-600 font-medium text-xs sm:text-sm">
+                                  Åbn
+                                  <ChevronRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
+                                </div>
+                              </Link>
+                            )}
                             {categoryCards.map((card) => (
                               <SortableCard
                                 key={card.id}
