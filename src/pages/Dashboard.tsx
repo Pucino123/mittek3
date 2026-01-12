@@ -62,6 +62,8 @@ import {
   useSensors,
   DragEndEvent,
   DragOverEvent,
+  DragStartEvent,
+  DragOverlay,
   useDroppable,
 } from '@dnd-kit/core';
 import {
@@ -129,12 +131,14 @@ function SortableCard({
   card, 
   hasAccess, 
   isEditMode, 
-  onRemove 
+  onRemove,
+  isBeingDragged,
 }: { 
   card: CardDefinition; 
   hasAccess: boolean; 
   isEditMode: boolean; 
   onRemove: () => void;
+  isBeingDragged: boolean;
 }) {
   const {
     attributes,
@@ -148,6 +152,8 @@ function SortableCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: transition || 'transform 150ms ease',
+    // Dim and hide the original when being dragged (overlay shows instead)
+    opacity: isBeingDragged ? 0.4 : 1,
   };
 
   return (
@@ -164,6 +170,39 @@ function SortableCard({
         isEditMode={isEditMode}
         onRemove={onRemove}
         isDragging={isDragging}
+      />
+    </div>
+  );
+}
+
+// Static card for DragOverlay - no interactions, just visual
+function DragOverlayCard({ card, hasAccess }: { card: CardDefinition; hasAccess: boolean }) {
+  return (
+    <div 
+      className="pointer-events-none"
+      style={{
+        // Fixed dimensions matching card heights
+        width: '100%',
+        maxWidth: '280px',
+        height: '210px',
+      }}
+    >
+      <DashboardCard
+        id={card.id}
+        title={card.title}
+        description={card.description}
+        icon={card.icon}
+        href={card.href}
+        color={card.color}
+        minPlan={card.minPlan}
+        hasAccess={hasAccess}
+        isEditMode={true}
+        isDragging={false}
+        style={{
+          height: '100%',
+          boxShadow: '0 20px 40px -10px rgba(0,0,0,0.3)',
+          transform: 'scale(1.02)',
+        }}
       />
     </div>
   );
@@ -206,6 +245,7 @@ const Dashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const toolsSectionRef = useRef<HTMLDivElement>(null);
   
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
@@ -426,6 +466,12 @@ const Dashboard = () => {
     }
   };
 
+  // Handle drag start - track active dragged item for overlay
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveDragId(String(active.id));
+  };
+
   // Handle drag over for visual feedback on empty zones
   const handleDragOver = (event: DragOverEvent) => {
     const { over } = event;
@@ -440,8 +486,9 @@ const Dashboard = () => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    // Clear drop zone highlight
+    // Clear drag states
     setActiveDropZone(null);
+    setActiveDragId(null);
 
     if (!over) return;
 
@@ -703,6 +750,7 @@ const Dashboard = () => {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
@@ -758,6 +806,7 @@ const Dashboard = () => {
                               hasAccess={hasAccess(card.minPlan)}
                               isEditMode={isEditMode}
                               onRemove={() => handleRemoveCard(card.id)}
+                              isBeingDragged={activeDragId === card.id}
                             />
                           ))}
                         </div>
@@ -775,6 +824,20 @@ const Dashboard = () => {
                 })}
               </div>
             </SortableContext>
+
+            {/* DragOverlay - renders a floating copy with fixed dimensions */}
+            <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
+              {activeDragId && (() => {
+                const card = visibleCards.find(c => c.id === activeDragId);
+                if (!card) return null;
+                return (
+                  <DragOverlayCard 
+                    card={card} 
+                    hasAccess={hasAccess(card.minPlan)} 
+                  />
+                );
+              })()}
+            </DragOverlay>
           </DndContext>
         </div>
 
