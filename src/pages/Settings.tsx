@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { IOSSwitch } from '@/components/ui/ios-switch';
@@ -17,7 +17,9 @@ import {
   Smartphone,
   Tablet,
   Monitor,
-  Cookie
+  Cookie,
+  Upload,
+  X
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
@@ -46,6 +48,8 @@ const Settings = () => {
   );
   const [isSavingDevice, setIsSavingDevice] = useState(false);
   const [cookieConsent, setCookieConsent] = useState(getCookieConsent());
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Handle scroll-to-section from URL params
   useEffect(() => {
@@ -142,6 +146,55 @@ const Settings = () => {
     navigate('/');
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vælg venligst et billede');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Billedet må max være 5MB');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/avatar.${fileExt}`;
+
+      // Upload file
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      await refetchProfile();
+      toast.success('Profilbillede opdateret');
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      toast.error('Kunne ikke uploade billede');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleUpgradeToPlus = async () => {
     setIsUpgradeLoading(true);
     try {
@@ -192,8 +245,36 @@ const Settings = () => {
           {/* Account Section */}
           <div className="card-elevated p-6 mb-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-8 w-8 text-primary" />
+              <div className="relative group">
+                {(profile as any)?.avatar_url ? (
+                  <img 
+                    src={(profile as any).avatar_url} 
+                    alt="Profilbillede" 
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-8 w-8 text-primary" />
+                  </div>
+                )}
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-5 w-5 text-white animate-spin" />
+                  ) : (
+                    <Camera className="h-5 w-5 text-white" />
+                  )}
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
               </div>
               <div className="flex-1">
                 <h2 className="font-semibold text-lg">{profile?.display_name || 'Bruger'}</h2>

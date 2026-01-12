@@ -293,39 +293,24 @@ const Admin = () => {
     setIsGranting(true);
     
     try {
-      const existingSub = subscriptions.find(s => s.user_id === selectedUser.user_id);
-      
-      if (existingSub) {
-        const { error } = await supabase
-          .from('subscriptions')
-          .update({
-            plan_tier: selectedPlan,
-            status: 'active',
-            current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          })
-          .eq('id', existingSub.id);
-        
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('subscriptions')
-          .upsert({
-            user_id: selectedUser.user_id,
-            plan_tier: selectedPlan,
-            status: 'active' as const,
-            current_period_start: new Date().toISOString(),
-            current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          }, { onConflict: 'user_id' });
-        
-        if (error) throw error;
-      }
+      // Use the edge function for consistent plan management
+      const response = await supabase.functions.invoke('admin-manage-user', {
+        body: { 
+          action: 'update_plan', 
+          userId: selectedUser.user_id,
+          planTier: selectedPlan
+        }
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.error);
       
       toast.success(`${selectedPlan.toUpperCase()} plan givet til ${selectedUser.email}`);
       setGrantPlanDialogOpen(false);
       fetchData();
     } catch (error) {
       console.error('Grant error:', error);
-      toast.error('Kunne ikke give plan');
+      toast.error(`Kunne ikke give plan: ${error instanceof Error ? error.message : 'Ukendt fejl'}`);
     } finally {
       setIsGranting(false);
     }

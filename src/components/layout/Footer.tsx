@@ -75,9 +75,14 @@ export function Footer() {
         </div>
 
         <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs md:text-sm text-muted-foreground text-center md:text-left">
-            © {new Date().getFullYear()} MitTek. Alle rettigheder forbeholdes.
-          </p>
+          <div className="text-center md:text-left">
+            <p className="text-xs md:text-sm text-muted-foreground">
+              © 2026 MitTek. Alle rettigheder forbeholdes.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              MitTek er en del af Webilax
+            </p>
+          </div>
           <div className="flex items-center gap-4 md:gap-6">
             <Link to="/terms" className="text-xs md:text-sm text-muted-foreground hover:text-foreground transition-colors">
               Vilkår

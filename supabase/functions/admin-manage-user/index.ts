@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface ManageUserRequest {
-  action: "reset_password" | "update_plan" | "toggle_status";
+  action: "reset_password" | "update_plan" | "toggle_status" | "delete_user";
   userId: string;
   planTier?: "basic" | "plus" | "pro";
 }
@@ -187,6 +187,16 @@ Deno.serve(async (req) => {
           });
           result = { success: true, message: "User deactivated", status: "banned" };
         }
+        break;
+      }
+
+      case "delete_user": {
+        // Delete user completely - this cascades to profile and subscriptions via FK
+        const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
+        
+        if (deleteError) throw deleteError;
+        
+        result = { success: true, message: "User deleted permanently" };
         break;
       }
 
