@@ -13,7 +13,7 @@ import { SEOHead } from '@/components/seo/SEOHead';
 import { trackLogin } from '@/utils/analytics';
 
 const Login = () => {
-  const [authMethod, setAuthMethod] = useState<'magic-link' | 'password' | 'forgot-password'>('magic-link');
+  const [authMethod, setAuthMethod] = useState<'password' | 'forgot-password'>('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -197,62 +197,7 @@ const Login = () => {
             </div>
           )}
 
-          {authMethod === 'magic-link' ? (
-            <form onSubmit={handleMagicLink} className="space-y-5 md:space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm md:text-base">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="din@email.dk"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9 md:pl-10 h-12 md:h-14 text-base"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Primary: Password login button */}
-              <Button
-                type="button"
-                variant="hero"
-                size="lg"
-                className="w-full min-h-[48px] md:min-h-[52px]"
-                onClick={() => setAuthMethod('password')}
-              >
-                <Lock className="mr-2 h-4 w-4 md:h-5 md:w-5" />
-                Log ind med adgangskode
-              </Button>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border"></div>
-                </div>
-                <div className="relative flex justify-center text-xs md:text-sm">
-                  <span className="bg-card px-4 text-muted-foreground">eller</span>
-                </div>
-              </div>
-
-              {/* Secondary: Magic link button */}
-              <Button 
-                type="submit" 
-                variant="outline" 
-                size="lg" 
-                className="w-full min-h-[48px] md:min-h-[52px]"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Sender...' : 'Send mig et log-ind link'}
-                <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
-              </Button>
-
-              <p className="text-xs md:text-sm text-muted-foreground text-center">
-                Vi sender en mail til dig. Klik på linket i mailen for at logge ind.
-              </p>
-            </form>
-          ) : authMethod === 'password' ? (
+          {authMethod === 'password' ? (
             <form onSubmit={handlePasswordLogin} className="space-y-5 md:space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email-password" className="text-sm md:text-base">Email</Label>
@@ -320,25 +265,6 @@ const Login = () => {
                 <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
               </Button>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border"></div>
-                </div>
-                <div className="relative flex justify-center text-xs md:text-sm">
-                  <span className="bg-card px-4 text-muted-foreground">eller</span>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                className="w-full min-h-[48px] md:min-h-[52px]"
-                onClick={() => setAuthMethod('magic-link')}
-              >
-                <Mail className="mr-2 h-4 w-4 md:h-5 md:w-5" />
-                Log ind med email-link
-              </Button>
             </form>
           ) : (
             <form onSubmit={handleForgotPassword} className="space-y-5 md:space-y-6">
