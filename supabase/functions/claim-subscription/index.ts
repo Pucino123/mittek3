@@ -7,6 +7,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per minute per user
+
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[CLAIM-SUBSCRIPTION] ${step}${detailsStr}`);
@@ -27,6 +31,70 @@ const mapStripeStatus = (stripeStatus: string): "active" | "trialing" | "past_du
   }
 };
 
+// Rate limiting helper
+async function checkRateLimit(supabase: any, identifier: string, endpoint: string): Promise<{ allowed: boolean; remaining: number }> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  
+  const { data: existing } = await supabase
+    .from("rate_limits")
+    .select("request_count, window_start")
+    .eq("identifier", identifier)
+    .eq("endpoint", endpoint)
+    .gte("window_start", windowStart)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.request_count >= RATE_LIMIT_MAX_REQUESTS) {
+      return { allowed: false, remaining: 0 };
+    }
+    
+    await supabase
+      .from("rate_limits")
+      .update({ request_count: existing.request_count + 1 })
+      .eq("identifier", identifier)
+      .eq("endpoint", endpoint);
+    
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - existing.request_count - 1 };
+  }
+
+  await supabase.from("rate_limits").insert({
+    identifier,
+    endpoint,
+    request_count: 1,
+    window_start: new Date().toISOString(),
+  });
+
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+}
+
+// Audit logging helper
+async function logAudit(
+  supabase: any,
+  userId: string | null,
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  metadata: Record<string, unknown>,
+  severity: "info" | "warning" | "error" | "critical" = "info",
+  ipAddress?: string,
+  userAgent?: string
+) {
+  try {
+    await supabase.from("audit_logs").insert({
+      user_id: userId,
+      action,
+      resource_type: resourceType,
+      resource_id: resourceId,
+      metadata,
+      severity,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
+  } catch (err) {
+    logStep("Failed to create audit log", { error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -37,6 +105,9 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     { auth: { persistSession: false } }
   );
+
+  const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+  const userAgent = req.headers.get("user-agent") || "unknown";
 
   try {
     logStep("Function started");
@@ -53,6 +124,17 @@ serve(async (req) => {
     
     const user = userData.user;
     logStep("User authenticated", { userId: user.id, email: user.email });
+
+    // Rate limiting check based on user ID
+    const rateCheck = await checkRateLimit(supabaseAdmin, user.id, "claim-subscription");
+    if (!rateCheck.allowed) {
+      logStep("Rate limit exceeded", { userId: user.id });
+      await logAudit(supabaseAdmin, user.id, "rate_limit_exceeded", "claim", null, { userId: user.id }, "warning", ipAddress, userAgent);
+      return new Response(JSON.stringify({ error: "For mange forsøg. Vent venligst et minut." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 429,
+      });
+    }
 
     const { sessionId } = await req.json();
     logStep("Claiming session", { sessionId });
@@ -72,6 +154,7 @@ serve(async (req) => {
 
     if (!pending) {
       logStep("No pending subscription found or already claimed");
+      await logAudit(supabaseAdmin, user.id, "claim_failed", "subscription", sessionId, { reason: "not_found_or_claimed" }, "warning", ipAddress, userAgent);
       return new Response(JSON.stringify({ error: "No pending subscription found or already claimed" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 404,
@@ -151,6 +234,19 @@ serve(async (req) => {
 
     logStep("Pending subscription marked as claimed");
 
+    // Audit log for successful subscription claim
+    await logAudit(
+      supabaseAdmin,
+      user.id,
+      "subscription_claimed",
+      "subscription",
+      pending.stripe_subscription_id,
+      { planTier: pending.plan_tier, status: subscriptionStatus, email: user.email },
+      "info",
+      ipAddress,
+      userAgent
+    );
+
     return new Response(JSON.stringify({ success: true, planTier: pending.plan_tier }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
@@ -158,6 +254,7 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
+    await logAudit(supabaseAdmin, null, "claim_error", "subscription", null, { error: errorMessage }, "error", ipAddress, userAgent);
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

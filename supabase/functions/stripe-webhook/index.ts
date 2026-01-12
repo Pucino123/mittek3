@@ -33,6 +33,31 @@ const logStep = (step: string, details?: any) => {
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
+// Audit logging helper
+async function logAudit(
+  action: string,
+  resourceType: string,
+  resourceId: string | null,
+  metadata: Record<string, unknown>,
+  severity: "info" | "warning" | "error" | "critical" = "info",
+  ipAddress?: string,
+  userAgent?: string
+) {
+  try {
+    await supabaseAdmin.from("audit_logs").insert({
+      action,
+      resource_type: resourceType,
+      resource_id: resourceId,
+      metadata,
+      severity,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+    });
+  } catch (err) {
+    logStep("Failed to create audit log", { error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
 async function sendUpgradeEmail(email: string, planTier: string) {
   const planLabel = PLAN_LABELS[planTier] || planTier;
   
@@ -130,9 +155,12 @@ async function getUserEmailFromSubscription(stripeSubscriptionId: string): Promi
 
 serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
+  const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+  const userAgent = req.headers.get("user-agent") || "unknown";
 
   if (!signature) {
     logStep("ERROR: No stripe-signature header");
+    await logAudit("webhook_rejected", "stripe", null, { reason: "no_signature" }, "warning", ipAddress, userAgent);
     return new Response(JSON.stringify({ error: "No signature" }), { status: 400 });
   }
 
@@ -143,6 +171,7 @@ serve(async (req) => {
     // SECURITY: Webhook secret is required - fail if not configured
     if (!webhookSecret) {
       logStep("CRITICAL: STRIPE_WEBHOOK_SECRET not configured - rejecting request");
+      await logAudit("webhook_config_error", "stripe", null, { reason: "missing_webhook_secret" }, "critical", ipAddress, userAgent);
       return new Response(
         JSON.stringify({ error: "Webhook secret not configured" }),
         { status: 500 }
@@ -188,6 +217,17 @@ serve(async (req) => {
           logStep("ERROR: Failed to insert pending subscription", insertError);
           throw insertError;
         }
+
+        // Audit log for new subscription
+        await logAudit(
+          "subscription_checkout_completed",
+          "subscription",
+          subscriptionId,
+          { email: session.customer_email, planTier, sessionId: session.id },
+          "info",
+          ipAddress,
+          userAgent
+        );
 
         logStep("Pending subscription created");
         break;
@@ -238,6 +278,17 @@ serve(async (req) => {
           logStep("Subscription updated in DB");
         }
 
+        // Audit log for subscription update
+        await logAudit(
+          "subscription_updated",
+          "subscription",
+          subscription.id,
+          { status: subscription.status, planTier: newPlanTier, previousAttributes },
+          "info",
+          ipAddress,
+          userAgent
+        );
+
         // Send upgrade email if plan changed to plus or pro
         if (previousAttributes?.items && (newPlanTier === "plus" || newPlanTier === "pro")) {
           const userEmail = await getUserEmailFromSubscription(subscription.id);
@@ -270,6 +321,17 @@ serve(async (req) => {
           logStep("Subscription marked as canceled in DB");
         }
 
+        // Audit log for subscription cancellation
+        await logAudit(
+          "subscription_canceled",
+          "subscription",
+          subscription.id,
+          { stripeStatus: subscription.status },
+          "warning",
+          ipAddress,
+          userAgent
+        );
+
         // Send cancellation email
         const userEmail = await getUserEmailFromSubscription(subscription.id);
         if (userEmail) {
@@ -282,6 +344,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (error) {
     logStep("ERROR", { message: error instanceof Error ? error.message : String(error) });
+    await logAudit("webhook_error", "stripe", null, { error: error instanceof Error ? error.message : String(error) }, "error", ipAddress, userAgent);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
       status: 400,
     });
