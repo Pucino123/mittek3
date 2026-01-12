@@ -788,6 +788,7 @@ export type Database = {
       }
       user_dashboard_settings: {
         Row: {
+          card_categories: Json
           card_order: string[] | null
           created_at: string
           hidden_cards: string[] | null
@@ -796,6 +797,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          card_categories?: Json
           card_order?: string[] | null
           created_at?: string
           hidden_cards?: string[] | null
@@ -804,6 +806,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          card_categories?: Json
           card_order?: string[] | null
           created_at?: string
           hidden_cards?: string[] | null
