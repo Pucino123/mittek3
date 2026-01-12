@@ -85,11 +85,16 @@ export function useDashboardSettings() {
           // Also save to localStorage as backup
           saveToLocalStorage(loadedSettings);
         } else {
-          // No DB data, try localStorage
-          const localSettings = loadFromLocalStorage();
-          if (localSettings) {
-            setSettings(localSettings);
-          }
+          // No DB settings row = use defaults (also clears any stale localStorage)
+          const defaultSettings: DashboardSettings = {
+            card_order: null,
+            hidden_cards: [],
+            category_titles: {},
+            category_order: null,
+            custom_categories: [],
+          };
+          setSettings(defaultSettings);
+          saveToLocalStorage(defaultSettings);
         }
       } catch (error) {
         console.error('Failed to load dashboard settings from DB, trying localStorage:', error);
