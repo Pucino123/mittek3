@@ -12,7 +12,7 @@ import { useNotificationCount } from '@/hooks/useNotificationCount';
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
-  const { user, profile, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
   const location = useLocation();
   const { count: notificationCount } = useNotificationCount();
 
@@ -41,7 +41,7 @@ export function Header() {
           {user ? (
             <>
               {/* Admin shortcut - only for admins */}
-              {profile?.is_admin && (
+              {isAdmin && (
                 <Link to="/admin">
                   <Button variant="outline" size="default" className="border-info/40 text-info hover:bg-info/10">
                     <ShieldCheck className="mr-2 h-4 w-4" />
@@ -110,7 +110,7 @@ export function Header() {
             {user ? (
               <div className="space-y-4">
                 {/* Admin shortcut - mobile - only for admins */}
-                {profile?.is_admin && (
+                {isAdmin && (
                   <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block">
                     <Button variant="outline" size="lg" className="w-full min-h-[52px] border-info/40 text-info hover:bg-info/10">
                       <ShieldCheck className="mr-2 h-5 w-5" />

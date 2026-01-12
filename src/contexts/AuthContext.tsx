@@ -28,6 +28,7 @@ interface AuthContextType {
   profile: Profile | null;
   subscription: Subscription | null;
   isLoading: boolean;
+  isAdmin: boolean;
   refetchProfile: () => Promise<void>;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   signInWithPassword: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: Error | null }>;
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -73,6 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data && !error) {
       setSubscription(data as Subscription);
     }
+  };
+
+  const fetchIsAdmin = async (userId: string) => {
+    const { data, error } = await supabase.rpc('is_admin', { _user_id: userId });
+    if (!error) setIsAdmin(!!data);
   };
 
   useEffect(() => {
@@ -150,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTimeout(() => {
             fetchProfile(session.user.id);
             fetchSubscription(session.user.id);
+            fetchIsAdmin(session.user.id);
           }, 0);
           
           // Set up realtime channels
@@ -172,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         fetchProfile(session.user.id);
         fetchSubscription(session.user.id);
+        fetchIsAdmin(session.user.id);
         
         // Set up realtime channels
         setupRealtimeChannels(session.user.id);
@@ -243,6 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setProfile(null);
     setSubscription(null);
+    setIsAdmin(false);
   };
 
   const hasAccess = (minPlan: 'basic' | 'plus' | 'pro'): boolean => {
@@ -266,6 +276,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refetchProfile = async () => {
     if (user) {
       await fetchProfile(user.id);
+      await fetchIsAdmin(user.id);
     }
   };
 
@@ -276,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       subscription,
       isLoading,
+      isAdmin,
       refetchProfile,
       signInWithMagicLink,
       signInWithPassword,
