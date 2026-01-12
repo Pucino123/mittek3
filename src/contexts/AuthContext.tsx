@@ -76,6 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let profileChannel: ReturnType<typeof supabase.channel> | null = null;
+
     // Set up auth state listener FIRST
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -88,9 +90,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fetchProfile(session.user.id);
             fetchSubscription(session.user.id);
           }, 0);
+          
+          // Set up realtime subscription for profile changes (e.g. admin status)
+          profileChannel = supabase
+            .channel(`profile-${session.user.id}`)
+            .on(
+              'postgres_changes',
+              {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'profiles',
+                filter: `user_id=eq.${session.user.id}`,
+              },
+              (payload) => {
+                console.log('Profile updated via realtime:', payload.new);
+                setProfile(payload.new as Profile);
+              }
+            )
+            .subscribe();
         } else {
           setProfile(null);
           setSubscription(null);
+          if (profileChannel) {
+            supabase.removeChannel(profileChannel);
+            profileChannel = null;
+          }
         }
         
         setIsLoading(false);
@@ -105,12 +129,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         fetchProfile(session.user.id);
         fetchSubscription(session.user.id);
+        
+        // Set up realtime subscription for profile changes
+        profileChannel = supabase
+          .channel(`profile-${session.user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'profiles',
+              filter: `user_id=eq.${session.user.id}`,
+            },
+            (payload) => {
+              console.log('Profile updated via realtime:', payload.new);
+              setProfile(payload.new as Profile);
+            }
+          )
+          .subscribe();
       }
       
       setIsLoading(false);
     });
 
-    return () => authSubscription.unsubscribe();
+    return () => {
+      authSubscription.unsubscribe();
+      if (profileChannel) {
+        supabase.removeChannel(profileChannel);
+      }
+    };
   }, []);
 
   const signInWithMagicLink = async (email: string) => {
