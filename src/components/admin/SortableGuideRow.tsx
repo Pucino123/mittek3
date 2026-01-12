@@ -9,6 +9,8 @@ interface Guide {
   id: string;
   title: string;
   description: string | null;
+  category: string | null;
+  icon: string | null;
   is_published: boolean;
   min_plan: string;
   sort_order: number;
@@ -67,7 +69,11 @@ export function SortableGuideRow({
         </div>
       </TableCell>
       <TableCell>
-        <Badge variant="outline">{guide.min_plan}</Badge>
+        {guide.category ? (
+          <Badge variant="outline" className="capitalize">{guide.category}</Badge>
+        ) : (
+          <span className="text-muted-foreground text-sm">-</span>
+        )}
       </TableCell>
       <TableCell>
         <Badge
