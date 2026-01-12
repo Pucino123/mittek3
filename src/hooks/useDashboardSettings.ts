@@ -134,10 +134,30 @@ export function useDashboardSettings() {
     saveSettings({ card_order: newOrder });
   }, [saveSettings]);
 
-  // Reset to default
-  const resetToDefault = useCallback(() => {
-    saveSettings({ card_order: null, hidden_cards: [] });
-  }, [saveSettings]);
+  // Reset to default - clear DB and localStorage
+  const resetToDefault = useCallback(async () => {
+    // Clear localStorage
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      console.error('Failed to clear localStorage:', e);
+    }
+    
+    // Reset local state
+    setSettings({ card_order: null, hidden_cards: [] });
+    
+    // Clear from DB if authenticated
+    if (user) {
+      try {
+        await supabase
+          .from('user_dashboard_settings')
+          .delete()
+          .eq('user_id', user.id);
+      } catch (error) {
+        console.error('Failed to reset dashboard settings in DB:', error);
+      }
+    }
+  }, [user]);
 
   return {
     cardOrder: settings.card_order,

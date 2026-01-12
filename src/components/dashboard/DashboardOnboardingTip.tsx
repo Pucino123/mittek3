@@ -1,20 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Hand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const STORAGE_KEY = 'mittek_dashboard_intro_seen';
 
-export function DashboardOnboardingTip() {
+interface DashboardOnboardingTipProps {
+  targetRef?: React.RefObject<HTMLElement>;
+}
+
+export function DashboardOnboardingTip({ targetRef }: DashboardOnboardingTipProps) {
   const [showTip, setShowTip] = useState(false);
+  const hasTriggered = useRef(false);
 
   useEffect(() => {
     const hasSeen = localStorage.getItem(STORAGE_KEY);
-    if (!hasSeen) {
-      // Delay showing tip slightly so dashboard loads first
-      const timer = setTimeout(() => setShowTip(true), 1000);
+    if (hasSeen) return;
+
+    // If no targetRef, use a fallback timer
+    if (!targetRef?.current) {
+      const timer = setTimeout(() => {
+        if (!hasTriggered.current) {
+          hasTriggered.current = true;
+          setShowTip(true);
+        }
+      }, 2000);
       return () => clearTimeout(timer);
     }
-  }, []);
+
+    // Use IntersectionObserver to detect when tools section is visible
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasTriggered.current) {
+            hasTriggered.current = true;
+            // Small delay for smoother UX
+            setTimeout(() => setShowTip(true), 500);
+            observer.disconnect();
+          }
+        });
+      },
+      { threshold: 0.3 } // Trigger when 30% visible
+    );
+
+    observer.observe(targetRef.current);
+
+    return () => observer.disconnect();
+  }, [targetRef]);
 
   const dismissTip = () => {
     localStorage.setItem(STORAGE_KEY, 'true');
