@@ -55,7 +55,8 @@ import { EditableCategoryTitle } from '@/components/dashboard/EditableCategoryTi
 
 import {
   DndContext,
-  closestCenter,
+  pointerWithin,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -66,13 +67,14 @@ import {
   DragStartEvent,
   DragOverlay,
   useDroppable,
-  DragMoveEvent,
+  MeasuringStrategy,
+  type CollisionDetection,
 } from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  rectSortingStrategy,
+  verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -168,15 +170,32 @@ const haptics = {
   },
 };
 
-// iOS-style spring animation config
+// iOS-style spring animation config for Framer Motion
 const springTransition = {
   type: 'spring' as const,
-  stiffness: 500,
-  damping: 35,
-  mass: 1,
+  stiffness: 400,
+  damping: 30,
+  mass: 0.8,
 };
 
-// Sortable card wrapper with spring animations
+// Smooth dnd-kit transition config (iOS-like)
+const smoothTransition = {
+  duration: 400,
+  easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+};
+
+// Custom collision detection - requires more overlap before swapping
+const customCollisionDetection: CollisionDetection = (args) => {
+  // Use pointerWithin for more precise detection
+  const pointerCollisions = pointerWithin(args);
+  if (pointerCollisions.length > 0) {
+    return pointerCollisions;
+  }
+  // Fall back to rectIntersection with natural overlap requirement
+  return rectIntersection(args);
+};
+
+// Sortable card wrapper with smooth spring animations
 function SortableCard({ 
   card, 
   hasAccess, 
@@ -199,34 +218,31 @@ function SortableCard({
     transform,
     transition,
     isDragging,
+    isSorting,
   } = useSortable({ 
     id: card.id, 
     disabled: !isEditMode,
-    transition: {
-      duration: 350,
-      easing: 'cubic-bezier(0.25, 1, 0.5, 1)', // iOS-like easing
-    },
+    transition: smoothTransition,
   });
 
+  // Create smooth CSS transition for non-dragged items
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    // Apply smooth transition only when sorting (not when dragging)
+    transition: isSorting && !isDragging ? 'transform 400ms cubic-bezier(0.25, 1, 0.5, 1)' : transition,
+    opacity: isBeingDragged ? 0.3 : 1,
+    zIndex: isDragging ? 10 : 1,
+    WebkitTouchCallout: 'none',
+    WebkitUserSelect: 'none',
+    userSelect: 'none',
+  };
+
   return (
-    <motion.div 
+    <div 
       ref={setNodeRef} 
       {...attributes} 
       {...listeners}
-      layout
-      layoutId={card.id}
-      transition={springTransition}
-      style={{
-        // Use dnd-kit transform for dragging
-        transform: CSS.Transform.toString(transform),
-        // Dim the original when being dragged (overlay shows instead)
-        opacity: isBeingDragged ? 0.3 : 1,
-        zIndex: isDragging ? 10 : 1,
-        // Prevent touch callout and selection during drag
-        WebkitTouchCallout: 'none',
-        WebkitUserSelect: 'none',
-        userSelect: 'none',
-      }}
+      style={style}
       className="relative h-full touch-none"
     >
       {/* Render widget card (inline component) or regular card */}
@@ -253,7 +269,7 @@ function SortableCard({
           onExitEditMode={onExitEditMode}
         />
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -407,17 +423,17 @@ const Dashboard = () => {
     resetToDefault 
   } = useDashboardSettings();
 
-  // DnD sensors - optimized for touch with scroll prevention
+  // DnD sensors - optimized for iOS-like feel with reduced sensitivity
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 12, // Increased from 8 for less sensitive activation
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200, // Short delay to distinguish tap from drag
-        tolerance: 5, // Allow slight movement during delay
+        delay: 150, // Reduced delay for faster response
+        tolerance: 8, // Increased tolerance for more forgiving touch
       },
     }),
     useSensor(KeyboardSensor, {
@@ -1041,7 +1057,7 @@ const Dashboard = () => {
         <div ref={toolsSectionRef}>
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={customCollisionDetection}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
@@ -1052,6 +1068,11 @@ const Dashboard = () => {
               prevOverIdRef.current = null;
               document.body.classList.remove('dragging-active');
             }}
+            measuring={{
+              droppable: {
+                strategy: MeasuringStrategy.Always,
+              },
+            }}
           >
             {/* Single unified SortableContext for all cards - enables cross-category dragging */}
             <SortableContext
@@ -1059,7 +1080,7 @@ const Dashboard = () => {
                 ...currentCategoryOrder.map(id => `category-${id}`),
                 ...visibleCards.map(c => c.id)
               ]}
-              strategy={rectSortingStrategy}
+              strategy={verticalListSortingStrategy}
             >
               <div className="space-y-10 sm:space-y-12" id="dashboard-wrapper">
                 {currentCategoryOrder.map((categoryId) => {
