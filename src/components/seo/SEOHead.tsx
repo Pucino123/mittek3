@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
 const BASE_URL = 'https://www.mittek.dk';
@@ -25,8 +25,11 @@ export function SEOHead({
 }: SEOHeadProps) {
   const location = useLocation();
   
-  // Auto-generate canonical URL from current route if not provided
-  const canonicalUrl = canonical || `${BASE_URL}${location.pathname === '/' ? '' : location.pathname}`;
+  // Auto-generate canonical URL from current route if not provided - memoized to prevent re-renders
+  const canonicalUrl = useMemo(
+    () => canonical || `${BASE_URL}${location.pathname === '/' ? '' : location.pathname}`,
+    [canonical, location.pathname]
+  );
   
   useEffect(() => {
     // Update document title
