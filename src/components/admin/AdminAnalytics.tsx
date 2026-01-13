@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 import { LiveVisitorCounter } from './LiveVisitorCounter';
+import { UsageHeatmap } from './UsageHeatmap';
 interface AnalyticsData {
   page_views: number;
   unique_visitors: number;
@@ -601,6 +602,9 @@ export function AdminAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Usage Heatmap */}
+      <UsageHeatmap />
     </div>
   );
 }
