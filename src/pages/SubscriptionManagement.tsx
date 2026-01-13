@@ -114,7 +114,7 @@ const plans: Plan[] = [
 ];
 
 const SubscriptionManagement = () => {
-  const { subscription: authSubscription, user } = useAuth();
+  const { subscription: authSubscription, user, refetchSubscription } = useAuth();
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isChangingPlan, setIsChangingPlan] = useState(false);
@@ -232,6 +232,9 @@ const SubscriptionManagement = () => {
             plan_tier: planId as 'basic' | 'plus' | 'pro',
           });
         }
+        
+        // Force refetch global auth context to update subscription across all pages
+        await refetchSubscription();
       } else if (data.error === 'not_stripe_linked') {
         toast.error(data.message || 'Dit abonnement er ikke forbundet til Stripe. Kontakt support.');
       } else {
