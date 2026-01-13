@@ -1051,6 +1051,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invite_token: {
+        Args: { token_input: string }
+        Returns: {
+          helper_user_id: string
+          id: string
+          invitation_accepted: boolean
+          message: string
+          success: boolean
+          user_id: string
+        }[]
+      }
       check_pending_subscription_by_email: {
         Args: { check_email: string }
         Returns: {
