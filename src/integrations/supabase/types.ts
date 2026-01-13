@@ -349,6 +349,42 @@ export type Database = {
           },
         ]
       }
+      page_views: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string
+          id: string
+          path: string
+          referrer: string | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          path: string
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          path?: string
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       panic_cases: {
         Row: {
           action_plan: Json | null
@@ -1075,6 +1111,7 @@ export type Database = {
         }[]
       }
       cleanup_old_audit_logs: { Args: never; Returns: undefined }
+      cleanup_old_page_views: { Args: never; Returns: undefined }
       get_invitation_by_token: {
         Args: { p_token: string }
         Returns: {

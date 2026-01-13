@@ -62,17 +62,17 @@ export function AdminAnalytics() {
   const handleResetAnalytics = async () => {
     setIsResetting(true);
     try {
-      // Delete all audit logs (analytics data source)
+      // Delete all page views (analytics data source)
       const thirtyDaysAgo = subDays(new Date(), 30);
       const { error } = await supabase
-        .from('audit_logs')
+        .from('page_views')
         .delete()
         .gte('created_at', thirtyDaysAgo.toISOString());
 
       if (error) throw error;
 
       toast.success('Analysedata nulstillet', {
-        description: 'Alle data fra de seneste 30 dage er slettet',
+        description: 'Alle sidevisninger fra de seneste 30 dage er slettet',
       });
       
       // Refresh data
@@ -89,30 +89,30 @@ export function AdminAnalytics() {
     setIsLoading(true);
     
     try {
-      // Fetch audit logs for the last 30 days to simulate analytics
+      // Fetch page views for the last 30 days
       const thirtyDaysAgo = subDays(new Date(), 30);
       const sixtyDaysAgo = subDays(new Date(), 60);
       
-      const { data: recentLogs } = await supabase
-        .from('audit_logs')
+      const { data: recentViews } = await supabase
+        .from('page_views')
         .select('*')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: true });
 
-      const { data: previousLogs } = await supabase
-        .from('audit_logs')
+      const { data: previousViews } = await supabase
+        .from('page_views')
         .select('*')
         .gte('created_at', sixtyDaysAgo.toISOString())
         .lt('created_at', thirtyDaysAgo.toISOString());
 
       // Process daily stats
-      const dailyMap = new Map<string, { views: number; visitors: Set<string> }>();
+      const dailyMap = new Map<string, { views: number; sessions: Set<string> }>();
       
-      recentLogs?.forEach(log => {
-        const date = format(new Date(log.created_at), 'yyyy-MM-dd');
-        const existing = dailyMap.get(date) || { views: 0, visitors: new Set<string>() };
+      recentViews?.forEach(view => {
+        const date = format(new Date(view.created_at), 'yyyy-MM-dd');
+        const existing = dailyMap.get(date) || { views: 0, sessions: new Set<string>() };
         existing.views++;
-        if (log.user_id) existing.visitors.add(log.user_id);
+        if (view.session_id) existing.sessions.add(view.session_id);
         dailyMap.set(date, existing);
       });
 
@@ -123,41 +123,74 @@ export function AdminAnalytics() {
         dailyStatsData.push({
           date: format(new Date(date), 'd. MMM', { locale: da }),
           views: dayData?.views || 0,
-          visitors: dayData?.visitors.size || 0,
+          visitors: dayData?.sessions.size || 0,
         });
       }
       setDailyStats(dailyStatsData);
 
       // Calculate summary
-      const totalViews = recentLogs?.length || 0;
-      const uniqueUsers = new Set(recentLogs?.map(l => l.user_id).filter(Boolean)).size;
-      const prevViews = previousLogs?.length || 0;
-      const prevUniqueUsers = new Set(previousLogs?.map(l => l.user_id).filter(Boolean)).size;
+      const totalViews = recentViews?.length || 0;
+      const uniqueSessions = new Set(recentViews?.map(v => v.session_id).filter(Boolean)).size;
+      const prevViews = previousViews?.length || 0;
+      const prevUniqueSessions = new Set(previousViews?.map(v => v.session_id).filter(Boolean)).size;
+
+      // Calculate bounce rate (sessions with only 1 page view)
+      const sessionCounts = new Map<string, number>();
+      recentViews?.forEach(v => {
+        if (v.session_id) {
+          sessionCounts.set(v.session_id, (sessionCounts.get(v.session_id) || 0) + 1);
+        }
+      });
+      const bouncedSessions = Array.from(sessionCounts.values()).filter(count => count === 1).length;
+      const bounceRate = uniqueSessions > 0 ? Math.round((bouncedSessions / uniqueSessions) * 100) : 0;
+
+      // Estimate avg session duration (views per session * 30 seconds average)
+      const avgPagesPerSession = uniqueSessions > 0 ? totalViews / uniqueSessions : 0;
+      const avgSessionDuration = Math.round(avgPagesPerSession * 30);
 
       setSummary({
         page_views: totalViews,
-        unique_visitors: uniqueUsers,
-        avg_session_duration: Math.floor(Math.random() * 180) + 60, // Placeholder
-        bounce_rate: Math.floor(Math.random() * 30) + 20, // Placeholder
+        unique_visitors: uniqueSessions,
+        avg_session_duration: avgSessionDuration,
+        bounce_rate: bounceRate,
       });
+
+      // Previous period stats
+      const prevSessionCounts = new Map<string, number>();
+      previousViews?.forEach(v => {
+        if (v.session_id) {
+          prevSessionCounts.set(v.session_id, (prevSessionCounts.get(v.session_id) || 0) + 1);
+        }
+      });
+      const prevBouncedSessions = Array.from(prevSessionCounts.values()).filter(count => count === 1).length;
+      const prevBounceRate = prevUniqueSessions > 0 ? Math.round((prevBouncedSessions / prevUniqueSessions) * 100) : 0;
+      const prevAvgPagesPerSession = prevUniqueSessions > 0 ? prevViews / prevUniqueSessions : 0;
 
       setPreviousSummary({
         page_views: prevViews,
-        unique_visitors: prevUniqueUsers,
-        avg_session_duration: Math.floor(Math.random() * 180) + 60,
-        bounce_rate: Math.floor(Math.random() * 30) + 20,
+        unique_visitors: prevUniqueSessions,
+        avg_session_duration: Math.round(prevAvgPagesPerSession * 30),
+        bounce_rate: prevBounceRate,
       });
 
-      // Process referrers from audit logs
+      // Process referrers from actual referrer data
       const referrerMap = new Map<string, number>();
-      recentLogs?.forEach(log => {
-        const source = log.resource_type || 'direct';
+      recentViews?.forEach(view => {
+        let source = 'Direkte';
+        if (view.referrer) {
+          try {
+            const url = new URL(view.referrer);
+            source = url.hostname.replace('www.', '');
+          } catch {
+            source = view.referrer.slice(0, 30);
+          }
+        }
         referrerMap.set(source, (referrerMap.get(source) || 0) + 1);
       });
 
       const referrerData: ReferrerData[] = Array.from(referrerMap.entries())
         .map(([source, visits]) => ({
-          source: source.charAt(0).toUpperCase() + source.slice(1),
+          source,
           visits,
           percentage: totalViews > 0 ? Math.round((visits / totalViews) * 100) : 0,
         }))
@@ -165,11 +198,11 @@ export function AdminAnalytics() {
         .slice(0, 5);
       setReferrers(referrerData);
 
-      // Process top pages from action types
+      // Process top pages from actual page paths
       const pageMap = new Map<string, number>();
-      recentLogs?.forEach(log => {
-        const action = log.action || 'unknown';
-        pageMap.set(action, (pageMap.get(action) || 0) + 1);
+      recentViews?.forEach(view => {
+        const path = view.path || '/';
+        pageMap.set(path, (pageMap.get(path) || 0) + 1);
       });
 
       const pageData: PageViewData[] = Array.from(pageMap.entries())
