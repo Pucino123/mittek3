@@ -153,6 +153,27 @@ serve(async (req) => {
           ? new Date(updatedSub.current_period_end * 1000).toISOString()
           : null;
 
+        // Update our database immediately so the UI doesn't "revert" when navigating
+        const dbStatus = updatedSub.status === "trialing" ? "trialing" : "active";
+
+        if (subData?.id) {
+          const { error: dbUpdateError } = await supabaseClient
+            .from("subscriptions")
+            .update({
+              plan_tier: new_plan_tier,
+              status: dbStatus,
+              current_period_end: periodEnd,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", subData.id);
+
+          if (dbUpdateError) {
+            logStep("Error updating subscription in DB", { message: dbUpdateError.message });
+          } else {
+            logStep("Subscription DB updated", { plan_tier: new_plan_tier, status: dbStatus });
+          }
+        }
+
         return new Response(JSON.stringify({ 
           success: true, 
           message: "Plan changed successfully",
