@@ -301,7 +301,11 @@ const Settings = () => {
                   {planLabels[currentPlan as keyof typeof planLabels]}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {subscription?.status === 'active' ? 'Aktivt abonnement' : 'Inaktivt'}
+                  {subscription?.status === 'active' 
+                    ? 'Aktivt abonnement' 
+                    : subscription?.status === 'trialing' 
+                      ? 'Prøveperiode' 
+                      : 'Inaktivt'}
                 </p>
               </div>
               <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
