@@ -1,8 +1,12 @@
 import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
+const BASE_URL = 'https://www.mittek.dk';
 
 interface SEOHeadProps {
   title?: string;
   description?: string;
+  /** Override auto-generated canonical URL. If not provided, uses current route. */
   canonical?: string;
   ogImage?: string;
   ogType?: 'website' | 'article';
@@ -14,11 +18,16 @@ export function SEOHead({
   title = 'MitTek - Tryg IT for Seniorer',
   description = 'Få hjælp til din iPhone, iPad og Mac. Enkle guides, trygge værktøjer og personlig hjælp til alle der har brug for teknisk hjælp. Lær i dit eget tempo.',
   canonical,
-  ogImage = 'https://www.mittek.dk/og-image.png',
+  ogImage = `${BASE_URL}/og-image.png`,
   ogType = 'website',
   noindex = false,
   jsonLd,
 }: SEOHeadProps) {
+  const location = useLocation();
+  
+  // Auto-generate canonical URL from current route if not provided
+  const canonicalUrl = canonical || `${BASE_URL}${location.pathname === '/' ? '' : location.pathname}`;
+  
   useEffect(() => {
     // Update document title
     document.title = title.length > 60 ? title.slice(0, 57) + '...' : title;
@@ -53,22 +62,22 @@ export function SEOHead({
     setMetaTag('og:locale', 'da_DK', true);
     setMetaTag('og:site_name', 'MitTek', true);
 
+    setMetaTag('og:url', canonicalUrl, true);
+
     // Twitter Card
     setMetaTag('twitter:card', 'summary_large_image');
     setMetaTag('twitter:title', title);
     setMetaTag('twitter:description', description);
     setMetaTag('twitter:image', ogImage);
 
-    // Canonical URL
-    if (canonical) {
-      let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'canonical';
-        document.head.appendChild(link);
-      }
-      link.href = canonical;
+    // Canonical URL - always set (auto-generated or explicit)
+    let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'canonical';
+      document.head.appendChild(link);
     }
+    link.href = canonicalUrl;
 
     // JSON-LD structured data
     if (jsonLd) {
@@ -88,7 +97,7 @@ export function SEOHead({
       const script = document.querySelector('script[data-seo-jsonld]');
       if (script) script.remove();
     };
-  }, [title, description, canonical, ogImage, ogType, noindex, jsonLd]);
+  }, [title, description, canonicalUrl, ogImage, ogType, noindex, jsonLd]);
 
   return null;
 }
