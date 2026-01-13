@@ -108,8 +108,8 @@ serve(async (req: Request) => {
 
     console.log("Helper record created:", helper.id);
 
-    // Send email via Resend
-    const appUrl = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovable.app') || 'https://mittek.lovable.app';
+    // Send email via Resend - use production domain
+    const appUrl = "https://www.mittek.dk";
     const inviteLink = `${appUrl}/helper-invite?token=${invitationToken}`;
 
     const emailResponse = await resend.emails.send({
