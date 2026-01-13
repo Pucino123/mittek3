@@ -487,3 +487,20 @@ body.dragging-active {
   overflow: hidden;
   touch-action: none;
 }
+
+/* iOS-style smooth card transitions during drag sorting */
+[data-sortable] {
+  will-change: transform;
+}
+
+/* Smooth slide animation for cards being displaced */
+.card-interactive {
+  transition: transform 400ms cubic-bezier(0.25, 1, 0.5, 1), 
+              box-shadow 200ms ease-out,
+              opacity 200ms ease-out;
+}
+
+/* During active sorting, ensure smooth displacement */
+body.dragging-active .card-interactive:not([data-dragging="true"]) {
+  transition: transform 400ms cubic-bezier(0.25, 1, 0.5, 1);
+}
