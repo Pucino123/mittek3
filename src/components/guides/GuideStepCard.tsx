@@ -25,7 +25,7 @@ const getYouTubeVideoId = (url: string): string | null => {
   return null;
 };
 
-// Video player component
+// Video player component - optimized with lazy loading
 const VideoPlayer = ({ url }: { url: string }) => {
   const youtubeId = getYouTubeVideoId(url);
   
@@ -37,6 +37,7 @@ const VideoPlayer = ({ url }: { url: string }) => {
           title="Video guide"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
+          loading="lazy"
           className="w-full h-full"
         />
       </div>
@@ -50,6 +51,7 @@ const VideoPlayer = ({ url }: { url: string }) => {
         controls 
         className="w-full h-full object-contain bg-muted"
         playsInline
+        preload="metadata"
       >
         Din browser understøtter ikke video.
       </video>
@@ -74,7 +76,7 @@ export const GuideStepCard = ({
 
   return (
     <div className="bg-card shadow-lg rounded-2xl border border-border overflow-hidden mb-8">
-      {/* Image/Video/GIF Area */}
+      {/* Image/Video/GIF Area - optimized for CLS prevention */}
       {videoUrl ? (
         <div className="w-full bg-muted">
           <VideoPlayer url={videoUrl} />
@@ -86,6 +88,9 @@ export const GuideStepCard = ({
             alt={title} 
             className="w-full h-full object-cover"
             loading="lazy"
+            width={640}
+            height={360}
+            decoding="async"
           />
           {isGif && (
             <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
