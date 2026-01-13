@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
+import { SEOHead, softwareAppSchema } from '@/components/seo/SEOHead';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,12 @@ import { toast } from 'sonner';
 import { ScreenshotHelpModal } from '@/components/ui/ScreenshotHelpModal';
 import { CopyHelpModal } from '@/components/safety/CopyHelpModal';
 import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
+
+const safetySchema = softwareAppSchema(
+  'Sikkerhedsskjold - MitTek',
+  'Tjek om SMS, emails eller beskeder er svindel med MitTeks Sikkerhedsskjold. Få en klar anbefaling på sekunder.',
+  'https://www.mittek.dk/safety'
+);
 
 interface SafetyResult {
   risk: 'LAV' | 'MELLEM' | 'HØJ';
@@ -146,6 +153,11 @@ const Safety = () => {
   return (
     <ProtectedRoute requiredPlan="plus">
       <PublicLayout>
+        <SEOHead
+          title="Sikkerhedsskjold - Tjek for svindel | MitTek"
+          description="Er den SMS eller email du modtog svindel? Upload eller indsæt beskeden og få svar på sekunder. Beskyt dig mod phishing og falske beskeder."
+          jsonLd={safetySchema}
+        />
         <div className="container py-8 md:py-12">
           <div className="max-w-2xl mx-auto">
             {/* Breadcrumb */}

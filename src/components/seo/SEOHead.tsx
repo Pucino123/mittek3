@@ -148,6 +148,117 @@ export const serviceSchema = {
   availableLanguage: 'Danish',
 };
 
+/**
+ * Enhanced pricing schema with subscription offers
+ * Follows Google's recommended structure for subscription products
+ */
+export const subscriptionPricingSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: 'MitTek IT-hjælp Abonnement',
+  description: 'Personlig IT-hjælp til iPhone, iPad og Mac. Vælg mellem Basic, Plus eller Pro.',
+  brand: {
+    '@type': 'Brand',
+    name: 'MitTek',
+  },
+  offers: {
+    '@type': 'AggregateOffer',
+    lowPrice: '39',
+    highPrice: '99',
+    priceCurrency: 'DKK',
+    offerCount: 3,
+    offers: [
+      {
+        '@type': 'Offer',
+        name: 'Basic',
+        description: 'Alt det grundlæggende til en tryg digital hverdag. Inkluderer Din Digitale Hjælper og månedligt tjek.',
+        price: '39',
+        priceCurrency: 'DKK',
+        priceValidUntil: '2026-12-31',
+        availability: 'https://schema.org/InStock',
+        url: 'https://www.mittek.dk/pricing',
+        eligibleTransactionVolume: {
+          '@type': 'PriceSpecification',
+          unitText: 'month',
+        },
+      },
+      {
+        '@type': 'Offer',
+        name: 'Plus',
+        description: 'Ekstra tryghed med Kode-mappe, Screenshot AI, Sikkerhedsskjold og Tryghedsknap.',
+        price: '79',
+        priceCurrency: 'DKK',
+        priceValidUntil: '2026-12-31',
+        availability: 'https://schema.org/InStock',
+        url: 'https://www.mittek.dk/pricing',
+        eligibleTransactionVolume: {
+          '@type': 'PriceSpecification',
+          unitText: 'month',
+        },
+      },
+      {
+        '@type': 'Offer',
+        name: 'Pro',
+        description: 'Fuld service med prioriteret support og 2 månedlige support-henvendelser.',
+        price: '99',
+        priceCurrency: 'DKK',
+        priceValidUntil: '2026-12-31',
+        availability: 'https://schema.org/InStock',
+        url: 'https://www.mittek.dk/pricing',
+        eligibleTransactionVolume: {
+          '@type': 'PriceSpecification',
+          unitText: 'month',
+        },
+      },
+    ],
+  },
+};
+
+/**
+ * Contact page schema
+ */
+export const contactPageSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ContactPage',
+  name: 'Kontakt MitTek',
+  description: 'Kontakt MitTek for spørgsmål om IT-hjælp til iPhone, iPad og Mac.',
+  url: 'https://www.mittek.dk/contact',
+  mainEntity: {
+    '@type': 'Organization',
+    name: 'MitTek',
+    email: 'mittek@webilax.com',
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'customer service',
+      availableLanguage: 'Danish',
+      areaServed: 'DK',
+    },
+  },
+};
+
+/**
+ * Software application schema for tools
+ */
+export const softwareAppSchema = (name: string, description: string, url: string) => ({
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name,
+  description,
+  url,
+  applicationCategory: 'UtilityApplication',
+  operatingSystem: 'Web Browser',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'DKK',
+    description: 'Inkluderet i MitTek abonnement',
+  },
+  provider: {
+    '@type': 'Organization',
+    name: 'MitTek',
+  },
+});
+
 export const faqSchema = (faqs: { question: string; answer: string }[]) => ({
   '@context': 'https://schema.org',
   '@type': 'FAQPage',

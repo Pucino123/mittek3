@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { SEOHead } from '@/components/seo/SEOHead';
+import { SEOHead, contactPageSchema } from '@/components/seo/SEOHead';
 import { trackFormSubmission } from '@/utils/analytics';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -135,9 +135,9 @@ const Contact = () => {
   return (
     <PublicLayout>
       <SEOHead
-        title="Kontakt os - MitTek"
-        description="Har du spørgsmål eller brug for hjælp? Kontakt MitTek og få svar inden for 1-2 hverdage. Vi er her for at hjælpe dig."
-        canonical="https://www.mittek.dk/contact"
+        title="Kontakt os - MitTek | Få hjælp inden 1-2 hverdage"
+        description="Har du spørgsmål til MitTek eller brug for hjælp? Udfyld formularen og få svar inden for 1-2 hverdage. Vi hjælper dig trygt videre."
+        jsonLd={contactPageSchema}
       />
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
         {/* Header */}
