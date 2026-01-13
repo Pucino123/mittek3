@@ -1,5 +1,7 @@
 # MitTek robots.txt
+# Last updated: 2026-01-13
 
+# Major search engines
 User-agent: Googlebot
 Allow: /
 Crawl-delay: 1
@@ -8,14 +10,21 @@ User-agent: Bingbot
 Allow: /
 Crawl-delay: 1
 
+# Social media crawlers
 User-agent: Twitterbot
 Allow: /
 
 User-agent: facebookexternalhit
 Allow: /
 
+User-agent: LinkedInBot
+Allow: /
+
+# All other bots
 User-agent: *
 Allow: /
+
+# Protected/authenticated pages - do not index
 Disallow: /dashboard
 Disallow: /settings
 Disallow: /admin
@@ -25,6 +34,11 @@ Disallow: /help
 Disallow: /panic
 Disallow: /kode-mappe
 Disallow: /tools/
+Disallow: /helper-dashboard
+Disallow: /finish-signup
 
-# Sitemap
+# Sitemap location
 Sitemap: https://www.mittek.dk/sitemap.xml
+
+# Host directive for search engines
+Host: https://www.mittek.dk
