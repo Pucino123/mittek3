@@ -1,10 +1,6 @@
 @tailwind base;
 
 /* ===== iOS Momentum Scrolling ===== */
-* {
-  -webkit-overflow-scrolling: touch;
-}
-
 .scroll-momentum {
   -webkit-overflow-scrolling: touch;
   overflow-y: auto;
