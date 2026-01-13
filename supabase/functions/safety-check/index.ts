@@ -6,10 +6,50 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10; // 10 requests per minute per user
+
 const logStep = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[SAFETY-CHECK] ${step}${detailsStr}`);
 };
+
+// Rate limiting helper
+async function checkRateLimit(supabase: any, identifier: string, endpoint: string): Promise<{ allowed: boolean; remaining: number }> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  
+  const { data: existing } = await supabase
+    .from("rate_limits")
+    .select("request_count, window_start")
+    .eq("identifier", identifier)
+    .eq("endpoint", endpoint)
+    .gte("window_start", windowStart)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.request_count >= RATE_LIMIT_MAX_REQUESTS) {
+      return { allowed: false, remaining: 0 };
+    }
+    
+    await supabase
+      .from("rate_limits")
+      .update({ request_count: existing.request_count + 1 })
+      .eq("identifier", identifier)
+      .eq("endpoint", endpoint);
+    
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - existing.request_count - 1 };
+  }
+
+  await supabase.from("rate_limits").insert({
+    identifier,
+    endpoint,
+    request_count: 1,
+    window_start: new Date().toISOString(),
+  });
+
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+}
 
 const SYSTEM_PROMPT = `Du er en sikkerhedsekspert der hjælper danske seniorer med at identificere svindel og phishing.
 
@@ -75,6 +115,16 @@ serve(async (req) => {
 
     const user = userData.user;
     logStep("User authenticated", { userId: user.id });
+
+    // Rate limiting check based on user ID
+    const rateCheck = await checkRateLimit(supabase, user.id, "safety-check");
+    if (!rateCheck.allowed) {
+      logStep("Rate limit exceeded", { userId: user.id });
+      return new Response(JSON.stringify({ error: "For mange forespørgsler. Vent venligst et minut." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // 2. Check for active subscription with plus or pro tier
     const { data: subscription, error: subError } = await supabase

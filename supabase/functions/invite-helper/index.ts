@@ -9,6 +9,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 3600000; // 1 hour
+const RATE_LIMIT_MAX_REQUESTS = 10; // 10 invitations per hour per user
+
 interface InviteRequest {
   helper_email: string;
   can_view_dashboard: boolean;
@@ -16,6 +20,47 @@ interface InviteRequest {
   can_view_tickets: boolean;
   can_view_notes: boolean;
   expiration_option?: '7days' | '30days' | 'permanent';
+}
+
+const logStep = (step: string, details?: unknown) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
+  console.log(`[INVITE-HELPER] ${step}${detailsStr}`);
+};
+
+// Rate limiting helper
+async function checkRateLimit(supabase: any, identifier: string, endpoint: string): Promise<{ allowed: boolean; remaining: number }> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  
+  const { data: existing } = await supabase
+    .from("rate_limits")
+    .select("request_count, window_start")
+    .eq("identifier", identifier)
+    .eq("endpoint", endpoint)
+    .gte("window_start", windowStart)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.request_count >= RATE_LIMIT_MAX_REQUESTS) {
+      return { allowed: false, remaining: 0 };
+    }
+    
+    await supabase
+      .from("rate_limits")
+      .update({ request_count: existing.request_count + 1 })
+      .eq("identifier", identifier)
+      .eq("endpoint", endpoint);
+    
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - existing.request_count - 1 };
+  }
+
+  await supabase.from("rate_limits").insert({
+    identifier,
+    endpoint,
+    request_count: 1,
+    window_start: new Date().toISOString(),
+  });
+
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
 }
 
 function calculateExpiresAt(option: string | undefined): string | null {
@@ -29,6 +74,12 @@ function calculateExpiresAt(option: string | undefined): string | null {
     default:
       return null;
   }
+}
+
+// Email validation
+function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 255;
 }
 
 serve(async (req: Request) => {
@@ -46,6 +97,12 @@ serve(async (req: Request) => {
       );
     }
 
+    // Create Supabase admin client for rate limiting
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
     // Create Supabase client with user's auth
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -57,10 +114,20 @@ serve(async (req: Request) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     
     if (authError || !user) {
-      console.error("Auth error:", authError);
+      logStep("Auth error", { error: authError });
       return new Response(
         JSON.stringify({ error: "Not authenticated" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate limiting check based on user ID
+    const rateCheck = await checkRateLimit(supabaseAdmin, user.id, "invite-helper");
+    if (!rateCheck.allowed) {
+      logStep("Rate limit exceeded", { userId: user.id });
+      return new Response(
+        JSON.stringify({ error: "For mange invitationer. Du kan sende op til 10 invitationer i timen." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -76,13 +143,25 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log("Inviting helper:", helper_email, "for user:", user.id);
+    // Validate email format
+    if (!validateEmail(helper_email)) {
+      return new Response(
+        JSON.stringify({ error: "Ugyldig email-adresse" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    // Use service role client for insert
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    // Prevent inviting yourself
+    if (helper_email.toLowerCase() === user.email?.toLowerCase()) {
+      return new Response(
+        JSON.stringify({ error: "Du kan ikke invitere dig selv som hjælper" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    logStep("Inviting helper", { helper_email, userId: user.id });
+
+    // Get user profile for display name
 
     // Get user profile for display name
     const { data: profile } = await supabaseAdmin
