@@ -35,6 +35,7 @@ interface TrustedHelper {
   can_view_checkins: boolean;
   can_view_tickets: boolean;
   can_view_notes: boolean;
+  can_view_vault: boolean;
   expires_at: string | null;
 }
 
@@ -53,6 +54,7 @@ export function TrustedHelperSection() {
   const [canViewCheckins, setCanViewCheckins] = useState(true);
   const [canViewTickets, setCanViewTickets] = useState(false);
   const [canViewNotes, setCanViewNotes] = useState(false);
+  const [canViewVault, setCanViewVault] = useState(false);
   const [expirationOption, setExpirationOption] = useState<ExpirationOption>('30days');
 
   useEffect(() => {
@@ -99,6 +101,7 @@ export function TrustedHelperSection() {
           can_view_checkins: canViewCheckins,
           can_view_tickets: canViewTickets,
           can_view_notes: canViewNotes,
+          can_view_vault: canViewVault,
           expiration_option: expirationOption,
         },
       });
@@ -115,6 +118,7 @@ export function TrustedHelperSection() {
       setCanViewCheckins(true);
       setCanViewTickets(false);
       setCanViewNotes(false);
+      setCanViewVault(false);
       setExpirationOption('30days');
       setShowInviteForm(false);
       
@@ -266,6 +270,22 @@ export function TrustedHelperSection() {
                 id="perm-notes"
                 checked={canViewNotes}
                 onCheckedChange={setCanViewNotes}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-4">
+                <Label htmlFor="perm-vault" className="cursor-pointer block">
+                  Må se Kode-mappe
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Giver adgang til dine gemte koder (kræver dit samtykke)
+                </p>
+              </div>
+              <IOSSwitch
+                id="perm-vault"
+                checked={canViewVault}
+                onCheckedChange={setCanViewVault}
               />
             </div>
             

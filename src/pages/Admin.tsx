@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye, FileText, Shield, TrendingUp, Clock, AlertTriangle, DollarSign } from 'lucide-react';
+import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye, FileText, Shield, TrendingUp, Clock, AlertTriangle, DollarSign, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +26,7 @@ import { SystemContentEditor } from '@/components/admin/SystemContentEditor';
 import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 import { CreateUserDialog } from '@/components/admin/CreateUserDialog';
 import { UserActionsMenu } from '@/components/admin/UserActionsMenu';
+import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
 
 
 interface Subscription {
@@ -1174,6 +1175,10 @@ const Admin = () => {
               <Shield className="mr-2 h-5 w-5" />
               <span className="hidden sm:inline">Audit Log</span>
             </TabsTrigger>
+            <TabsTrigger value="analytics" className="h-12 px-4 md:px-6">
+              <BarChart3 className="mr-2 h-5 w-5" />
+              <span className="hidden sm:inline">Analyse</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -1787,6 +1792,11 @@ const Admin = () => {
           {/* Audit Log Tab */}
           <TabsContent value="audit">
             <AuditLogViewer />
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics">
+            <AdminAnalytics />
           </TabsContent>
         </Tabs>
       </div>
