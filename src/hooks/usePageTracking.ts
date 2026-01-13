@@ -31,13 +31,27 @@ export function usePageTracking() {
         const referrer = document.referrer || null;
         const userAgent = navigator.userAgent || null;
 
-        await supabase.from('page_views').insert({
-          user_id: user?.id || null,
-          path: location.pathname,
-          referrer,
-          user_agent: userAgent,
-          session_id: sessionId,
+        // Call edge function for geo-enriched tracking
+        const { error } = await supabase.functions.invoke('track-pageview', {
+          body: {
+            path: location.pathname,
+            referrer,
+            user_agent: userAgent,
+            session_id: sessionId,
+            user_id: user?.id || null,
+          },
         });
+
+        if (error) {
+          // Fallback to direct insert if edge function fails
+          await supabase.from('page_views').insert({
+            user_id: user?.id || null,
+            path: location.pathname,
+            referrer,
+            user_agent: userAgent,
+            session_id: sessionId,
+          });
+        }
       } catch (error) {
         // Silently fail - analytics shouldn't break the app
         console.debug('Page tracking failed:', error);

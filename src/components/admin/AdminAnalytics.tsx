@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Users, Eye, Globe, TrendingUp, ArrowUpRight, ArrowDownRight, Info, Trash2, RefreshCcw } from 'lucide-react';
+import { Loader2, Users, Eye, Globe, TrendingUp, ArrowUpRight, ArrowDownRight, Info, Trash2, RefreshCcw, MapPin } from 'lucide-react';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, subDays } from 'date-fns';
@@ -9,6 +9,7 @@ import { da } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
+import { LiveVisitorCounter } from './LiveVisitorCounter';
 interface AnalyticsData {
   page_views: number;
   unique_visitors: number;
@@ -33,6 +34,11 @@ interface PageViewData {
   views: number;
 }
 
+interface GeoData {
+  country: string;
+  visits: number;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--info))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--accent))'];
 
 export function AdminAnalytics() {
@@ -40,6 +46,7 @@ export function AdminAnalytics() {
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
   const [referrers, setReferrers] = useState<ReferrerData[]>([]);
   const [topPages, setTopPages] = useState<PageViewData[]>([]);
+  const [geoData, setGeoData] = useState<GeoData[]>([]);
   const [summary, setSummary] = useState<AnalyticsData>({
     page_views: 0,
     unique_visitors: 0,
@@ -211,6 +218,19 @@ export function AdminAnalytics() {
         .slice(0, 8);
       setTopPages(pageData);
 
+      // Process geographic data
+      const geoMap = new Map<string, number>();
+      recentViews?.forEach(view => {
+        const country = view.country || 'Ukendt';
+        geoMap.set(country, (geoMap.get(country) || 0) + 1);
+      });
+
+      const geoDataProcessed: GeoData[] = Array.from(geoMap.entries())
+        .map(([country, visits]) => ({ country, visits }))
+        .sort((a, b) => b.visits - a.visits)
+        .slice(0, 6);
+      setGeoData(geoDataProcessed);
+
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
@@ -343,6 +363,9 @@ export function AdminAnalytics() {
           </AlertDialog>
         </div>
       </div>
+
+      {/* Live Visitor Counter */}
+      <LiveVisitorCounter />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -492,45 +515,92 @@ export function AdminAnalytics() {
         </Card>
       </div>
 
-      {/* Top Pages */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Top Handlinger</CardTitle>
-          <CardDescription>Mest udførte handlinger de seneste 30 dage</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
-            {topPages.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topPages} layout="vertical" margin={{ top: 0, right: 20, left: 80, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis 
-                    type="category" 
-                    dataKey="path" 
-                    stroke="hsl(var(--muted-foreground))" 
-                    fontSize={12}
-                    width={70}
-                    tickFormatter={(value) => value.length > 12 ? value.slice(0, 12) + '...' : value}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Bar dataKey="views" name="Visninger" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground">Ingen data tilgængelig</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Bottom Row - Top Pages & Geography */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Top Pages */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Top Sider</CardTitle>
+            <CardDescription>Mest besøgte sider de seneste 30 dage</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              {topPages.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topPages} layout="vertical" margin={{ top: 0, right: 20, left: 80, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis 
+                      type="category" 
+                      dataKey="path" 
+                      stroke="hsl(var(--muted-foreground))" 
+                      fontSize={12}
+                      width={70}
+                      tickFormatter={(value) => value.length > 12 ? value.slice(0, 12) + '...' : value}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Bar dataKey="views" name="Visninger" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Ingen data tilgængelig</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Geographic Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Geografisk Fordeling
+            </CardTitle>
+            <CardDescription>Besøgende efter land</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              {geoData.length > 0 ? (
+                <div className="space-y-3">
+                  {geoData.map((item, index) => {
+                    const maxVisits = geoData[0]?.visits || 1;
+                    const percentage = Math.round((item.visits / maxVisits) * 100);
+                    return (
+                      <div key={item.country} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{item.country}</span>
+                          <span className="text-muted-foreground">{item.visits} besøg</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${percentage}%`,
+                              backgroundColor: COLORS[index % COLORS.length]
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Ingen geografiske data endnu</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
