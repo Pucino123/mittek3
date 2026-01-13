@@ -8,15 +8,24 @@ import {
   Users, 
   ChevronRight, 
   Mail, 
-  Check, 
   X, 
   Loader2,
   UserCheck,
-  Clock
+  Clock,
+  CalendarClock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { format } from 'date-fns';
+import { da } from 'date-fns/locale';
 
 interface TrustedHelper {
   id: string;
@@ -26,7 +35,10 @@ interface TrustedHelper {
   can_view_checkins: boolean;
   can_view_tickets: boolean;
   can_view_notes: boolean;
+  expires_at: string | null;
 }
+
+type ExpirationOption = '7days' | '30days' | 'permanent';
 
 export function TrustedHelperSection() {
   const { user } = useAuth();
@@ -41,6 +53,7 @@ export function TrustedHelperSection() {
   const [canViewCheckins, setCanViewCheckins] = useState(true);
   const [canViewTickets, setCanViewTickets] = useState(false);
   const [canViewNotes, setCanViewNotes] = useState(false);
+  const [expirationOption, setExpirationOption] = useState<ExpirationOption>('30days');
 
   useEffect(() => {
     if (!user) return;
@@ -86,6 +99,7 @@ export function TrustedHelperSection() {
           can_view_checkins: canViewCheckins,
           can_view_tickets: canViewTickets,
           can_view_notes: canViewNotes,
+          expiration_option: expirationOption,
         },
       });
 
@@ -101,6 +115,7 @@ export function TrustedHelperSection() {
       setCanViewCheckins(true);
       setCanViewTickets(false);
       setCanViewNotes(false);
+      setExpirationOption('30days');
       setShowInviteForm(false);
       
       // Refresh list
@@ -172,6 +187,11 @@ export function TrustedHelperSection() {
                   <p className="font-medium">{helper.helper_email}</p>
                   <p className="text-sm text-muted-foreground">
                     {helper.invitation_accepted ? 'Aktiv hjælper' : 'Afventer accept'}
+                    {helper.expires_at && !helper.invitation_accepted && (
+                      <span className="ml-1">
+                        · Udløber {format(new Date(helper.expires_at), 'd. MMM yyyy', { locale: da })}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -247,6 +267,27 @@ export function TrustedHelperSection() {
                 checked={canViewNotes}
                 onCheckedChange={setCanViewNotes}
               />
+            </div>
+            
+            <div className="pt-2 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="expiration" className="cursor-pointer">
+                    Invitation udløber
+                  </Label>
+                </div>
+                <Select value={expirationOption} onValueChange={(v) => setExpirationOption(v as ExpirationOption)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7days">Efter 7 dage</SelectItem>
+                    <SelectItem value="30days">Efter 30 dage</SelectItem>
+                    <SelectItem value="permanent">Aldrig</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 

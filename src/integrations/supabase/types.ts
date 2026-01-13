@@ -704,6 +704,7 @@ export type Database = {
           can_view_tickets: boolean | null
           can_view_vault: boolean | null
           created_at: string
+          expires_at: string | null
           helper_email: string
           helper_user_id: string | null
           id: string
@@ -721,6 +722,7 @@ export type Database = {
           can_view_tickets?: boolean | null
           can_view_vault?: boolean | null
           created_at?: string
+          expires_at?: string | null
           helper_email: string
           helper_user_id?: string | null
           id?: string
@@ -738,6 +740,7 @@ export type Database = {
           can_view_tickets?: boolean | null
           can_view_vault?: boolean | null
           created_at?: string
+          expires_at?: string | null
           helper_email?: string
           helper_user_id?: string | null
           id?: string
@@ -1080,6 +1083,7 @@ export type Database = {
           can_view_notes: boolean
           can_view_tickets: boolean
           can_view_vault: boolean
+          expires_at: string
           helper_email: string
           id: string
           invitation_accepted: boolean
@@ -1107,6 +1111,7 @@ export type Database = {
           can_view_notes: boolean
           can_view_tickets: boolean
           can_view_vault: boolean
+          expires_at: string
           helper_email: string
           id: string
           invitation_accepted: boolean
