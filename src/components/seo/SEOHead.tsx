@@ -3,6 +3,16 @@ import { useLocation } from 'react-router-dom';
 
 const BASE_URL = 'https://www.mittek.dk';
 
+/**
+ * Normalize URL path by removing trailing slashes (except for root)
+ * This ensures consistent canonical URLs to prevent duplicate content issues
+ */
+const normalizePathname = (pathname: string): string => {
+  if (pathname === '/') return '';
+  // Remove trailing slash if present
+  return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+};
+
 interface SEOHeadProps {
   title?: string;
   description?: string;
@@ -25,9 +35,9 @@ export function SEOHead({
 }: SEOHeadProps) {
   const location = useLocation();
   
-  // Auto-generate canonical URL from current route if not provided - memoized to prevent re-renders
+  // Auto-generate canonical URL with trailing slash normalization - memoized to prevent re-renders
   const canonicalUrl = useMemo(
-    () => canonical || `${BASE_URL}${location.pathname === '/' ? '' : location.pathname}`,
+    () => canonical || `${BASE_URL}${normalizePathname(location.pathname)}`,
     [canonical, location.pathname]
   );
   
