@@ -15,6 +15,20 @@ interface InviteRequest {
   can_view_checkins: boolean;
   can_view_tickets: boolean;
   can_view_notes: boolean;
+  expiration_option?: '7days' | '30days' | 'permanent';
+}
+
+function calculateExpiresAt(option: string | undefined): string | null {
+  const now = new Date();
+  switch (option) {
+    case '7days':
+      return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    case '30days':
+      return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    case 'permanent':
+    default:
+      return null;
+  }
 }
 
 serve(async (req: Request) => {
@@ -50,7 +64,10 @@ serve(async (req: Request) => {
       );
     }
 
-    const { helper_email, can_view_dashboard, can_view_checkins, can_view_tickets, can_view_notes }: InviteRequest = await req.json();
+    const { helper_email, can_view_dashboard, can_view_checkins, can_view_tickets, can_view_notes, expiration_option }: InviteRequest = await req.json();
+
+    // Calculate expiration date
+    const expiresAt = calculateExpiresAt(expiration_option);
 
     if (!helper_email) {
       return new Response(
@@ -91,6 +108,7 @@ serve(async (req: Request) => {
         can_view_tickets,
         can_view_notes,
         invitation_accepted: false,
+        expires_at: expiresAt,
         permissions: {
           can_view_dashboard,
           can_view_checkins,
