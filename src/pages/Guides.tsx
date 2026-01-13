@@ -7,7 +7,8 @@ import { CategoryFilter, GuideCategory } from '@/components/guides/CategoryFilte
 import { GuideStepCard } from '@/components/guides/GuideStepCard';
 import { useUserAchievements } from '@/hooks/useUserAchievements';
 import { useAuth } from '@/contexts/AuthContext';
-import { Breadcrumb } from '@/components/seo/Breadcrumb';
+import { Breadcrumb, generateBreadcrumbSchema } from '@/components/seo/Breadcrumb';
+import { SEOHead, articleSchema } from '@/components/seo/SEOHead';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { 
   BookOpen,
@@ -337,8 +338,28 @@ const Guides = () => {
       return null;
     }
 
+    // Generate Article schema for the selected guide
+    const guideSchema = {
+      '@context': 'https://schema.org',
+      '@graph': [
+        articleSchema({
+          title: selectedGuide.title,
+          description: selectedGuide.description,
+          slug: selectedGuide.slug,
+          category: selectedGuide.category,
+          stepsCount: currentSteps.length,
+        }),
+        generateBreadcrumbSchema(`/guides/${selectedGuide.slug || selectedGuide.id}`),
+      ],
+    };
+
     return (
       <div className="min-h-screen bg-background relative">
+        <SEOHead
+          title={`${selectedGuide.title} - MitTek Guide`}
+          description={selectedGuide.description || `Lær ${selectedGuide.title.toLowerCase()} med denne letforståelige trin-for-trin guide fra MitTek.`}
+          jsonLd={guideSchema}
+        />
         {/* Confetti overlay */}
         {showConfetti && (
           <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
@@ -578,9 +599,13 @@ const Guides = () => {
     return recommended;
   };
 
-  // Guides list
+  // Guides list - add SEOHead for list view
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="Mini-guides - MitTek | Trin-for-trin hjælp til iPhone, iPad og Mac"
+        description="Nemme trin-for-trin guides med billeder til iPhone, iPad og Mac. Lær om sikkerhed, batteritips, iCloud og meget mere i dit eget tempo."
+      />
       <header className="border-b border-border">
         <div className="container flex h-18 items-center px-4">
           <Link to="/dashboard" className="flex items-center gap-2 text-primary font-medium min-h-[44px]">

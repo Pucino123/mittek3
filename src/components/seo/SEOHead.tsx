@@ -282,3 +282,50 @@ export const breadcrumbSchema = (items: { name: string; url: string }[]) => ({
     item: item.url,
   })),
 });
+
+/**
+ * Article schema for guide pages
+ * Generates structured data for individual guides/articles
+ */
+export const articleSchema = (guide: {
+  title: string;
+  description?: string | null;
+  slug?: string | null;
+  category?: string;
+  stepsCount?: number;
+}) => ({
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: guide.title,
+  description: guide.description || `Lær ${guide.title.toLowerCase()} med denne letforståelige guide fra MitTek.`,
+  url: `https://www.mittek.dk/guides/${guide.slug || ''}`,
+  author: {
+    '@type': 'Organization',
+    name: 'MitTek',
+    url: 'https://www.mittek.dk',
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'MitTek',
+    logo: {
+      '@type': 'ImageObject',
+      url: 'https://www.mittek.dk/favicon.svg',
+    },
+  },
+  mainEntityOfPage: {
+    '@type': 'WebPage',
+    '@id': `https://www.mittek.dk/guides/${guide.slug || ''}`,
+  },
+  articleSection: guide.category || 'Teknologi',
+  inLanguage: 'da-DK',
+  ...(guide.stepsCount && {
+    hasPart: {
+      '@type': 'HowTo',
+      name: guide.title,
+      step: Array.from({ length: guide.stepsCount }, (_, i) => ({
+        '@type': 'HowToStep',
+        position: i + 1,
+      })),
+    },
+  }),
+});
