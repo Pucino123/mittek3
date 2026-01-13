@@ -295,22 +295,59 @@ const Settings = () => {
               Dit abonnement
             </h3>
             
-            <div className="flex items-center justify-between p-4 rounded-lg bg-muted mb-4">
-              <div>
-                <p className="font-medium text-lg">
-                  {planLabels[currentPlan as keyof typeof planLabels]}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {subscription?.status === 'active' 
-                    ? 'Aktivt abonnement' 
-                    : subscription?.status === 'trialing' 
-                      ? 'Prøveperiode' 
-                      : 'Inaktivt'}
-                </p>
+            <div className="p-4 rounded-lg bg-muted mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="font-medium text-lg">
+                    {planLabels[currentPlan as keyof typeof planLabels]}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {subscription?.status === 'active' 
+                      ? 'Aktivt abonnement' 
+                      : subscription?.status === 'trialing' 
+                        ? 'Prøveperiode' 
+                        : 'Inaktivt'}
+                  </p>
+                </div>
+                <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                  {currentPlan === 'basic' ? '39 kr./md' : currentPlan === 'plus' ? '79 kr./md' : '99 kr./md'}
+                </div>
               </div>
-              <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                {currentPlan === 'basic' ? '39 kr./md' : currentPlan === 'plus' ? '79 kr./md' : '99 kr./md'}
-              </div>
+              
+              {/* Trial Progress Bar */}
+              {subscription?.status === 'trialing' && subscription?.trial_end && (
+                (() => {
+                  const trialEnd = new Date(subscription.trial_end);
+                  const trialStart = (subscription as { trial_start?: string }).trial_start 
+                    ? new Date((subscription as { trial_start?: string }).trial_start!) 
+                    : new Date(trialEnd.getTime() - 14 * 24 * 60 * 60 * 1000);
+                  const now = new Date();
+                  const totalDays = 14;
+                  const daysElapsed = Math.floor((now.getTime() - trialStart.getTime()) / (1000 * 60 * 60 * 24));
+                  const daysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+                  const progressPercent = Math.min(100, Math.max(0, (daysElapsed / totalDays) * 100));
+                  
+                  return (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-muted-foreground">Prøveperiode</span>
+                        <span className="font-medium text-primary">
+                          {daysRemaining} {daysRemaining === 1 ? 'dag' : 'dage'} tilbage
+                        </span>
+                      </div>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary rounded-full transition-all duration-500"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {daysElapsed} af {totalDays} dage brugt
+                      </p>
+                    </div>
+                  );
+                })()
+              )}
             </div>
 
             {/* Manage Button - for all users with subscription */}
