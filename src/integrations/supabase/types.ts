@@ -1088,6 +1088,21 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      verify_invite_token: {
+        Args: { token_input: string }
+        Returns: {
+          can_view_checkins: boolean
+          can_view_dashboard: boolean
+          can_view_notes: boolean
+          can_view_tickets: boolean
+          can_view_vault: boolean
+          helper_email: string
+          id: string
+          invitation_accepted: boolean
+          inviter_display_name: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"
