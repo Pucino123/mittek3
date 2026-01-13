@@ -56,6 +56,8 @@ import { EditableCategoryTitle } from '@/components/dashboard/EditableCategoryTi
 import {
   DndContext,
   closestCenter,
+  pointerWithin,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -67,6 +69,7 @@ import {
   DragOverlay,
   useDroppable,
   MeasuringStrategy,
+  type CollisionDetection,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -181,8 +184,18 @@ const smoothTransition = {
   easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
 };
 
-// Using closestCenter for iOS-style insertion behavior
-
+// Custom collision detection - uses pointer position for precise targeting
+// Prevents the "too low" bug by centering on the pointer, not the card bottom
+const pointerPrecisionCollision: CollisionDetection = (args) => {
+  // First try pointerWithin - most precise, uses actual pointer position
+  const pointerCollisions = pointerWithin(args);
+  if (pointerCollisions.length > 0) {
+    return pointerCollisions;
+  }
+  
+  // Fall back to closestCenter for edge cases
+  return closestCenter(args);
+};
 // Sortable card wrapper with iOS-style gap insertion animations
 function SortableCard({ 
   card, 
@@ -217,16 +230,16 @@ function SortableCard({
     return `translate3d(${transform.x}px, ${transform.y}px, 0)`;
   };
 
-  // iOS-style spring transition for smooth reflow
-  // The key insight: other items use CSS transition while dragged item uses none
+  // Tight, snappy spring transition - high stiffness, high damping (no bounce)
+  // Uses a "critically damped" curve for instant settling
   const style: React.CSSProperties = {
     transform: getTransformStyle(),
-    // Non-dragged items get spring transition for smooth gap opening
-    // Dragged item (controlled by cursor) gets no transition
+    // Non-dragged items: fast, snappy transition with minimal overshoot
+    // 200ms with ease-out gives instant, tight feel
     transition: isDragging 
       ? 'none' 
-      : 'transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms ease',
-    opacity: isBeingDragged ? 0.35 : 1,
+      : 'transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 150ms ease',
+    opacity: isBeingDragged ? 0.3 : 1,
     zIndex: isDragging ? 10 : 1,
     WebkitTouchCallout: 'none',
     WebkitUserSelect: 'none',
@@ -1055,7 +1068,7 @@ const Dashboard = () => {
         <div ref={toolsSectionRef}>
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={pointerPrecisionCollision}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
