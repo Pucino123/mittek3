@@ -316,10 +316,11 @@ const BatteryDoctor = () => {
                               <p 
                                 key={stepIndex} 
                                 className="text-sm text-muted-foreground"
-                                dangerouslySetInnerHTML={{ 
-                                  __html: step.replace(/\*\*(.*?)\*\*/g, '<strong class="text-foreground">$1</strong>') 
-                                }}
-                              />
+                              >
+                                {step.split(/\*\*(.*?)\*\*/g).map((part, i) => 
+                                  i % 2 === 0 ? part : <strong key={i} className="text-foreground">{part}</strong>
+                                )}
+                              </p>
                             ))}
                           </div>
                         )}
