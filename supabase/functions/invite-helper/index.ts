@@ -19,6 +19,7 @@ interface InviteRequest {
   can_view_checkins: boolean;
   can_view_tickets: boolean;
   can_view_notes: boolean;
+  can_view_vault: boolean;
   expiration_option?: '7days' | '30days' | 'permanent';
 }
 
@@ -131,7 +132,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const { helper_email, can_view_dashboard, can_view_checkins, can_view_tickets, can_view_notes, expiration_option }: InviteRequest = await req.json();
+    const { helper_email, can_view_dashboard, can_view_checkins, can_view_tickets, can_view_notes, can_view_vault, expiration_option }: InviteRequest = await req.json();
 
     // Calculate expiration date
     const expiresAt = calculateExpiresAt(expiration_option);
@@ -186,6 +187,7 @@ serve(async (req: Request) => {
         can_view_checkins,
         can_view_tickets,
         can_view_notes,
+        can_view_vault: can_view_vault || false,
         invitation_accepted: false,
         expires_at: expiresAt,
         permissions: {
@@ -193,6 +195,7 @@ serve(async (req: Request) => {
           can_view_checkins,
           can_view_tickets,
           can_view_notes,
+          can_view_vault: can_view_vault || false,
         }
       })
       .select()
@@ -240,6 +243,7 @@ serve(async (req: Request) => {
             ${can_view_checkins ? '<li>Se deres månedlige tjek-resultater</li>' : ''}
             ${can_view_tickets ? '<li>Se deres support-sager</li>' : ''}
             ${can_view_notes ? '<li>Se deres noter</li>' : ''}
+            ${can_view_vault ? '<li>Se deres Kode-mappe (med samtykke)</li>' : ''}
           </ul>
           
           <p style="font-size: 16px;">På den måde kan du hjælpe dem med at holde øje med deres digitale sikkerhed.</p>
