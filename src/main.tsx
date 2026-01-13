@@ -1,12 +1,11 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { enforceWwwRedirect } from "./utils/wwwRedirect";
 import { initGA4OnLoad } from "./utils/analytics";
 import { initWebVitals } from "./utils/webVitals";
 
-// Redirect non-www to www for consistent SEO
-enforceWwwRedirect();
+// Note: www-redirect is now handled at server level via Lovable's domain settings
+// This provides faster redirects before JavaScript loads
 
 // Disable browser's own scroll restoration - we handle it ourselves
 if ('scrollRestoration' in window.history) {

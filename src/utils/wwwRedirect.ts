@@ -1,10 +1,11 @@
 /**
- * Redirects non-www URLs to www for consistent URL structure.
- * This should be called early in the app initialization.
+ * @deprecated Server-level redirect is now configured via Lovable domain settings.
+ * This client-side redirect is kept as a fallback but should not be called.
  * 
- * Note: For production, it's recommended to also configure this
- * at the DNS/hosting level (Cloudflare, Netlify, Vercel) for 
- * faster redirects before JavaScript loads.
+ * The server-level redirect provides:
+ * - Faster redirects (before JavaScript loads)
+ * - Better SEO (301 permanent redirect)
+ * - Reduced page load time
  */
 export function enforceWwwRedirect(): void {
   // Only run in browser environment
