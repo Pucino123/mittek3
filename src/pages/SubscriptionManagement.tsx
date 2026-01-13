@@ -8,6 +8,7 @@ import {
   Crown,
   Download,
   ExternalLink,
+  HelpCircle,
   Loader2,
   Receipt,
   Sparkles,
@@ -30,6 +31,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 
 interface Plan {
   id: 'basic' | 'plus' | 'pro';
@@ -214,7 +221,10 @@ const SubscriptionManagement = () => {
       if (error) throw error;
       
       if (data.success) {
-        toast.success('Abonnement ændret!');
+        // Get the plan name for the success toast
+        const newPlanName = plans.find(p => p.id === planId)?.name || planId;
+        toast.success(`Dit abonnement er succesfuldt ændret til ${newPlanName}.`);
+        
         // Immediately update local state to reflect the change
         if (subscription) {
           setSubscription({
@@ -586,6 +596,44 @@ const SubscriptionManagement = () => {
                 </div>
               );
             })}
+          </div>
+
+          {/* Billing FAQ Section */}
+          <div className="card-elevated p-6 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <HelpCircle className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">Ofte stillede spørgsmål</h2>
+            </div>
+            
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="change-plan">
+                <AccordionTrigger className="text-left">
+                  Hvordan ændrer jeg mit abonnement?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">
+                  Du kan til enhver tid opgradere eller nedgradere din plan direkte her på siden. 
+                  Ændringen træder i kraft med det samme.
+                </AccordionContent>
+              </AccordionItem>
+              
+              <AccordionItem value="invoices">
+                <AccordionTrigger className="text-left">
+                  Hvor finder jeg mine fakturaer?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">
+                  Dine fakturaer sendes til din e-mail ved hver fornyelse.
+                </AccordionContent>
+              </AccordionItem>
+              
+              <AccordionItem value="binding">
+                <AccordionTrigger className="text-left">
+                  Er der bindingsperiode?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground">
+                  Nej, du kan opsige dit abonnement når som helst, så det stopper ved udgangen af den nuværende periode.
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
 
           {/* Billing History */}
