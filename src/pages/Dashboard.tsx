@@ -55,8 +55,7 @@ import { EditableCategoryTitle } from '@/components/dashboard/EditableCategoryTi
 
 import {
   DndContext,
-  pointerWithin,
-  rectIntersection,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -68,16 +67,14 @@ import {
   DragOverlay,
   useDroppable,
   MeasuringStrategy,
-  type CollisionDetection,
 } from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon, StickyNote } from 'lucide-react';
 import { NoteWidgetCard } from '@/components/dashboard/NoteWidgetCard';
@@ -184,18 +181,9 @@ const smoothTransition = {
   easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
 };
 
-// Custom collision detection - requires more overlap before swapping
-const customCollisionDetection: CollisionDetection = (args) => {
-  // Use pointerWithin for more precise detection
-  const pointerCollisions = pointerWithin(args);
-  if (pointerCollisions.length > 0) {
-    return pointerCollisions;
-  }
-  // Fall back to rectIntersection with natural overlap requirement
-  return rectIntersection(args);
-};
+// Using closestCenter for iOS-style insertion behavior
 
-// Sortable card wrapper with smooth spring animations
+// Sortable card wrapper with iOS-style gap insertion animations
 function SortableCard({ 
   card, 
   hasAccess, 
@@ -218,19 +206,27 @@ function SortableCard({
     transform,
     transition,
     isDragging,
-    isSorting,
   } = useSortable({ 
     id: card.id, 
     disabled: !isEditMode,
-    transition: smoothTransition,
   });
 
-  // Create smooth CSS transition for non-dragged items
+  // Calculate transform - dnd-kit handles the reflow automatically with rectSortingStrategy
+  const getTransformStyle = () => {
+    if (!transform) return undefined;
+    return `translate3d(${transform.x}px, ${transform.y}px, 0)`;
+  };
+
+  // iOS-style spring transition for smooth reflow
+  // The key insight: other items use CSS transition while dragged item uses none
   const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    // Apply smooth transition only when sorting (not when dragging)
-    transition: isSorting && !isDragging ? 'transform 400ms cubic-bezier(0.25, 1, 0.5, 1)' : transition,
-    opacity: isBeingDragged ? 0.3 : 1,
+    transform: getTransformStyle(),
+    // Non-dragged items get spring transition for smooth gap opening
+    // Dragged item (controlled by cursor) gets no transition
+    transition: isDragging 
+      ? 'none' 
+      : 'transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms ease',
+    opacity: isBeingDragged ? 0.35 : 1,
     zIndex: isDragging ? 10 : 1,
     WebkitTouchCallout: 'none',
     WebkitUserSelect: 'none',
@@ -244,6 +240,8 @@ function SortableCard({
       {...listeners}
       style={style}
       className="relative h-full touch-none"
+      data-sortable-item
+      data-dragging={isDragging}
     >
       {/* Render widget card (inline component) or regular card */}
       {card.isWidget ? (
@@ -1057,7 +1055,7 @@ const Dashboard = () => {
         <div ref={toolsSectionRef}>
           <DndContext
             sensors={sensors}
-            collisionDetection={customCollisionDetection}
+            collisionDetection={closestCenter}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
@@ -1080,7 +1078,7 @@ const Dashboard = () => {
                 ...currentCategoryOrder.map(id => `category-${id}`),
                 ...visibleCards.map(c => c.id)
               ]}
-              strategy={verticalListSortingStrategy}
+              strategy={rectSortingStrategy}
             >
               <div className="space-y-10 sm:space-y-12" id="dashboard-wrapper">
                 {currentCategoryOrder.map((categoryId) => {
