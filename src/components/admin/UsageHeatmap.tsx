@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, Clock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
-import { subDays } from 'date-fns';
+import { DateRange } from './DateRangePicker';
 
 interface HeatmapCell {
   day: number;
@@ -11,27 +11,30 @@ interface HeatmapCell {
   count: number;
 }
 
+interface UsageHeatmapProps {
+  dateRange: DateRange;
+}
+
 const DAYS = ['Søn', 'Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export function UsageHeatmap() {
+export function UsageHeatmap({ dateRange }: UsageHeatmapProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [heatmapData, setHeatmapData] = useState<HeatmapCell[]>([]);
   const [maxCount, setMaxCount] = useState(1);
 
   useEffect(() => {
     fetchHeatmapData();
-  }, []);
+  }, [dateRange]);
 
   const fetchHeatmapData = async () => {
     setIsLoading(true);
     try {
-      const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
-      
       const { data, error } = await supabase
         .from('page_views')
         .select('created_at')
-        .gte('created_at', thirtyDaysAgo);
+        .gte('created_at', dateRange.from.toISOString())
+        .lte('created_at', dateRange.to.toISOString());
 
       if (error) throw error;
 

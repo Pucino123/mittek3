@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Users, Eye, Globe, TrendingUp, ArrowUpRight, ArrowDownRight, Info, Trash2, RefreshCcw, MapPin } from 'lucide-react';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { format, subDays } from 'date-fns';
+import { format, subDays, differenceInDays } from 'date-fns';
 import { da } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 import { LiveVisitorCounter } from './LiveVisitorCounter';
 import { UsageHeatmap } from './UsageHeatmap';
+import { DateRangePicker, DateRange } from './DateRangePicker';
+
 interface AnalyticsData {
   page_views: number;
   unique_visitors: number;
@@ -48,6 +50,10 @@ export function AdminAnalytics() {
   const [referrers, setReferrers] = useState<ReferrerData[]>([]);
   const [topPages, setTopPages] = useState<PageViewData[]>([]);
   const [geoData, setGeoData] = useState<GeoData[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  });
   const [summary, setSummary] = useState<AnalyticsData>({
     page_views: 0,
     unique_visitors: 0,
@@ -65,7 +71,7 @@ export function AdminAnalytics() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [dateRange]);
 
   const handleResetAnalytics = async () => {
     setIsResetting(true);
@@ -97,21 +103,23 @@ export function AdminAnalytics() {
     setIsLoading(true);
     
     try {
-      // Fetch page views for the last 30 days
-      const thirtyDaysAgo = subDays(new Date(), 30);
-      const sixtyDaysAgo = subDays(new Date(), 60);
+      // Calculate date range and previous period
+      const rangeDays = differenceInDays(dateRange.to, dateRange.from);
+      const previousFrom = subDays(dateRange.from, rangeDays);
+      const previousTo = dateRange.from;
       
       const { data: recentViews } = await supabase
         .from('page_views')
         .select('*')
-        .gte('created_at', thirtyDaysAgo.toISOString())
+        .gte('created_at', dateRange.from.toISOString())
+        .lte('created_at', dateRange.to.toISOString())
         .order('created_at', { ascending: true });
 
       const { data: previousViews } = await supabase
         .from('page_views')
         .select('*')
-        .gte('created_at', sixtyDaysAgo.toISOString())
-        .lt('created_at', thirtyDaysAgo.toISOString());
+        .gte('created_at', previousFrom.toISOString())
+        .lt('created_at', previousTo.toISOString());
 
       // Process daily stats
       const dailyMap = new Map<string, { views: number; sessions: Set<string> }>();
@@ -125,8 +133,8 @@ export function AdminAnalytics() {
       });
 
       const dailyStatsData: DailyStats[] = [];
-      for (let i = 29; i >= 0; i--) {
-        const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
+      for (let i = rangeDays; i >= 0; i--) {
+        const date = format(subDays(dateRange.to, i), 'yyyy-MM-dd');
         const dayData = dailyMap.get(date);
         dailyStatsData.push({
           date: format(new Date(date), 'd. MMM', { locale: da }),
@@ -278,7 +286,7 @@ export function AdminAnalytics() {
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">vs. forrige 30 dage</p>
+          <p className="text-xs text-muted-foreground mt-1">vs. forrige periode</p>
         </CardContent>
       </Card>
     );
@@ -294,8 +302,8 @@ export function AdminAnalytics() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Info & Reset */}
-      <div className="flex items-center justify-between">
+      {/* Header with Info, Date Range & Reset */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Platformsanalyse</h2>
           <TooltipProvider>
@@ -307,14 +315,15 @@ export function AdminAnalytics() {
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-xs">
                 <p className="text-sm">
-                  Denne side viser statistik over platformens aktivitet baseret på audit logs. 
-                  Data inkluderer sidevisninger, unikke brugere, handlingstyper og aktivitetsmønstre 
-                  over de seneste 30 dage.
+                  Denne side viser statistik over platformens aktivitet baseret på sidevisninger. 
+                  Vælg en periode for at se data for det ønskede tidsrum.
                 </p>
               </TooltipContent>
             </UITooltip>
           </TooltipProvider>
         </div>
+
+        <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
         
         <div className="flex items-center gap-2">
           <Button 
@@ -604,7 +613,7 @@ export function AdminAnalytics() {
       </div>
 
       {/* Usage Heatmap */}
-      <UsageHeatmap />
+      <UsageHeatmap dateRange={dateRange} />
     </div>
   );
 }
