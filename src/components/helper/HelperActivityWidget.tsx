@@ -7,8 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface HelperActivityWidgetProps {
-  seniorUserId: string;
-  seniorName: string;
+  personUserId: string;
+  personName: string;
   latestCheckin: {
     completed_at: string;
     score: number;
@@ -16,8 +16,8 @@ interface HelperActivityWidgetProps {
 }
 
 export const HelperActivityWidget = ({
-  seniorUserId,
-  seniorName,
+  personUserId,
+  personName,
   latestCheckin,
 }: HelperActivityWidgetProps) => {
   const [isSending, setIsSending] = useState(false);
@@ -43,11 +43,11 @@ export const HelperActivityWidget = ({
   const handleSendReminder = async () => {
     setIsSending(true);
     try {
-      // Get senior's profile to get their email
+      // Get person's profile to get their email
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('email, display_name')
-        .eq('user_id', seniorUserId)
+        .eq('user_id', personUserId)
         .single();
 
       if (profileError || !profile?.email) {
@@ -56,7 +56,7 @@ export const HelperActivityWidget = ({
 
       // Call the send-monthly-reminder function with specific user
       const { error } = await supabase.functions.invoke('send-monthly-reminder', {
-        body: { targetUserId: seniorUserId },
+        body: { targetUserId: personUserId },
       });
 
       if (error) throw error;
@@ -79,7 +79,7 @@ export const HelperActivityWidget = ({
         <div>
           <h3 className="font-semibold">Aktivitet & Score</h3>
           <p className="text-sm text-muted-foreground">
-            {seniorName}s seneste sikkerhedstjek
+            {personName}s seneste sikkerhedstjek
           </p>
         </div>
       </div>

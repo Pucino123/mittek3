@@ -261,14 +261,14 @@ const HelperDashboard = () => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <HelperHealthWidget
                     relationId={selectedSenior.id}
-                    seniorName={selectedSenior.senior_profile?.display_name || 'Senioren'}
+                    personName={selectedSenior.senior_profile?.display_name || 'personen'}
                     medicalIdVerified={selectedSenior.medical_id_verified || false}
                     medicalIdVerifiedAt={selectedSenior.medical_id_verified_at || null}
                     onUpdate={fetchRelations}
                   />
                   <HelperActivityWidget
-                    seniorUserId={selectedSenior.user_id}
-                    seniorName={selectedSenior.senior_profile?.display_name || 'Senioren'}
+                    personUserId={selectedSenior.user_id}
+                    personName={selectedSenior.senior_profile?.display_name || 'personen'}
                     latestCheckin={selectedSenior.latest_checkin || null}
                   />
                 </div>
@@ -403,7 +403,7 @@ const HelperDashboard = () => {
           <div className="mb-8">
             <h1 className="text-2xl font-bold mb-2 flex items-center gap-3">
               <Users className="h-7 w-7 text-primary" />
-              Dine seniorer
+              Dine forbindelser
             </h1>
             <p className="text-muted-foreground">
               Her kan du se status for de personer, du hjælper
@@ -471,7 +471,7 @@ const HelperDashboard = () => {
           ) : (
             <div className="card-elevated p-12 text-center">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Ingen seniorer endnu</h3>
+              <h3 className="text-lg font-semibold mb-2">Ingen forbindelser endnu</h3>
               <p className="text-muted-foreground">
                 Når nogen inviterer dig som hjælper, vil de vises her.
               </p>

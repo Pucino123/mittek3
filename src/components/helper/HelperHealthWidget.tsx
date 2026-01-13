@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 interface HelperHealthWidgetProps {
   relationId: string;
-  seniorName: string;
+  personName: string;
   medicalIdVerified: boolean;
   medicalIdVerifiedAt: string | null;
   onUpdate: () => void;
@@ -14,7 +14,7 @@ interface HelperHealthWidgetProps {
 
 export const HelperHealthWidget = ({
   relationId,
-  seniorName,
+  personName,
   medicalIdVerified,
   medicalIdVerifiedAt,
   onUpdate,
@@ -55,7 +55,7 @@ export const HelperHealthWidget = ({
         <div>
           <h3 className="font-semibold">Nød-ID på telefonen</h3>
           <p className="text-sm text-muted-foreground">
-            Har {seniorName} opsat Nød-ID?
+            Har {personName} opsat Nød-ID?
           </p>
         </div>
       </div>
@@ -83,7 +83,7 @@ export const HelperHealthWidget = ({
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Tjek venligst fysisk på {seniorName}s telefon, om Nød-ID er opsat korrekt.
+            Tjek venligst fysisk på {personName}s telefon, om Nød-ID er opsat korrekt.
           </p>
           <div className="flex gap-3">
             <Button
