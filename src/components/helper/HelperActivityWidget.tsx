@@ -144,16 +144,16 @@ export const HelperActivityWidget = ({
           <Button
             variant="outline"
             size="sm"
-            className="mt-3"
+            className="mt-3 max-w-full"
             onClick={handleSendReminder}
             disabled={isSending}
           >
             {isSending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <Loader2 className="h-4 w-4 animate-spin mr-2 flex-shrink-0" />
             ) : (
-              <Bell className="h-4 w-4 mr-2" />
+              <Bell className="h-4 w-4 mr-2 flex-shrink-0" />
             )}
-            Send påmindelse om at komme i gang
+            <span className="truncate">Send påmindelse</span>
           </Button>
         </div>
       )}

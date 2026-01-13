@@ -85,10 +85,11 @@ export const HelperHealthWidget = ({
           <p className="text-sm text-muted-foreground">
             Tjek venligst fysisk på {personName}s telefon, om Nød-ID er opsat korrekt.
           </p>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
-              className="flex-1"
+              size="sm"
+              className="w-full sm:w-auto"
               onClick={() => handleVerify(false)}
               disabled={isUpdating}
             >
@@ -97,11 +98,12 @@ export const HelperHealthWidget = ({
               ) : (
                 <AlertTriangle className="h-4 w-4 mr-2 text-warning" />
               )}
-              Ikke opsat endnu
+              <span className="truncate">Ikke opsat</span>
             </Button>
             <Button
               variant="default"
-              className="flex-1 bg-success hover:bg-success/90"
+              size="sm"
+              className="w-full sm:w-auto bg-success hover:bg-success/90"
               onClick={() => handleVerify(true)}
               disabled={isUpdating}
             >
@@ -110,7 +112,7 @@ export const HelperHealthWidget = ({
               ) : (
                 <Check className="h-4 w-4 mr-2" />
               )}
-              Ja, det er opsat
+              <span className="truncate">Ja, opsat</span>
             </Button>
           </div>
         </div>
