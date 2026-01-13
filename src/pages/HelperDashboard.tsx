@@ -393,25 +393,28 @@ const HelperDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border sticky top-0 bg-background z-10">
-        <div className="container flex h-18 items-center">
+        <div className="container flex h-18 items-center px-4 lg:px-8">
           <BackButton />
         </div>
       </header>
 
-      <main className="container py-8">
-        <div className="max-w-2xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold mb-2 flex items-center gap-3">
-              <Users className="h-7 w-7 text-primary" />
-              Dine forbindelser
-            </h1>
-            <p className="text-muted-foreground">
-              Her kan du se status for de personer, du hjælper
-            </p>
+      <main className="container py-8 px-4 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header with title */}
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-bold mb-2 flex items-center gap-3">
+                <Users className="h-7 w-7 lg:h-8 lg:w-8 text-primary" />
+                Dine forbindelser
+              </h1>
+              <p className="text-muted-foreground">
+                Her kan du se status for de personer, du hjælper
+              </p>
+            </div>
           </div>
 
           {relations.length > 0 ? (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
               {relations.map((rel) => {
                 const score = rel.latest_checkin?.score ?? null;
                 const needsAttention = score !== null && score < 50;
@@ -420,33 +423,45 @@ const HelperDashboard = () => {
                   <button
                     key={rel.id}
                     onClick={() => fetchSeniorDetail(rel)}
-                    className={`card-interactive p-5 w-full text-left flex items-center gap-4 ${
-                      needsAttention ? 'border-destructive/50' : ''
+                    className={`card-elevated p-5 lg:p-6 w-full h-full text-left flex flex-col gap-4 rounded-xl transition-all duration-200 hover:shadow-lg hover:scale-[1.02] ${
+                      needsAttention ? 'border-destructive/50 border-2' : 'border border-border'
                     }`}
                   >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      needsAttention ? 'bg-destructive/10' : 'bg-success/10'
-                    }`}>
-                      {needsAttention ? (
-                        <AlertTriangle className="h-6 w-6 text-destructive" />
-                      ) : (
-                        <CheckCircle className="h-6 w-6 text-success" />
-                      )}
+                    {/* Top row: Avatar + Status */}
+                    <div className="flex items-start justify-between">
+                      <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        needsAttention ? 'bg-destructive/10' : 'bg-success/10'
+                      }`}>
+                        {needsAttention ? (
+                          <AlertTriangle className="h-7 w-7 text-destructive" />
+                        ) : (
+                          <CheckCircle className="h-7 w-7 text-success" />
+                        )}
+                      </div>
+                      <span className={`px-3 py-1.5 text-xs font-semibold rounded-full ${
+                        needsAttention 
+                          ? 'bg-destructive/10 text-destructive' 
+                          : 'bg-success/10 text-success'
+                      }`}>
+                        {needsAttention ? 'Advarsel' : 'OK'}
+                      </span>
                     </div>
                     
+                    {/* Name and details */}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">
+                      <p className="font-semibold text-lg truncate mb-1">
                         {rel.senior_profile?.display_name || rel.senior_profile?.email || 'Ukendt'}
                       </p>
                       
                       {rel.latest_checkin ? (
-                        <p className="text-sm text-muted-foreground">
-                          Sidste tjek: {formatDistanceToNow(new Date(rel.latest_checkin.completed_at), { addSuffix: true, locale: da })} 
-                          {' - '}
-                          <span className={getStatusColor(score)}>
-                            Score {score}/100
-                          </span>
-                        </p>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <p>
+                            Sidste tjek: {formatDistanceToNow(new Date(rel.latest_checkin.completed_at), { addSuffix: true, locale: da })}
+                          </p>
+                          <p className={`font-medium ${getStatusColor(score)}`}>
+                            Score: {score}/100
+                          </p>
+                        </div>
                       ) : (
                         <p className="text-sm text-muted-foreground">
                           Intet tjek endnu
@@ -454,23 +469,18 @@ const HelperDashboard = () => {
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        needsAttention 
-                          ? 'bg-destructive/10 text-destructive' 
-                          : 'bg-success/10 text-success'
-                      }`}>
-                        {needsAttention ? 'Advarsel' : 'OK'}
-                      </span>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    {/* View details link */}
+                    <div className="flex items-center gap-1 text-primary font-medium text-sm pt-2 border-t border-border">
+                      <span>Se detaljer</span>
+                      <ChevronRight className="h-4 w-4" />
                     </div>
                   </button>
                 );
               })}
             </div>
           ) : (
-            <div className="card-elevated p-12 text-center">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <div className="card-elevated p-8 lg:p-12 text-center max-w-lg mx-auto">
+              <Users className="h-12 w-12 lg:h-16 lg:w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Ingen forbindelser endnu</h3>
               <p className="text-muted-foreground">
                 Når nogen inviterer dig som hjælper, vil de vises her.
