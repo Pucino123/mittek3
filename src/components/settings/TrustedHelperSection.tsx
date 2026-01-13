@@ -158,11 +158,11 @@ export function TrustedHelperSection() {
     <div id="helper-section" className="card-elevated p-6 mb-6 scroll-mt-24 transition-all duration-500">
       <h3 className="font-semibold mb-4 flex items-center gap-2">
         <Users className="h-5 w-5" />
-        Min Hjælper
+        Mine Hjælpere
       </h3>
       
       <p className="text-muted-foreground mb-4">
-        Inviter en person du stoler på til at hjælpe dig med at holde øje med din digitale sikkerhed.
+        Inviter personer du stoler på til at hjælpe dig med at holde øje med din digitale sikkerhed.
       </p>
 
       {/* Existing helpers */}
@@ -320,7 +320,7 @@ export function TrustedHelperSection() {
         </form>
       ) : (
         <Button variant="outline" onClick={() => setShowInviteForm(true)}>
-          Inviter en hjælper
+          {helpers.length > 0 ? 'Inviter ny hjælper' : 'Inviter en hjælper'}
           <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       )}
