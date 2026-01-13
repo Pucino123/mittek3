@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { PublicLayout } from '@/components/layout/PublicLayout';
+import { SEOHead, softwareAppSchema } from '@/components/seo/SEOHead';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ScreenshotHelpModal } from '@/components/ui/ScreenshotHelpModal';
 import { ToolPageHelpButton } from '@/components/help/ToolPageHelpButton';
+
+const screenshotSchema = softwareAppSchema(
+  'Screenshot AI - MitTek',
+  'Upload et screenshot og få det forklaret i simple ord. Perfekt når du ikke forstår hvad der står på skærmen.',
+  'https://www.mittek.dk/screenshot-ai'
+);
 
 // Default texts (fallback if DB fetch fails)
 const defaultTexts = {
@@ -112,6 +119,11 @@ const ScreenshotAI = () => {
   return (
     <ProtectedRoute requiredPlan="plus">
       <PublicLayout>
+        <SEOHead
+          title="Screenshot AI - Få forklaret dit billede | MitTek"
+          description="Upload et screenshot fra din iPhone, iPad eller Mac og få det forklaret i simple ord. Perfekt når du ikke forstår hvad der står på skærmen."
+          jsonLd={screenshotSchema}
+        />
         <div className="container py-8 md:py-12">
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-8">

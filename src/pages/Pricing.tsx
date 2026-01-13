@@ -7,45 +7,8 @@ import { Check, Star, X, MessageCircle, Shield, Lock, Camera, AlertTriangle, Arr
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { SEOHead } from '@/components/seo/SEOHead';
+import { SEOHead, subscriptionPricingSchema } from '@/components/seo/SEOHead';
 import { Breadcrumb, generateBreadcrumbSchema } from '@/components/seo/Breadcrumb';
-
-const pricingSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'Product',
-  name: 'MitTek IT-hjælp',
-  description: 'Personlig IT-hjælp til iPhone, iPad og Mac',
-  brand: {
-    '@type': 'Brand',
-    name: 'MitTek',
-  },
-  offers: [
-    {
-      '@type': 'Offer',
-      name: 'Basic',
-      price: '39',
-      priceCurrency: 'DKK',
-      priceValidUntil: '2026-12-31',
-      availability: 'https://schema.org/InStock',
-    },
-    {
-      '@type': 'Offer',
-      name: 'Plus',
-      price: '79',
-      priceCurrency: 'DKK',
-      priceValidUntil: '2026-12-31',
-      availability: 'https://schema.org/InStock',
-    },
-    {
-      '@type': 'Offer',
-      name: 'Pro',
-      price: '99',
-      priceCurrency: 'DKK',
-      priceValidUntil: '2026-12-31',
-      availability: 'https://schema.org/InStock',
-    },
-  ],
-};
 
 const plans = [
   {
@@ -130,7 +93,7 @@ const Pricing = () => {
   const combinedSchema = {
     '@context': 'https://schema.org',
     '@graph': [
-      pricingSchema,
+      subscriptionPricingSchema,
       generateBreadcrumbSchema(location.pathname),
     ],
   };
