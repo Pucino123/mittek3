@@ -5,15 +5,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface NoteWidgetCardProps {
+export interface NoteWidgetCardProps {
   isEditMode: boolean;
   onRemove?: () => void;
   isDragging?: boolean;
   style?: React.CSSProperties;
+  onExitEditMode?: () => void;
 }
 
 export const NoteWidgetCard = forwardRef<HTMLDivElement, NoteWidgetCardProps>(
-  ({ isEditMode, onRemove, isDragging, style }, ref) => {
+  ({ isEditMode, onRemove, isDragging, style, onExitEditMode }, ref) => {
     const { user } = useAuth();
     const [content, setContent] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -77,6 +78,18 @@ export const NoteWidgetCard = forwardRef<HTMLDivElement, NoteWidgetCardProps>(
       <div
         ref={ref}
         style={style}
+        onClick={(e) => {
+          // In edit mode, clicking the card exits wiggle mode (iOS-style)
+          if (isEditMode) {
+            const target = e.target as HTMLElement;
+            // Only exit if not clicking the remove button or textarea
+            if (!target.closest('button') && !target.closest('textarea')) {
+              e.preventDefault();
+              e.stopPropagation();
+              onExitEditMode?.();
+            }
+          }
+        }}
         className={cn(
           "card-interactive p-3 sm:p-4 flex flex-col relative h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px]",
           isEditMode && "animate-wiggle cursor-grab",

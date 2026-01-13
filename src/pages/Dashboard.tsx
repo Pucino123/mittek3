@@ -58,6 +58,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -182,12 +183,14 @@ function SortableCard({
   isEditMode, 
   onRemove,
   isBeingDragged,
+  onExitEditMode,
 }: { 
   card: CardDefinition; 
   hasAccess: boolean; 
   isEditMode: boolean; 
   onRemove: () => void;
   isBeingDragged: boolean;
+  onExitEditMode: () => void;
 }) {
   const {
     attributes,
@@ -219,8 +222,12 @@ function SortableCard({
         // Dim the original when being dragged (overlay shows instead)
         opacity: isBeingDragged ? 0.3 : 1,
         zIndex: isDragging ? 10 : 1,
+        // Prevent touch callout and selection during drag
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
       }}
-      className="relative h-full"
+      className="relative h-full touch-none"
     >
       {/* Render widget card (inline component) or regular card */}
       {card.isWidget ? (
@@ -228,6 +235,7 @@ function SortableCard({
           isEditMode={isEditMode}
           onRemove={onRemove}
           isDragging={isDragging}
+          onExitEditMode={onExitEditMode}
         />
       ) : (
         <DashboardCard
@@ -242,6 +250,7 @@ function SortableCard({
           isEditMode={isEditMode}
           onRemove={onRemove}
           isDragging={isDragging}
+          onExitEditMode={onExitEditMode}
         />
       )}
     </motion.div>
@@ -398,11 +407,17 @@ const Dashboard = () => {
     resetToDefault 
   } = useDashboardSettings();
 
-  // DnD sensors
+  // DnD sensors - optimized for touch with scroll prevention
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200, // Short delay to distinguish tap from drag
+        tolerance: 5, // Allow slight movement during delay
       },
     }),
     useSensor(KeyboardSensor, {
@@ -599,6 +614,9 @@ const Dashboard = () => {
     setActiveDragId(String(active.id));
     saveUndoState(); // Save state before drag for undo
     haptics.tick(); // Haptic on drag start
+    
+    // Prevent page scrolling on touch devices during drag
+    document.body.classList.add('dragging-active');
   };
 
   // Handle drag over for visual feedback on empty zones
@@ -623,10 +641,11 @@ const Dashboard = () => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
-    // Clear drag states
+    // Clear drag states and re-enable scrolling
     setActiveDropZone(null);
     setActiveDragId(null);
     prevOverIdRef.current = null;
+    document.body.classList.remove('dragging-active');
 
     if (!over) return;
 
@@ -1026,6 +1045,13 @@ const Dashboard = () => {
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
+            onDragCancel={() => {
+              // Cleanup on drag cancel
+              setActiveDropZone(null);
+              setActiveDragId(null);
+              prevOverIdRef.current = null;
+              document.body.classList.remove('dragging-active');
+            }}
           >
             {/* Single unified SortableContext for all cards - enables cross-category dragging */}
             <SortableContext
@@ -1080,6 +1106,7 @@ const Dashboard = () => {
                               isEditMode={isEditMode}
                               onRemove={() => handleRemoveCard(card.id)}
                               isBeingDragged={activeDragId === card.id}
+                              onExitEditMode={() => setIsEditMode(false)}
                             />
                           ))}
                         </div>

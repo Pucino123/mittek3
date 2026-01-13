@@ -17,6 +17,7 @@ interface DashboardCardProps {
   onRemove?: () => void;
   isDragging?: boolean;
   style?: React.CSSProperties;
+  onExitEditMode?: () => void;
 }
 
 export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
@@ -33,6 +34,7 @@ export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
     onRemove,
     isDragging,
     style,
+    onExitEditMode,
     ...props 
   }, ref) => {
     const cardContent = (
@@ -91,11 +93,21 @@ export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
     );
 
     // In edit mode, render as div (not clickable for navigation)
+    // Clicking the card exits edit mode (iOS-style behavior)
     if (isEditMode) {
       return (
         <div
           ref={ref}
           style={style}
+          onClick={(e) => {
+            // Only exit edit mode if not clicking the remove button
+            const target = e.target as HTMLElement;
+            if (!target.closest('button')) {
+              e.preventDefault();
+              e.stopPropagation();
+              onExitEditMode?.();
+            }
+          }}
           className={cn(
             "card-interactive p-3 sm:p-5 flex flex-col relative h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px]",
             !hasAccess && "opacity-60 grayscale-[20%]",
