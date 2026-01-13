@@ -46,10 +46,9 @@ const HelperInvite = () => {
 
   const fetchInvitation = async () => {
     console.log('Verifying token:', token);
-    
     // Use security definer function to bypass RLS for anonymous users
     const { data, error } = await supabase
-      .rpc('get_invitation_by_token', { p_token: token });
+      .rpc('verify_invite_token', { token_input: token });
 
     console.log('Invitation result:', { data, error });
 
