@@ -997,7 +997,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="container py-6 sm:py-8 lg:py-10 overflow-x-hidden">
+      <main className="container py-6 sm:py-8 lg:py-10 overflow-x-hidden scroll-momentum">
         {/* Breadcrumb Navigation */}
         <div className="mb-4">
           <Breadcrumb />

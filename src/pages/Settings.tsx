@@ -35,7 +35,7 @@ import { CheckHistoryWidget } from '@/components/dashboard/CheckHistoryWidget';
 type DeviceType = 'iphone' | 'ipad' | 'mac';
 
 const Settings = () => {
-  const { profile, subscription, signOut, user, refetchProfile } = useAuth();
+  const { profile, subscription, signOut, user, refetchProfile, refetchSubscription } = useAuth();
   const { seniorMode, toggleSeniorMode } = useSeniorMode();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,6 +50,11 @@ const Settings = () => {
   const [cookieConsent, setCookieConsent] = useState(getCookieConsent());
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Force refetch subscription on mount to clear stale cache
+  useEffect(() => {
+    refetchSubscription();
+  }, [refetchSubscription]);
 
   // Handle scroll-to-section from URL params
   useEffect(() => {
