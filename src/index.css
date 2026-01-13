@@ -500,14 +500,24 @@ body.dragging-active {
   will-change: transform;
 }
 
-/* Smooth slide animation for cards being displaced */
+/* Smooth slide animation for cards being displaced - iOS Home Screen style */
 .card-interactive {
-  transition: transform 400ms cubic-bezier(0.25, 1, 0.5, 1), 
+  transition: transform 350ms cubic-bezier(0.25, 1, 0.5, 1), 
               box-shadow 200ms ease-out,
               opacity 200ms ease-out;
 }
 
-/* During active sorting, ensure smooth displacement */
+/* During active sorting, ensure smooth iOS-like spring displacement */
 body.dragging-active .card-interactive:not([data-dragging="true"]) {
-  transition: transform 400ms cubic-bezier(0.25, 1, 0.5, 1);
+  transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Grid layout smooth transitions for gap insertion effect */
+body.dragging-active .grid {
+  transition: none;
+}
+
+/* Ensure sortable items have smooth spring-like movement */
+body.dragging-active [data-sortable-item] {
+  transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
