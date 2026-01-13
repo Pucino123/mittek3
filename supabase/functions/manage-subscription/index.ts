@@ -138,13 +138,18 @@ serve(async (req) => {
           newPlanTier: new_plan_tier 
         });
 
+        // Safely handle current_period_end which might be undefined or null
+        const periodEnd = updatedSub.current_period_end 
+          ? new Date(updatedSub.current_period_end * 1000).toISOString()
+          : null;
+
         return new Response(JSON.stringify({ 
           success: true, 
           message: "Plan changed successfully",
           subscription: {
             id: updatedSub.id,
             status: updatedSub.status,
-            current_period_end: new Date(updatedSub.current_period_end * 1000).toISOString(),
+            current_period_end: periodEnd,
           }
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

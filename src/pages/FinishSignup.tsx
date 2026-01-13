@@ -10,11 +10,15 @@ import { Loader2, CheckCircle, Search, Mail, AlertTriangle, LifeBuoy } from 'luc
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 const MAX_POLL_ATTEMPTS = 10;
 const POLL_INTERVAL_MS = 1500;
 
 const FinishSignup = () => {
+  // Ensure page loads at the top
+  useScrollRestoration();
+  
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const navigate = useNavigate();
@@ -323,6 +327,7 @@ const FinishSignup = () => {
               )}
 
               <form onSubmit={handleSignup} className="space-y-4">
+                {/* Email field */}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
@@ -353,17 +358,18 @@ const FinishSignup = () => {
                       Denne email stammer fra din betaling og kan ikke ændres.
                     </p>
                   )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Vælg en adgangskode</Label>
-                  {/* Visual confirmation of auto-filled email */}
+                  {/* Visual confirmation of auto-filled email - positioned ABOVE password field */}
                   {(sessionId || foundSessionId) && email && !isLoadingEmail && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
                       <CheckCircle className="h-4 w-4 text-success" />
                       <span>Brug denne email: <strong className="text-foreground">{email}</strong></span>
                     </p>
                   )}
+                </div>
+
+                {/* Password field */}
+                <div className="space-y-2">
+                  <Label htmlFor="password">Vælg en adgangskode</Label>
                   <Input
                     id="password"
                     type="password"
