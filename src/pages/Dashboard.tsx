@@ -76,7 +76,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, StickyNote } from 'lucide-react';
+import { NoteWidgetCard } from '@/components/dashboard/NoteWidgetCard';
 
 // Card definition type
 interface CardDefinition {
@@ -88,6 +89,7 @@ interface CardDefinition {
   color: string;
   minPlan: 'basic' | 'plus' | 'pro';
   category: string;
+  isWidget?: boolean; // For inline widget cards like Notes
 }
 
 // All available cards (flat list)
@@ -112,6 +114,8 @@ const allCards: CardDefinition[] = [
   { id: 'medical-id', title: 'Nød-ID', description: 'Dit digitale nødkort', icon: HeartPulse, href: '/tools/medical-id', color: 'bg-destructive/10 text-destructive', minPlan: 'basic', category: 'extras' },
   { id: 'guest-wifi', title: 'Gæste-net', description: 'Del Wi-Fi nemt', icon: Wifi, href: '/tools/guest-wifi', color: 'bg-info/10 text-info', minPlan: 'basic', category: 'extras' },
   { id: 'screenshot', title: 'Screenshot → AI', description: 'Få billeder forklaret', icon: Camera, href: '/screenshot-ai', color: 'bg-success/10 text-success', minPlan: 'plus', category: 'extras' },
+  // Widget cards (inline components)
+  { id: 'notes', title: 'Mine Noter', description: 'Private notater kun til dig', icon: StickyNote, href: '', color: 'bg-warning/10 text-warning', minPlan: 'basic', category: 'tools', isWidget: true },
 ];
 
 // Default card order
@@ -202,19 +206,28 @@ function SortableCard({
       }}
       className="relative h-full"
     >
-      <DashboardCard
-        id={card.id}
-        title={card.title}
-        description={card.description}
-        icon={card.icon}
-        href={card.href}
-        color={card.color}
-        minPlan={card.minPlan}
-        hasAccess={hasAccess}
-        isEditMode={isEditMode}
-        onRemove={onRemove}
-        isDragging={isDragging}
-      />
+      {/* Render widget card (inline component) or regular card */}
+      {card.isWidget ? (
+        <NoteWidgetCard
+          isEditMode={isEditMode}
+          onRemove={onRemove}
+          isDragging={isDragging}
+        />
+      ) : (
+        <DashboardCard
+          id={card.id}
+          title={card.title}
+          description={card.description}
+          icon={card.icon}
+          href={card.href}
+          color={card.color}
+          minPlan={card.minPlan}
+          hasAccess={hasAccess}
+          isEditMode={isEditMode}
+          onRemove={onRemove}
+          isDragging={isDragging}
+        />
+      )}
     </motion.div>
   );
 }
@@ -249,22 +262,34 @@ const DragOverlayCard = forwardRef<HTMLDivElement, { card: CardDefinition; hasAc
           zIndex: 9999,
         }}
       >
-        <DashboardCard
-          id={card.id}
-          title={card.title}
-          description={card.description}
-          icon={card.icon}
-          href={card.href}
-          color={card.color}
-          minPlan={card.minPlan}
-          hasAccess={hasAccess}
-          isEditMode={true}
-          isDragging={false}
-          style={{
-            height: '100%',
-            transform: 'none',
-          }}
-        />
+        {/* Render widget card or regular card */}
+        {card.isWidget ? (
+          <NoteWidgetCard
+            isEditMode={true}
+            isDragging={false}
+            style={{
+              height: '100%',
+              transform: 'none',
+            }}
+          />
+        ) : (
+          <DashboardCard
+            id={card.id}
+            title={card.title}
+            description={card.description}
+            icon={card.icon}
+            href={card.href}
+            color={card.color}
+            minPlan={card.minPlan}
+            hasAccess={hasAccess}
+            isEditMode={true}
+            isDragging={false}
+            style={{
+              height: '100%',
+              transform: 'none',
+            }}
+          />
+        )}
       </motion.div>
     );
   }
