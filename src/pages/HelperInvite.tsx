@@ -45,37 +45,37 @@ const HelperInvite = () => {
   }, [token]);
 
   const fetchInvitation = async () => {
+    console.log('Verifying token:', token);
+    
+    // Use security definer function to bypass RLS for anonymous users
     const { data, error } = await supabase
-      .from('trusted_helpers')
-      .select('*')
-      .eq('invitation_token', token)
-      .maybeSingle();
+      .rpc('get_invitation_by_token', { p_token: token });
 
-    if (error || !data) {
+    console.log('Invitation result:', { data, error });
+
+    if (error) {
+      console.error('Invitation fetch error:', error);
+      setError('Der opstod en fejl ved hentning af invitation');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!data || data.length === 0) {
       setError('Invitation ikke fundet eller udløbet');
       setIsLoading(false);
       return;
     }
 
-    if (data.invitation_accepted) {
+    const invitationData = data[0];
+
+    if (invitationData.invitation_accepted) {
       setError('Denne invitation er allerede accepteret');
       setIsLoading(false);
       return;
     }
 
-    setInvitation(data);
-
-    // Get inviter's name
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('display_name, email')
-      .eq('user_id', data.user_id)
-      .maybeSingle();
-
-    if (profile) {
-      setInviterName(profile.display_name || profile.email || 'Ukendt');
-    }
-
+    setInvitation(invitationData);
+    setInviterName(invitationData.inviter_display_name || 'Ukendt');
     setIsLoading(false);
   };
 

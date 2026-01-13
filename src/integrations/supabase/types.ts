@@ -1061,6 +1061,21 @@ export type Database = {
         }[]
       }
       cleanup_old_audit_logs: { Args: never; Returns: undefined }
+      get_invitation_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          can_view_checkins: boolean
+          can_view_dashboard: boolean
+          can_view_notes: boolean
+          can_view_tickets: boolean
+          can_view_vault: boolean
+          helper_email: string
+          id: string
+          invitation_accepted: boolean
+          inviter_display_name: string
+          user_id: string
+        }[]
+      }
       get_user_plan: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["plan_tier"]
