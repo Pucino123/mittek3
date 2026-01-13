@@ -1,8 +1,10 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Check, Star, ArrowRight, MessageCircle, Shield } from 'lucide-react';
-
+import { Check, Star, ArrowRight, MessageCircle, Shield, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 const featureTooltips: Record<string, string> = {
   'Din Digitale Hjælper 24/7': 'Du kan skrive og spørge lige så meget du vil. Du får svar i et roligt, enkelt sprog – også når du ikke lige ved, hvad du skal spørge om.',
   'Månedligt Tjek': 'Et hurtigt tjek der hjælper dig med at holde din iPhone/iPad "i form". Du får små, konkrete råd – trin for trin.',
@@ -62,6 +64,34 @@ const plans = [
 ];
 
 export function PricingPreviewSection() {
+  const navigate = useNavigate();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handleStartTrial = async (planName: string) => {
+    const planTier = planName.toLowerCase() as 'basic' | 'plus' | 'pro';
+    setLoadingPlan(planName);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { planTier },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('Ingen checkout URL modtaget');
+      }
+    } catch (err: any) {
+      console.error('Checkout error:', err);
+      toast.error('Kunne ikke starte checkout', {
+        description: 'Prøv igen eller kontakt support',
+      });
+      setLoadingPlan(null);
+    }
+  };
+
   return (
     <section className="py-12 md:py-24 bg-secondary/30">
       <div className="container px-4">
@@ -134,16 +164,25 @@ export function PricingPreviewSection() {
                 </ul>
 
                 <div className="space-y-2">
-                  <Link to="/pricing">
-                    <Button
-                      variant={plan.popular ? 'hero' : 'outline'}
-                      size="lg"
-                      className="w-full h-11 rounded-full"
-                    >
-                      <span className="text-sm">Start gratis prøve</span>
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
+                  <Button
+                    variant={plan.popular ? 'hero' : 'outline'}
+                    size="lg"
+                    className="w-full h-11 rounded-full"
+                    disabled={loadingPlan !== null}
+                    onClick={() => handleStartTrial(plan.name)}
+                  >
+                    {loadingPlan === plan.name ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <span className="text-sm">Åbner checkout...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm">Start gratis prøve</span>
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
                   <p className="text-xs text-center text-muted-foreground">
                     Ingen betaling i dag
                   </p>

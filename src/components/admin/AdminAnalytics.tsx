@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Users, Eye, Globe, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, Users, Eye, Globe, TrendingUp, ArrowUpRight, ArrowDownRight, Info, Trash2, RefreshCcw } from 'lucide-react';
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, subDays } from 'date-fns';
 import { da } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-
+import { toast } from 'sonner';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 interface AnalyticsData {
   page_views: number;
   unique_visitors: number;
@@ -50,9 +53,37 @@ export function AdminAnalytics() {
     bounce_rate: 0,
   });
 
+  const [isResetting, setIsResetting] = useState(false);
+
   useEffect(() => {
     fetchAnalytics();
   }, []);
+
+  const handleResetAnalytics = async () => {
+    setIsResetting(true);
+    try {
+      // Delete all audit logs (analytics data source)
+      const thirtyDaysAgo = subDays(new Date(), 30);
+      const { error } = await supabase
+        .from('audit_logs')
+        .delete()
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      if (error) throw error;
+
+      toast.success('Analysedata nulstillet', {
+        description: 'Alle data fra de seneste 30 dage er slettet',
+      });
+      
+      // Refresh data
+      await fetchAnalytics();
+    } catch (err: any) {
+      console.error('Reset error:', err);
+      toast.error('Kunne ikke nulstille data');
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const fetchAnalytics = async () => {
     setIsLoading(true);
@@ -209,6 +240,77 @@ export function AdminAnalytics() {
 
   return (
     <div className="space-y-6">
+      {/* Header with Info & Reset */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Platformsanalyse</h2>
+          <TooltipProvider>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p className="text-sm">
+                  Denne side viser statistik over platformens aktivitet baseret på audit logs. 
+                  Data inkluderer sidevisninger, unikke brugere, handlingstyper og aktivitetsmønstre 
+                  over de seneste 30 dage.
+                </p>
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={fetchAnalytics}
+            disabled={isLoading}
+          >
+            <RefreshCcw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Opdater
+          </Button>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={isResetting}>
+                {isResetting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Nulstil data
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                  <Trash2 className="h-5 w-5" />
+                  Nulstil analysedata?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Dette vil permanent slette alle audit logs fra de seneste 30 dage. 
+                  Denne handling kan ikke fortrydes.
+                  <br /><br />
+                  <strong>Er du helt sikker på, at du vil fortsætte?</strong>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuller</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleResetAnalytics}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Ja, slet data
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard

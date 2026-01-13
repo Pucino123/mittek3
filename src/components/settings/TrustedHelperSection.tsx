@@ -3,7 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { IOSSwitch } from '@/components/ui/ios-switch';
-
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Users, 
   ChevronRight, 
@@ -12,7 +19,9 @@ import {
   Loader2,
   UserCheck,
   Clock,
-  CalendarClock
+  CalendarClock,
+  ShieldAlert,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +35,9 @@ import {
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { da } from 'date-fns/locale';
+
+// Security code for vault access (in production, this would be fetched/configured)
+const VAULT_SECURITY_CODE = 'MITTEK2024';
 
 interface TrustedHelper {
   id: string;
@@ -56,6 +68,11 @@ export function TrustedHelperSection() {
   const [canViewNotes, setCanViewNotes] = useState(false);
   const [canViewVault, setCanViewVault] = useState(false);
   const [expirationOption, setExpirationOption] = useState<ExpirationOption>('30days');
+  
+  // Vault security challenge state
+  const [showVaultChallenge, setShowVaultChallenge] = useState(false);
+  const [securityCode, setSecurityCode] = useState('');
+  const [codeError, setCodeError] = useState('');
 
   useEffect(() => {
     if (!user) return;
@@ -145,6 +162,31 @@ export function TrustedHelperSection() {
       fetchHelpers();
     } else {
       toast.error('Kunne ikke fjerne hjælper');
+    }
+  };
+
+  // Handle vault toggle with security challenge
+  const handleVaultToggle = (enabled: boolean) => {
+    if (enabled) {
+      // Show security challenge modal
+      setShowVaultChallenge(true);
+      setSecurityCode('');
+      setCodeError('');
+    } else {
+      // Allow turning off without challenge
+      setCanViewVault(false);
+    }
+  };
+
+  const handleSecurityCodeSubmit = () => {
+    if (securityCode.trim().toUpperCase() === VAULT_SECURITY_CODE) {
+      setCanViewVault(true);
+      setShowVaultChallenge(false);
+      setSecurityCode('');
+      setCodeError('');
+      toast.success('Kode-mappe adgang aktiveret');
+    } else {
+      setCodeError('Forkert sikkerhedskode. Prøv igen.');
     }
   };
 
@@ -285,9 +327,72 @@ export function TrustedHelperSection() {
               <IOSSwitch
                 id="perm-vault"
                 checked={canViewVault}
-                onCheckedChange={setCanViewVault}
+                onCheckedChange={handleVaultToggle}
               />
             </div>
+
+            {/* Vault Security Challenge Modal */}
+            <Dialog open={showVaultChallenge} onOpenChange={setShowVaultChallenge}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <ShieldAlert className="h-5 w-5 text-warning" />
+                    Sikkerhedsbekræftelse
+                  </DialogTitle>
+                  <DialogDescription>
+                    Adgang til Kode-mappen er følsom. Indtast din sikkerhedskode for at bekræfte.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="security-code" className="flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      Sikkerhedskode
+                    </Label>
+                    <Input
+                      id="security-code"
+                      type="password"
+                      placeholder="Indtast kode"
+                      value={securityCode}
+                      onChange={(e) => {
+                        setSecurityCode(e.target.value);
+                        setCodeError('');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSecurityCodeSubmit();
+                        }
+                      }}
+                      className={codeError ? 'border-destructive' : ''}
+                    />
+                    {codeError && (
+                      <p className="text-sm text-destructive">{codeError}</p>
+                    )}
+                  </div>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    Tip: Sikkerhedskoden blev givet til dig ved oprettelse af din konto.
+                  </p>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowVaultChallenge(false);
+                      setSecurityCode('');
+                      setCodeError('');
+                    }}
+                  >
+                    Annuller
+                  </Button>
+                  <Button onClick={handleSecurityCodeSubmit}>
+                    Bekræft
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             
             <div className="pt-2 border-t border-border">
               <div className="flex items-center justify-between">
