@@ -114,9 +114,25 @@ const allCards: CardDefinition[] = [
   { id: 'medical-id', title: 'Nød-ID', description: 'Dit digitale nødkort', icon: HeartPulse, href: '/tools/medical-id', color: 'bg-destructive/10 text-destructive', minPlan: 'basic', category: 'extras' },
   { id: 'guest-wifi', title: 'Gæste-net', description: 'Del Wi-Fi nemt', icon: Wifi, href: '/tools/guest-wifi', color: 'bg-info/10 text-info', minPlan: 'basic', category: 'extras' },
   { id: 'screenshot', title: 'Screenshot → AI', description: 'Få billeder forklaret', icon: Camera, href: '/screenshot-ai', color: 'bg-success/10 text-success', minPlan: 'plus', category: 'extras' },
-  // Widget cards (inline components)
+  // Tool Library cards (hidden by default, accessible via "Tilføj værktøj")
   { id: 'notes', title: 'Mine Noter', description: 'Private notater kun til dig', icon: StickyNote, href: '', color: 'bg-warning/10 text-warning', minPlan: 'basic', category: 'tools', isWidget: true },
 ];
+
+// Standard Suite: The 16 tools visible by default on the dashboard
+// Tools NOT in this list start hidden in the Tool Library
+export const STANDARD_TOOL_IDS = [
+  'checkin', 'guides', 'help', 'dictionary',           // Kom i gang
+  'password-generator', 'battery-doctor', 'cleaning', 'hardware', // Værktøjer
+  'scam-quiz', 'panic', 'safety', 'vault',             // Sikkerhed
+  'wishlist', 'medical-id', 'guest-wifi', 'screenshot' // Ekstra
+];
+
+// Tools that start in the Tool Library (not shown by default)
+export const getDefaultHiddenCards = (): string[] => {
+  return allCards
+    .filter(card => !STANDARD_TOOL_IDS.includes(card.id))
+    .map(card => card.id);
+};
 
 // Default card order
 const defaultCardOrder = allCards.map(c => c.id);

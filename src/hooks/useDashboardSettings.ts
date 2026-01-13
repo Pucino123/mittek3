@@ -4,6 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const STORAGE_KEY = 'mittek_dashboard_settings';
 
+// Default hidden cards for new users (tools in Tool Library)
+// This is imported from Dashboard to stay in sync
+const DEFAULT_HIDDEN_TOOL_IDS = ['notes']; // Tool Library items
+
 interface CustomCategory {
   id: string;
   title: string;
@@ -43,7 +47,7 @@ export function useDashboardSettings() {
   const { user } = useAuth();
   const [settings, setSettings] = useState<DashboardSettings>({
     card_order: null,
-    hidden_cards: [],
+    hidden_cards: DEFAULT_HIDDEN_TOOL_IDS, // Start with Tool Library items hidden
     category_titles: {},
     category_order: null,
     custom_categories: [],
@@ -61,6 +65,12 @@ export function useDashboardSettings() {
           ...localSettings,
           card_categories: localSettings.card_categories || {},
         });
+      } else {
+        // New user - set default hidden cards (Tool Library items)
+        setSettings(prev => ({
+          ...prev,
+          hidden_cards: DEFAULT_HIDDEN_TOOL_IDS,
+        }));
       }
       setIsLoading(false);
       return;
@@ -91,10 +101,10 @@ export function useDashboardSettings() {
           // Also save to localStorage as backup
           saveToLocalStorage(loadedSettings);
         } else {
-          // No DB settings row = use defaults (also clears any stale localStorage)
+          // No DB settings row = new user, use default hidden cards (Tool Library items)
           const defaultSettings: DashboardSettings = {
             card_order: null,
-            hidden_cards: [],
+            hidden_cards: DEFAULT_HIDDEN_TOOL_IDS,
             category_titles: {},
             category_order: null,
             custom_categories: [],
@@ -234,7 +244,7 @@ export function useDashboardSettings() {
     }
   }, [user, settings]);
 
-  // Reset to default - clear DB and localStorage
+  // Reset to default - clear DB and localStorage, restore Standard Suite
   const resetToDefault = useCallback(async () => {
     // Clear localStorage
     try {
@@ -243,10 +253,10 @@ export function useDashboardSettings() {
       console.error('Failed to clear localStorage:', e);
     }
     
-    // Reset local state
+    // Reset local state to default Standard Suite (hide Tool Library items)
     setSettings({ 
       card_order: null, 
-      hidden_cards: [], 
+      hidden_cards: DEFAULT_HIDDEN_TOOL_IDS, 
       category_titles: {}, 
       category_order: null, 
       custom_categories: [],
