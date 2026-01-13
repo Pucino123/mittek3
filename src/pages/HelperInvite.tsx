@@ -14,18 +14,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+// Normalize token to handle copy/paste issues (newlines, whitespace, encoding)
+const normalizeToken = (raw: string | null): string => {
+  if (!raw) return '';
+  return decodeURIComponent(raw).replace(/\s+/g, '').trim();
+};
+
 const HelperInvite = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, signUp, signInWithPassword } = useAuth();
   
-  const token = searchParams.get('token');
+  const rawToken = searchParams.get('token');
+  const token = normalizeToken(rawToken);
+  const showDebug = searchParams.get('debug') === '1';
   
   const [invitation, setInvitation] = useState<any>(null);
   const [inviterName, setInviterName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   
   // Auth form state
   const [isLogin, setIsLogin] = useState(false);
@@ -36,7 +45,7 @@ const HelperInvite = () => {
 
   useEffect(() => {
     if (!token) {
-      setError('Ugyldig invitation');
+      setError('Ugyldig invitation - manglende token');
       setIsLoading(false);
       return;
     }
@@ -45,15 +54,26 @@ const HelperInvite = () => {
   }, [token]);
 
   const fetchInvitation = async () => {
-    console.log('Verifying token:', token);
+    console.log('Raw token from URL:', rawToken);
+    console.log('Normalized token:', token);
+    
     // Use security definer function to bypass RLS for anonymous users
-    const { data, error } = await supabase
+    const { data, error: rpcError } = await supabase
       .rpc('verify_invite_token', { token_input: token });
 
-    console.log('Invitation result:', { data, error });
+    console.log('RPC verify_invite_token result:', { data, error: rpcError });
+    
+    // Store debug info
+    setDebugInfo({
+      rawToken,
+      normalizedToken: token,
+      rpcResponse: data,
+      rpcError,
+      responseLength: data?.length ?? 0,
+    });
 
-    if (error) {
-      console.error('Invitation fetch error:', error);
+    if (rpcError) {
+      console.error('Invitation fetch error:', rpcError);
       setError('Der opstod en fejl ved hentning af invitation');
       setIsLoading(false);
       return;
@@ -79,30 +99,32 @@ const HelperInvite = () => {
   };
 
   const handleAcceptInvitation = async () => {
-    if (!user || !invitation) return;
+    if (!user || !token) return;
 
     setIsAccepting(true);
 
     try {
-      const { error } = await supabase
-        .from('trusted_helpers')
-        .update({
-          helper_user_id: user.id,
-          invitation_accepted: true,
-          invitation_token: null, // Clear token after use
-        })
-        .eq('id', invitation.id);
+      // Use the secure RPC to accept the invitation (bypasses RLS)
+      const { data, error: acceptError } = await supabase
+        .rpc('accept_invite_token', { token_input: token });
 
-      if (error) throw error;
+      console.log('accept_invite_token result:', { data, error: acceptError });
+
+      if (acceptError) throw acceptError;
+
+      const result = data?.[0];
+      if (!result?.success) {
+        throw new Error(result?.message || 'Kunne ikke acceptere invitation');
+      }
 
       toast.success('Invitation accepteret!', {
         description: 'Du er nu hjælper for ' + inviterName,
       });
 
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Accept error:', error);
-      toast.error('Kunne ikke acceptere invitation');
+      navigate('/helper-dashboard');
+    } catch (err: any) {
+      console.error('Accept error:', err);
+      toast.error(err.message || 'Kunne ikke acceptere invitation');
     } finally {
       setIsAccepting(false);
     }
@@ -146,6 +168,19 @@ const HelperInvite = () => {
           <Link to="/">
             <Button variant="outline">Gå til forsiden</Button>
           </Link>
+          
+          {/* Debug panel */}
+          {showDebug && debugInfo && (
+            <div className="mt-6 p-4 bg-muted rounded-lg text-left text-xs font-mono overflow-auto">
+              <p><strong>Raw token:</strong> "{debugInfo.rawToken}"</p>
+              <p><strong>Normalized:</strong> "{debugInfo.normalizedToken}"</p>
+              <p><strong>Length:</strong> {debugInfo.normalizedToken?.length}</p>
+              <p><strong>RPC rows:</strong> {debugInfo.responseLength}</p>
+              {debugInfo.rpcError && (
+                <p className="text-destructive"><strong>Error:</strong> {JSON.stringify(debugInfo.rpcError)}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
