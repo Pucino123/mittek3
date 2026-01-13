@@ -13,11 +13,15 @@ import { useToast } from '@/hooks/use-toast';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { trackSignup } from '@/utils/analytics';
 import { supabase } from '@/integrations/supabase/client';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 // Allowed email that can sign up without selecting a plan first
 const ALLOWED_DIRECT_SIGNUP_EMAIL = 'kevin.therkildsen@icloud.com';
 
 const Signup = () => {
+  // Ensure page loads at the top
+  useScrollRestoration();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
