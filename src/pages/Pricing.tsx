@@ -9,59 +9,102 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { SEOHead, subscriptionPricingSchema } from '@/components/seo/SEOHead';
 import { Breadcrumb, generateBreadcrumbSchema } from '@/components/seo/Breadcrumb';
-
-const plans = [
-  {
-    id: 'basic',
-    name: 'Basic',
-    price: '39',
-    description: 'Alt det grundlæggende til en tryg digital hverdag',
-    popular: false,
-    features: [
-      { text: 'Din Digitale Hjælper (ubegrænset chat)', included: true, highlight: true },
-      { text: 'Månedligt Tjek (3–6 min)', included: true },
-      { text: 'Mini-guides med billeder', included: true },
-      { text: 'Trusted Helper (læseadgang)', included: true },
-      { text: 'Kode-mappe (krypteret)', included: false },
-      { text: 'Screenshot → AI Forklaring', included: false },
-      { text: 'Sikkerhedsskjold', included: false },
-      { text: 'Tryghedsknap', included: false },
-    ],
-  },
-  {
-    id: 'plus',
-    name: 'Plus',
-    price: '79',
-    description: 'Ekstra tryghed med alle sikkerhedsfunktioner',
-    popular: true,
-    features: [
-      { text: 'Din Digitale Hjælper (ubegrænset chat)', included: true, highlight: true },
-      { text: 'Månedligt Tjek (3–6 min)', included: true },
-      { text: 'Mini-guides med billeder', included: true },
-      { text: 'Trusted Helper (læseadgang)', included: true },
-      { text: 'Kode-mappe (krypteret)', included: true, icon: Lock },
-      { text: 'Screenshot → AI Forklaring', included: true, icon: Camera },
-      { text: 'Sikkerhedsskjold (svindeltjek)', included: true, icon: Shield },
-      { text: 'Tryghedsknap (panikflow)', included: true, icon: AlertTriangle },
-      { text: '1 support-henvendelse pr. måned', included: true },
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: '99',
-    description: 'Fuld service med prioriteret support',
-    popular: false,
-    features: [
-      { text: 'Din Digitale Hjælper (ubegrænset chat)', included: true, highlight: true },
-      { text: 'Alt fra Plus', included: true },
-      { text: '2 support-henvendelser pr. måned', included: true },
-      { text: 'Prioritet i køen', included: true },
-      { text: 'Kode-mappe (krypteret)', included: true, icon: Lock },
-    ],
-  },
-];
-
+const plans = [{
+  id: 'basic',
+  name: 'Basic',
+  price: '39',
+  description: 'Alt det grundlæggende til en tryg digital hverdag',
+  popular: false,
+  features: [{
+    text: 'Din Digitale Hjælper (ubegrænset chat)',
+    included: true,
+    highlight: true
+  }, {
+    text: 'Månedligt Tjek (3–6 min)',
+    included: true
+  }, {
+    text: 'Mini-guides med billeder',
+    included: true
+  }, {
+    text: 'Trusted Helper (læseadgang)',
+    included: true
+  }, {
+    text: 'Kode-mappe (krypteret)',
+    included: false
+  }, {
+    text: 'Screenshot → AI Forklaring',
+    included: false
+  }, {
+    text: 'Sikkerhedsskjold',
+    included: false
+  }, {
+    text: 'Tryghedsknap',
+    included: false
+  }]
+}, {
+  id: 'plus',
+  name: 'Plus',
+  price: '79',
+  description: 'Ekstra tryghed med alle sikkerhedsfunktioner',
+  popular: true,
+  features: [{
+    text: 'Din Digitale Hjælper (ubegrænset chat)',
+    included: true,
+    highlight: true
+  }, {
+    text: 'Månedligt Tjek (3–6 min)',
+    included: true
+  }, {
+    text: 'Mini-guides med billeder',
+    included: true
+  }, {
+    text: 'Trusted Helper (læseadgang)',
+    included: true
+  }, {
+    text: 'Kode-mappe (krypteret)',
+    included: true,
+    icon: Lock
+  }, {
+    text: 'Screenshot → AI Forklaring',
+    included: true,
+    icon: Camera
+  }, {
+    text: 'Sikkerhedsskjold (svindeltjek)',
+    included: true,
+    icon: Shield
+  }, {
+    text: 'Tryghedsknap (panikflow)',
+    included: true,
+    icon: AlertTriangle
+  }, {
+    text: '1 support-henvendelse pr. måned',
+    included: true
+  }]
+}, {
+  id: 'pro',
+  name: 'Pro',
+  price: '99',
+  description: 'Fuld service med prioriteret support',
+  popular: false,
+  features: [{
+    text: 'Din Digitale Hjælper (ubegrænset chat)',
+    included: true,
+    highlight: true
+  }, {
+    text: 'Alt fra Plus',
+    included: true
+  }, {
+    text: '2 support-henvendelser pr. måned',
+    included: true
+  }, {
+    text: 'Prioritet i køen',
+    included: true
+  }, {
+    text: 'Kode-mappe (krypteret)',
+    included: true,
+    icon: Lock
+  }]
+}];
 const featureTooltips: Record<string, string> = {
   'Din Digitale Hjælper (ubegrænset chat)': 'Du kan skrive og spørge lige så meget du vil. Du får svar i et roligt, enkelt sprog – også når du ikke lige ved, hvad du skal spørge om.',
   'Månedligt Tjek (3–6 min)': 'Et hurtigt tjek der hjælper dig med at holde din iPhone/iPad “i form”. Du får små, konkrete råd – trin for trin.',
@@ -76,44 +119,38 @@ const featureTooltips: Record<string, string> = {
   '1 support-henvendelse pr. måned': 'Du kan få personlig hjælp 1 gang om måneden. Perfekt hvis du af og til har brug for et menneske til at hjælpe dig helt i mål.',
   '2 support-henvendelser pr. måned': 'Du kan få personlig hjælp 2 gange om måneden. Godt hvis du ofte har spørgsmål eller vil have ekstra tryghed.',
   'Prioritet i køen': 'Vi sidder klar til at hjælpe dig først, hvis du oplever problemer, så du ikke skal vente så længe.',
-  'Alt fra Plus': 'Du får alle de samme funktioner som i Plus – og derudover ekstra fordele, som gør det endnu nemmere at få hjælp hurtigt.',
+  'Alt fra Plus': 'Du får alle de samme funktioner som i Plus – og derudover ekstra fordele, som gør det endnu nemmere at få hjælp hurtigt.'
 };
-
 const getFeatureTooltip = (text: string) => featureTooltips[text] ?? 'Denne funktion er med i planen og er lavet til at gøre din digitale hverdag mere tryg og enkel.';
-
 const Pricing = () => {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+
   // Check if user is coming from signup page (needs to select plan first)
   const isSignupFlow = searchParams.get('signup') === 'true';
-  
   const combinedSchema = {
     '@context': 'https://schema.org',
-    '@graph': [
-      subscriptionPricingSchema,
-      generateBreadcrumbSchema(location.pathname),
-    ],
+    '@graph': [subscriptionPricingSchema, generateBreadcrumbSchema(location.pathname)]
   };
-
   const handleSelectPlan = async (planId: string) => {
     // If user is in signup flow, redirect to signup with selected plan
     if (isSignupFlow) {
       navigate(`/signup?plan=${planId}`);
       return;
     }
-    
     setLoadingPlan(planId);
-    
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { planTier: planId },
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          planTier: planId
+        }
       });
-
       if (error) throw error;
-      
       if (data?.url) {
         window.open(data.url, '_blank');
       } else {
@@ -125,15 +162,8 @@ const Pricing = () => {
       setLoadingPlan(null);
     }
   };
-
-  return (
-    <PublicLayout>
-      <SEOHead
-        title="Priser - MitTek IT-hjælp fra 39 kr./md"
-        description="Vælg den plan der passer dig. Basic fra 39 kr., Plus fra 79 kr. eller Pro fra 99 kr. Ingen binding, opsig når som helst. Din Digitale Hjælper inkluderet."
-        canonical="https://www.mittek.dk/pricing"
-        jsonLd={combinedSchema}
-      />
+  return <PublicLayout>
+      <SEOHead title="Priser - MitTek IT-hjælp fra 39 kr./md" description="Vælg den plan der passer dig. Basic fra 39 kr., Plus fra 79 kr. eller Pro fra 99 kr. Ingen binding, opsig når som helst. Din Digitale Hjælper inkluderet." canonical="https://www.mittek.dk/pricing" jsonLd={combinedSchema} />
       <section className="py-8 sm:py-12 md:py-24 px-4" aria-labelledby="pricing-heading">
         <div className="container">
           {/* Breadcrumb Navigation */}
@@ -159,7 +189,7 @@ const Pricing = () => {
                 <MessageCircle className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
               </div>
               <div>
-                <h3 className="font-semibold text-base md:text-lg text-primary">Din Digitale Hjælper inkluderet i alle planer</h3>
+                <h3 className="font-semibold text-base md:text-lg text-primary">Din Digitale Hjælper er inkluderet i alle planer</h3>
                 <p className="text-sm md:text-base text-muted-foreground">
                   Stil spørgsmål på dansk døgnet rundt. Vores hjælper forstår dig og giver enkle svar.
                 </p>
@@ -169,25 +199,13 @@ const Pricing = () => {
 
           {/* Pricing cards - 1 col mobile, 2 col tablet, 3 col desktop */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto">
-            {plans.map((plan) => (
-              <div
-                key={plan.id}
-                className={`card-elevated p-5 sm:p-6 md:p-8 relative flex flex-col ${
-                  plan.popular ? 'ring-2 ring-primary shadow-xl shadow-primary/10' : ''
-                } ${
-                  plan.id === 'pro'
-                    ? 'sm:col-span-2 sm:max-w-[560px] sm:justify-self-center lg:col-span-1 lg:max-w-none'
-                    : ''
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+            {plans.map(plan => <div key={plan.id} className={`card-elevated p-5 sm:p-6 md:p-8 relative flex flex-col ${plan.popular ? 'ring-2 ring-primary shadow-xl shadow-primary/10' : ''} ${plan.id === 'pro' ? 'sm:col-span-2 sm:max-w-[560px] sm:justify-self-center lg:col-span-1 lg:max-w-none' : ''}`}>
+                {plan.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <div className="flex items-center gap-1.5 px-3 py-1 md:px-4 md:py-1.5 bg-primary text-primary-foreground rounded-full text-xs md:text-sm font-semibold shadow-lg shadow-primary/30">
                       <Star className="h-3.5 w-3.5 md:h-4 md:w-4" />
                       Mest valgt
                     </div>
-                  </div>
-                )}
+                  </div>}
 
                 <div className="text-center mb-4 sm:mb-4 md:mb-8">
                   <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-1">{plan.name}</h2>
@@ -200,70 +218,38 @@ const Pricing = () => {
 
                 <TooltipProvider delayDuration={150}>
                   <ul className="space-y-2 sm:space-y-2 md:space-y-4 mb-6 md:mb-8 flex-1">
-                    {plan.features.map((feature, index) => (
-                      <li 
-                        key={index} 
-                        className={`flex items-start gap-2 ${
-                          feature.highlight ? 'bg-primary/5 -mx-2 px-2 py-1.5 sm:py-1.5 md:py-2 rounded-lg' : ''
-                        }`}
-                      >
-                        {feature.included ? (
-                          <Check className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
-                        ) : (
-                          <X className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
-                        )}
+                    {plan.features.map((feature, index) => <li key={index} className={`flex items-start gap-2 ${feature.highlight ? 'bg-primary/5 -mx-2 px-2 py-1.5 sm:py-1.5 md:py-2 rounded-lg' : ''}`}>
+                        {feature.included ? <Check className="h-4 w-4 text-success flex-shrink-0 mt-0.5" /> : <X className="h-4 w-4 text-muted-foreground/50 flex-shrink-0 mt-0.5" />}
 
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span
-                              className={cn(
-                                "text-sm leading-tight cursor-help",
-                                !feature.included && "text-muted-foreground/50",
-                                feature.highlight && "font-medium"
-                              )}
-                            >
+                            <span className={cn("text-sm leading-tight cursor-help", !feature.included && "text-muted-foreground/50", feature.highlight && "font-medium")}>
                               {feature.text}
                             </span>
                           </TooltipTrigger>
-                          <TooltipContent
-                            side="top"
-                            align="start"
-                            className="max-w-[320px] whitespace-normal leading-relaxed"
-                          >
+                          <TooltipContent side="top" align="start" className="max-w-[320px] whitespace-normal leading-relaxed">
                             {getFeatureTooltip(feature.text)}
                           </TooltipContent>
                         </Tooltip>
-                      </li>
-                    ))}
+                      </li>)}
                   </ul>
                 </TooltipProvider>
 
                 <div className="space-y-2">
-                  <Button
-                    variant={plan.popular ? 'hero' : 'outline'}
-                    size="lg"
-                    className="w-full h-11 rounded-full"
-                    onClick={() => handleSelectPlan(plan.id)}
-                    disabled={loadingPlan !== null}
-                  >
-                    {loadingPlan === plan.id ? (
-                      <>
+                  <Button variant={plan.popular ? 'hero' : 'outline'} size="lg" className="w-full h-11 rounded-full" onClick={() => handleSelectPlan(plan.id)} disabled={loadingPlan !== null}>
+                    {loadingPlan === plan.id ? <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Vent venligst...
-                      </>
-                    ) : (
-                      <>
+                      </> : <>
                         <span className="text-sm">Start gratis prøve</span>
                         <ArrowRight className="ml-2 h-4 w-4" />
-                      </>
-                    )}
+                      </>}
                   </Button>
                   <p className="text-xs text-center text-muted-foreground">
                     Ingen betaling i dag
                   </p>
                 </div>
-              </div>
-            ))}
+              </div>)}
           </div>
 
           {/* Guarantee Section */}
@@ -304,8 +290,6 @@ const Pricing = () => {
           </div>
         </div>
       </section>
-    </PublicLayout>
-  );
+    </PublicLayout>;
 };
-
 export default Pricing;
