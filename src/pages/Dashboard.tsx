@@ -833,8 +833,16 @@ const Dashboard = () => {
   }, [activeDragId]);
 
   // Track when edit mode was entered to prevent immediate exit from click events
+  // (On desktop, the mouseup after a long-press can otherwise trigger an immediate "exit wiggle" click.)
+  const EXIT_EDIT_MODE_GRACE_MS = 350;
   const editModeStartTimeRef = useRef<number>(0);
-  
+
+  const requestExitEditMode = useCallback(() => {
+    // Ignore clicks that happen right after entering edit mode
+    if (Date.now() - editModeStartTimeRef.current < EXIT_EDIT_MODE_GRACE_MS) return;
+    setIsEditMode(false);
+  }, [setIsEditMode]);
+
   // Update ref when entering edit mode
   useEffect(() => {
     if (isEditMode) {
@@ -846,25 +854,32 @@ const Dashboard = () => {
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (!isEditMode) return;
-      
-      // Ignore clicks that happen within 300ms of entering edit mode
-      // This prevents the mouseup from long-press from immediately exiting
-      if (Date.now() - editModeStartTimeRef.current < 300) return;
-      
+
+      // Prevent the mouseup click from a long-press from instantly exiting edit mode
+      if (Date.now() - editModeStartTimeRef.current < EXIT_EDIT_MODE_GRACE_MS) return;
+
       const target = e.target as HTMLElement;
 
       // Check if click is on the background, main, or container (not on cards)
-      const isBackground = target.tagName === 'MAIN' || target.classList.contains('container') || target.classList.contains('space-y-10') || target.classList.contains('space-y-12') || target.id === 'dashboard-wrapper';
+      const isBackground =
+        target.tagName === 'MAIN' ||
+        target.classList.contains('container') ||
+        target.classList.contains('space-y-10') ||
+        target.classList.contains('space-y-12') ||
+        target.id === 'dashboard-wrapper';
 
       // Also check if click is NOT on a card or interactive element
-      const isOnCard = target.closest('.card-interactive, [data-radix-collection-item], button, input, [data-sortable-item]');
+      const isOnCard = target.closest(
+        '.card-interactive, [data-radix-collection-item], button, input, [data-sortable-item]'
+      );
       if (isBackground && !isOnCard) {
-        setIsEditMode(false);
+        requestExitEditMode();
       }
     };
+
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
-  }, [isEditMode]);
+  }, [isEditMode, requestExitEditMode]);
   const handleCheckinStatus = useCallback((hasRecent: boolean, data?: any) => {
     if (hasRecent && data) {
       setCheckinData(data);
@@ -931,6 +946,8 @@ const Dashboard = () => {
       scrollTop
     };
     const timer = setTimeout(() => {
+      // Set immediately so the mouseup click can't exit edit mode before React commits the update
+      editModeStartTimeRef.current = Date.now();
       setIsEditMode(true);
       haptics.tick(); // Haptic on enter edit mode
       pressStartRef.current = null;
@@ -1515,7 +1532,7 @@ const Dashboard = () => {
                           {categoryCards.map(card => {
                       // Check if this card is the drop target during cross-category drag
                       const isDraggedFromOtherCategory = activeDragId && !categoryCards.some(c => c.id === activeDragId);
-                      return <SortableCard key={card.id} card={card} hasAccess={hasAccess(card.minPlan)} isEditMode={isEditMode} onRemove={() => handleRemoveCard(card.id)} isBeingDragged={activeDragId === card.id} onExitEditMode={() => setIsEditMode(false)} isDropTarget={dropTargetId === card.id && isDraggedFromOtherCategory} />;
+                      return <SortableCard key={card.id} card={card} hasAccess={hasAccess(card.minPlan)} isEditMode={isEditMode} onRemove={() => handleRemoveCard(card.id)} isBeingDragged={activeDragId === card.id} onExitEditMode={requestExitEditMode} isDropTarget={dropTargetId === card.id && isDraggedFromOtherCategory} />;
                     })}
                           
                           {/* Placeholder ONLY at END when hovering over empty zone */}
