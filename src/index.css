@@ -496,6 +496,8 @@ body.dragging-active {
   /* Enable scroll for auto-scroll to work */
   overflow-y: auto !important;
   overscroll-behavior: none;
+  /* Prevent iOS rubber-band effect during drag */
+  -webkit-overflow-scrolling: auto;
 }
 
 /* iOS-style smooth card transitions during drag sorting */
@@ -503,16 +505,46 @@ body.dragging-active {
   will-change: transform;
 }
 
-/* Tight, snappy animation for cards - high stiffness, high damping (no bounce) */
+/* Tight, snappy animation for cards with bounce on touch devices */
 .card-interactive {
   transition: transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1), 
               box-shadow 150ms ease-out,
               opacity 150ms ease-out;
 }
 
+/* Touch device: disable hover states that cause sticky behavior */
+@media (hover: none) and (pointer: coarse) {
+  .card-interactive:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
 /* During active sorting - instant, tight response */
 body.dragging-active .card-interactive:not([data-dragging="true"]) {
   transition: transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Snap-to-position bounce effect for dropped cards */
+@keyframes snap-bounce {
+  0% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(0.98);
+  }
+  75% {
+    transform: scale(1.01);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.snap-bounce {
+  animation: snap-bounce 300ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* Dashboard grid - ensures height can grow during drag with smooth transition */
