@@ -36,9 +36,8 @@ import {
 import { format } from 'date-fns';
 import { da } from 'date-fns/locale';
 
-// Security code for vault access (in production, this would be fetched/configured)
-const VAULT_SECURITY_CODE = 'MITTEK2024';
-
+// Note: Vault access now uses Digital Legacy access codes instead of a hardcoded security code
+// The security challenge validates against the user's legacy_access_code_hash in profiles
 interface TrustedHelper {
   id: string;
   helper_email: string;
@@ -178,15 +177,41 @@ export function TrustedHelperSection() {
     }
   };
 
-  const handleSecurityCodeSubmit = () => {
-    if (securityCode.trim().toUpperCase() === VAULT_SECURITY_CODE) {
-      setCanViewVault(true);
-      setShowVaultChallenge(false);
-      setSecurityCode('');
-      setCodeError('');
-      toast.success('Kode-mappe adgang aktiveret');
-    } else {
-      setCodeError('Forkert sikkerhedskode. Prøv igen.');
+  const handleSecurityCodeSubmit = async () => {
+    if (!user) return;
+    
+    try {
+      // Hash the entered code to compare with stored hash
+      const encoder = new TextEncoder();
+      const data = encoder.encode(securityCode.trim());
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const enteredCodeHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      // Check against user's Digital Legacy code hash
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('legacy_access_code_hash')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile?.legacy_access_code_hash) {
+        setCodeError('Du har ikke oprettet en adgangskode i Digital Arv endnu.');
+        return;
+      }
+
+      if (enteredCodeHash === profile.legacy_access_code_hash) {
+        setCanViewVault(true);
+        setShowVaultChallenge(false);
+        setSecurityCode('');
+        setCodeError('');
+        toast.success('Kode-mappe adgang aktiveret');
+      } else {
+        setCodeError('Forkert sikkerhedskode. Prøv igen.');
+      }
+    } catch (error) {
+      console.error('Error validating code:', error);
+      setCodeError('Der opstod en fejl. Prøv igen.');
     }
   };
 
@@ -340,7 +365,7 @@ export function TrustedHelperSection() {
                     Sikkerhedsbekræftelse
                   </DialogTitle>
                   <DialogDescription>
-                    Adgang til Kode-mappen er følsom. Indtast din sikkerhedskode for at bekræfte.
+                    Adgang til Kode-mappen er følsom. Indtast din Digital Arv adgangskode for at bekræfte.
                   </DialogDescription>
                 </DialogHeader>
                 
@@ -348,12 +373,12 @@ export function TrustedHelperSection() {
                   <div className="space-y-2">
                     <Label htmlFor="security-code" className="flex items-center gap-2">
                       <Lock className="h-4 w-4" />
-                      Sikkerhedskode
+                      Digital Arv adgangskode
                     </Label>
                     <Input
                       id="security-code"
                       type="password"
-                      placeholder="Indtast kode"
+                      placeholder="Indtast din Digital Arv kode"
                       value={securityCode}
                       onChange={(e) => {
                         setSecurityCode(e.target.value);
@@ -372,7 +397,7 @@ export function TrustedHelperSection() {
                   </div>
                   
                   <p className="text-xs text-muted-foreground">
-                    Tip: Sikkerhedskoden blev givet til dig ved oprettelse af din konto.
+                    Tip: Denne kode opretter du i Digital Arv på din oversigt. Den samme kode sender du til din betroede kontakt.
                   </p>
                 </div>
 

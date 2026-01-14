@@ -466,6 +466,8 @@ export type Database = {
           emergency_helper_phone: string | null
           id: string
           is_admin: boolean | null
+          legacy_access_code_hash: string | null
+          legacy_access_code_sent_at: string | null
           onboarding_completed: boolean | null
           owned_devices: string[] | null
           senior_mode_enabled: boolean | null
@@ -483,6 +485,8 @@ export type Database = {
           emergency_helper_phone?: string | null
           id?: string
           is_admin?: boolean | null
+          legacy_access_code_hash?: string | null
+          legacy_access_code_sent_at?: string | null
           onboarding_completed?: boolean | null
           owned_devices?: string[] | null
           senior_mode_enabled?: boolean | null
@@ -500,6 +504,8 @@ export type Database = {
           emergency_helper_phone?: string | null
           id?: string
           is_admin?: boolean | null
+          legacy_access_code_hash?: string | null
+          legacy_access_code_sent_at?: string | null
           onboarding_completed?: boolean | null
           owned_devices?: string[] | null
           senior_mode_enabled?: boolean | null
