@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { MoreHorizontal, Mail, Edit, UserX, UserCheck, Loader2, Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { MoreHorizontal, Mail, Edit, UserX, UserCheck, Loader2, Trash2, RefreshCw, AlertTriangle, Key } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -22,6 +22,7 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
   const [confirmDeactivateOpen, setConfirmDeactivateOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [confirmRemovePlanOpen, setConfirmRemovePlanOpen] = useState(false);
+  const [confirmResetLegacyOpen, setConfirmResetLegacyOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'plus' | 'pro'>(
     (currentPlan as 'basic' | 'plus' | 'pro') || 'basic'
   );
@@ -103,6 +104,26 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
       onActionComplete();
     } catch (error: any) {
       toast.error(error.message || 'Kunne ikke fjerne plan');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetLegacyCode = async () => {
+    setIsLoading(true);
+    try {
+      const response = await supabase.functions.invoke('admin-manage-user', {
+        body: { action: 'reset_legacy_code', userId }
+      });
+
+      if (response.error) throw new Error(response.error.message);
+      if (response.data?.error) throw new Error(response.data.error);
+
+      toast.success(`Digital Arv kode nulstillet for ${userEmail}`);
+      setConfirmResetLegacyOpen(false);
+      onActionComplete();
+    } catch (error: any) {
+      toast.error(error.message || 'Kunne ikke nulstille Digital Arv kode');
     } finally {
       setIsLoading(false);
     }
@@ -230,6 +251,13 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
           >
             <UserX className="mr-2 h-4 w-4" />
             Fjern plan (ingen plan)
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => setConfirmResetLegacyOpen(true)}
+            className="text-warning"
+          >
+            <Key className="mr-2 h-4 w-4" />
+            Nulstil Digital Arv kode
           </DropdownMenuItem>
           <DropdownMenuItem 
             onClick={openDeleteDialog}
@@ -390,6 +418,36 @@ export function UserActionsMenu({ userId, userEmail, currentPlan, isActive, onAc
             >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserX className="mr-2 h-4 w-4" />}
               Fjern plan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Reset Legacy Code Dialog */}
+      <Dialog open={confirmResetLegacyOpen} onOpenChange={setConfirmResetLegacyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-warning flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Nulstil Digital Arv Kode
+            </DialogTitle>
+            <DialogDescription>
+              Er du sikker på at du vil nulstille Digital Arv koden for {userEmail}? 
+              <br /><br />
+              Brugeren vil kunne oprette en ny hemmelig kode. Den gamle kode vil ikke længere virke.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmResetLegacyOpen(false)}>
+              Annuller
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleResetLegacyCode} 
+              disabled={isLoading}
+            >
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Key className="mr-2 h-4 w-4" />}
+              Nulstil kode
             </Button>
           </DialogFooter>
         </DialogContent>

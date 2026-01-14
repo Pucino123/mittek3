@@ -478,9 +478,8 @@ const KodeMappe = () => {
     }
 
     try {
-      // Dynamically import jsPDF and autoTable
+      // Dynamically import jsPDF
       const { default: jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
       
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
@@ -534,56 +533,78 @@ const KodeMappe = () => {
       doc.setFontSize(9);
       doc.setTextColor(161, 98, 7); // Warning text color
       doc.setFont('helvetica', 'bold');
-      doc.text('⚠️ FORTROLIGT DOKUMENT', margin + 5, yPos + 8);
+      doc.text('FORTROLIGT DOKUMENT', margin + 5, yPos + 8);
       doc.setFont('helvetica', 'normal');
       doc.text('Denne fil indeholder dine adgangskoder. Opbevar den sikkert og slet den efter brug.', margin + 5, yPos + 14);
       
       doc.setTextColor(0, 0, 0);
       yPos += 30;
       
-      // Table with codes
-      const tableData = items.map((item, index) => [
-        (index + 1).toString(),
-        item.title,
-        item.secret,
-        item.note || '-'
-      ]);
+      // Table header
+      doc.setFillColor(30, 64, 175);
+      doc.rect(margin, yPos, pageWidth - (margin * 2), 10, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
       
-      autoTable(doc, {
-        startY: yPos,
-        head: [['#', 'Titel', 'Kode/Adgangskode', 'Note']],
-        body: tableData,
-        margin: { left: margin, right: margin },
-        headStyles: {
-          fillColor: [30, 64, 175],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 10,
-        },
-        bodyStyles: {
-          fontSize: 9,
-          cellPadding: 4,
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252],
-        },
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 40 },
-          2: { cellWidth: 60, fontStyle: 'bold' },
-          3: { cellWidth: 'auto' },
-        },
-        styles: {
-          overflow: 'linebreak',
-          lineColor: [226, 232, 240],
-          lineWidth: 0.5,
-        },
+      const colWidths = [12, 45, 55, 58];
+      let xPos = margin + 3;
+      doc.text('#', xPos, yPos + 7);
+      xPos += colWidths[0];
+      doc.text('Titel', xPos, yPos + 7);
+      xPos += colWidths[1];
+      doc.text('Kode/Adgangskode', xPos, yPos + 7);
+      xPos += colWidths[2];
+      doc.text('Note', xPos, yPos + 7);
+      
+      yPos += 10;
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      
+      // Table rows
+      items.forEach((item, index) => {
+        const rowHeight = 12;
+        
+        // Check if we need a new page
+        if (yPos + rowHeight > pageHeight - 30) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        // Alternate row background
+        if (index % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(margin, yPos, pageWidth - (margin * 2), rowHeight, 'F');
+        }
+        
+        // Draw row border
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(margin, yPos, pageWidth - (margin * 2), rowHeight, 'S');
+        
+        // Row content
+        xPos = margin + 3;
+        doc.text((index + 1).toString(), xPos, yPos + 8);
+        xPos += colWidths[0];
+        
+        // Truncate text if too long
+        const truncate = (text: string, maxLen: number) => 
+          text.length > maxLen ? text.substring(0, maxLen - 2) + '..' : text;
+        
+        doc.text(truncate(item.title, 22), xPos, yPos + 8);
+        xPos += colWidths[1];
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(truncate(item.secret, 28), xPos, yPos + 8);
+        doc.setFont('helvetica', 'normal');
+        xPos += colWidths[2];
+        
+        doc.text(truncate(item.note || '-', 30), xPos, yPos + 8);
+        
+        yPos += rowHeight;
       });
       
-      // Footer
-      const finalY = (doc as any).lastAutoTable?.finalY || yPos + 50;
-      
-      // Add footer on each page
+      // Footer on each page
       const pageCount = doc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);

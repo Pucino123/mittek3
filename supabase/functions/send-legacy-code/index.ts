@@ -14,11 +14,12 @@ const RATE_LIMIT_WINDOW_MS = 3600000; // 1 hour
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 sends per hour per user
 
 interface SendCodeRequest {
-  access_code: string;
+  access_code?: string;
   contact_name: string;
   contact_email: string;
   instructions?: string;
   vault_items?: Array<{ title: string; secret: string; note?: string }>;
+  resend_only?: boolean; // If true, just resend the email without changing the code
 }
 
 const logStep = (step: string, details?: unknown) => {
@@ -168,10 +169,10 @@ serve(async (req: Request) => {
       );
     }
 
-    const { access_code, contact_name, contact_email, instructions, vault_items }: SendCodeRequest = await req.json();
+    const { access_code, contact_name, contact_email, instructions, vault_items, resend_only }: SendCodeRequest = await req.json();
 
     // Validate inputs
-    if (!access_code || access_code.length < 4) {
+    if (!resend_only && (!access_code || access_code.length < 4)) {
       return new Response(
         JSON.stringify({ error: "Adgangskode skal være mindst 4 tegn" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -192,19 +193,112 @@ serve(async (req: Request) => {
       );
     }
 
-    logStep("Sending legacy code", { contactEmail: contact_email, userId: user.id, hasVaultItems: !!vault_items });
+    logStep("Processing legacy code request", { contactEmail: contact_email, userId: user.id, resendOnly: resend_only });
 
-    // Get user profile for display name
+    // Get user profile for display name and existing code
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("display_name, email")
+      .select("display_name, email, legacy_access_code_hash")
       .eq("user_id", user.id)
       .single();
 
     const senderName = profile?.display_name || profile?.email?.split('@')[0] || 'En bruger';
 
-    // Hash and store the access code
-    const codeHash = await hashCode(access_code);
+    // For resend_only, we need to fetch the stored code from the vault backup
+    let codeToSend = access_code;
+    
+    if (resend_only) {
+      // Check that there's an existing code
+      if (!profile?.legacy_access_code_hash) {
+        return new Response(
+          JSON.stringify({ error: "Ingen eksisterende kode at gensende" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // We can't retrieve the actual code (it's hashed), so we send a message that they should use the original code
+      // Update the sent_at timestamp
+      await supabaseAdmin
+        .from("profiles")
+        .update({
+          legacy_access_code_sent_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id);
+      
+      // Send a reminder email instead
+      const appUrl = "https://www.mittek.dk";
+      
+      const emailResponse = await resend.emails.send({
+        from: "MitTek <noreply@mittek.dk>",
+        to: [contact_email],
+        subject: `Digital Arv: Påmindelse fra ${senderName}`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                </svg>
+              </div>
+              <h1 style="color: #1a1a1a; margin-top: 16px; font-size: 24px;">Digital Arv - Påmindelse</h1>
+            </div>
+            
+            <h2 style="color: #1a1a1a; font-size: 20px;">Kære ${contact_name}</h2>
+            
+            <p style="font-size: 16px;">Dette er en påmindelse fra <strong>${senderName}</strong> om at du har modtaget en adgangskode til deres digitale Kode-mappe på MitTek.</p>
+            
+            <div style="background: #f0f9ff; border: 2px solid #3B82F6; border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center;">
+              <p style="font-size: 14px; color: #666; margin-bottom: 8px;">Du har tidligere modtaget en adgangskode.</p>
+              <p style="font-size: 16px; color: #1a1a1a; margin: 0;">Tjek din oprindelige email fra MitTek for koden.</p>
+            </div>
+            
+            ${instructions ? `
+            <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 24px 0;">
+              <p style="font-size: 14px; color: #666; margin-bottom: 8px;"><strong>Opdateret besked fra ${senderName}:</strong></p>
+              <p style="font-size: 15px; color: #333; margin: 0; white-space: pre-wrap;">${instructions}</p>
+            </div>
+            ` : ''}
+            
+            <p style="font-size: 16px;">For at bruge koden skal du:</p>
+            <ol style="font-size: 16px;">
+              <li>Gå til <a href="${appUrl}" style="color: #3B82F6;">MitTek</a></li>
+              <li>Log ind som ${senderName}s betroede hjælper</li>
+              <li>Vælg at se Kode-mappen</li>
+              <li>Indtast adgangskoden fra den oprindelige email</li>
+            </ol>
+            
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+            
+            <p style="color: #999; font-size: 12px; text-align: center;">
+              Denne påmindelse blev sendt til dig fordi ${senderName} har valgt dig som deres betroede kontaktperson på MitTek.
+            </p>
+          </body>
+          </html>
+        `,
+      });
+
+      logStep("Reminder email sent", { emailResponse });
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Påmindelse sendt til din kontaktperson" 
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    // Hash and store the access code (new code flow)
+    const codeHash = await hashCode(access_code!);
     
     await supabaseAdmin
       .from("profiles")
@@ -216,7 +310,7 @@ serve(async (req: Request) => {
 
     // If vault items are provided, encrypt and store them as a backup
     if (vault_items && vault_items.length > 0) {
-      const key = await deriveKeyFromCode(access_code, user.id);
+      const key = await deriveKeyFromCode(access_code!, user.id);
       const vaultDataJson = JSON.stringify(vault_items);
       const { ciphertext, iv } = await encryptVaultData(vaultDataJson, key);
       

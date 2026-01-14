@@ -1,5 +1,5 @@
 import { forwardRef, useState, useEffect, useRef } from 'react';
-import { HeartHandshake, Save, Check, X, User, Phone, FileText, Key, Send, Loader2, Mail, Lock, AlertTriangle } from 'lucide-react';
+import { HeartHandshake, Save, Check, X, User, Phone, FileText, Key, Send, Loader2, Mail, Lock, AlertTriangle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -41,6 +41,7 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
     const [saved, setSaved] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [isResending, setIsResending] = useState(false);
     const [showSendForm, setShowSendForm] = useState(false);
     
     // Security: Track if code is already set (locked)
@@ -197,6 +198,60 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
         });
       } finally {
         setIsSending(false);
+      }
+    };
+
+    // Resend the existing code email (code is already in DB, we just trigger a new email)
+    const handleResendEmail = async () => {
+      if (!user) {
+        toast.error('Du skal være logget ind');
+        return;
+      }
+      
+      if (!data.contactName || !data.contactEmail) {
+        toast.error('Udfyld kontaktpersons navn og email først');
+        return;
+      }
+
+      setIsResending(true);
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          throw new Error('Ikke logget ind');
+        }
+
+        const { error } = await supabase.functions.invoke('send-legacy-code', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: {
+            resend_only: true,
+            contact_name: data.contactName,
+            contact_email: data.contactEmail,
+            instructions: data.instructions,
+          },
+        });
+
+        if (error) throw error;
+
+        // Update sent timestamp
+        const sentAt = new Date().toISOString();
+        const updatedData = { ...data, codeSentAt: sentAt };
+        setData(updatedData);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
+
+        toast.success('Email gensendt!', {
+          description: `Koden er sendt igen til ${data.contactEmail}.`,
+        });
+      } catch (error: any) {
+        console.error('Resend error:', error);
+        toast.error('Kunne ikke gensende emailen', {
+          description: error.message || 'Prøv igen senere',
+        });
+      } finally {
+        setIsResending(false);
       }
     };
 
@@ -391,7 +446,7 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
                   Tjekker status...
                 </div>
               ) : isCodeLocked ? (
-                // Code is already set and locked - show locked status
+                // Code is already set and locked - show locked status with resend option
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-success bg-success/10 p-3 rounded-lg">
                     <Lock className="h-4 w-4 flex-shrink-0" />
@@ -404,9 +459,30 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
                       </p>
                     </div>
                   </div>
+                  
+                  {/* Resend email button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={handleResendEmail}
+                    disabled={isResending || !data.contactEmail}
+                  >
+                    {isResending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sender...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4" />
+                        Gensend email til {data.contactEmail || 'modtager'}
+                      </>
+                    )}
+                  </Button>
+                  
                   <p className="text-xs text-muted-foreground">
-                    🔒 Din hemmelige kode er sikkert gemt og kan kun ses af modtageren via email. 
-                    Den kan ikke ændres eller nulstilles.
+                    🔒 Din hemmelige kode er sikkert gemt. Du kan gensende emailen til modtageren hvis de har mistet den.
                   </p>
                 </div>
               ) : (

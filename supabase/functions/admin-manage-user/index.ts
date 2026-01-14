@@ -13,7 +13,8 @@ interface ManageUserRequest {
     | "toggle_status"
     | "delete_user"
     | "delete_user_by_email"
-    | "remove_plan";
+    | "remove_plan"
+    | "reset_legacy_code";
   userId?: string;
   email?: string;
   planTier?: "basic" | "plus" | "pro";
@@ -358,6 +359,28 @@ Deno.serve(async (req) => {
         if (error) throw error;
 
         result = { success: true, message: "Plan removed - user now has no active subscription" };
+        break;
+      }
+
+      case "reset_legacy_code": {
+        // Clear the legacy access code hash and vault backup so user can set a new one
+        const { error: profileError } = await adminClient
+          .from("profiles")
+          .update({
+            legacy_access_code_hash: null,
+            legacy_access_code_sent_at: null,
+          })
+          .eq("user_id", userId);
+
+        if (profileError) throw profileError;
+
+        // Also delete the encrypted vault backup
+        await adminClient
+          .from("legacy_vault_backups")
+          .delete()
+          .eq("user_id", userId);
+
+        result = { success: true, message: "Legacy code reset - user can now set a new code" };
         break;
       }
 
