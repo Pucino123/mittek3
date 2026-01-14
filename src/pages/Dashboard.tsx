@@ -176,6 +176,19 @@ const haptics = {
   },
 };
 
+// iPhone/iPad (iPadOS can masquerade as macOS "MacIntel")
+const isAppleTouchDevice = () => {
+  if (typeof navigator === 'undefined') return false;
+
+  const ua = navigator.userAgent || '';
+  const isiOSUA = /iPad|iPhone|iPod/.test(ua);
+  const isiPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+
+  return isiOSUA || isiPadOS;
+};
+
+const getTouchDragDelayMs = () => (isAppleTouchDevice() ? 3000 : 2000);
+
 // iOS-style spring animation config for Framer Motion
 const springTransition = {
   type: 'spring' as const,
@@ -437,6 +450,8 @@ const Dashboard = () => {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const toolsSectionRef = useRef<HTMLDivElement>(null);
   const lastScrollZoneRef = useRef<'top' | 'bottom' | null>(null);
+  const lastTouchYRef = useRef<number | null>(null);
+  const touchAutoScrollRafRef = useRef<number | null>(null);
   
   // Undo history stack (full snapshots for robust restore)
   type DashboardSnapshot = {
@@ -485,7 +500,7 @@ const Dashboard = () => {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 2000, // MOBILE: Must hold for 2 full seconds to avoid accidental activation during scroll
+        delay: getTouchDragDelayMs(), // iPhone/iPad: 3s, other touch devices: 2s
         tolerance: 8, // Slightly more tolerance for natural finger movement during hold
       },
     }),
@@ -634,22 +649,65 @@ const Dashboard = () => {
     return () => window.removeEventListener('pointermove', handlePointerMove);
   }, [activeDragId]);
 
-  // Block manual touch scrolling during drag, but allow programmatic auto-scroll
+  // Block manual touch scrolling during drag.
+  // On iPhone/iPad we also run our own auto-scroll loop as a fallback (dnd-kit autoScroll can be flaky on iOS).
   useEffect(() => {
     if (!activeDragId) return;
 
-    const preventManualScroll = (e: TouchEvent) => {
-      // Only prevent default if it's a scroll attempt during drag
-      if (e.cancelable) {
-        e.preventDefault();
-      }
+    const threshold = 0.15; // 15% - matches autoScroll threshold
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const t = e.touches?.[0];
+      if (t) lastTouchYRef.current = t.clientY;
     };
 
-    // Use passive: false to allow preventDefault
-    document.addEventListener('touchmove', preventManualScroll, { passive: false });
-    
+    const handleTouchMove = (e: TouchEvent) => {
+      const t = e.touches?.[0];
+      if (t) lastTouchYRef.current = t.clientY;
+
+      // Prevent iOS from treating this as a page scroll gesture while dragging
+      if (e.cancelable) e.preventDefault();
+    };
+
+    // Fallback auto-scroll on iOS/iPadOS
+    const tick = () => {
+      if (isAppleTouchDevice()) {
+        const y = lastTouchYRef.current;
+        if (typeof y === 'number') {
+          const viewportHeight = window.innerHeight;
+          const topZone = viewportHeight * threshold;
+          const bottomZone = viewportHeight * (1 - threshold);
+
+          let delta = 0;
+          if (y < topZone) {
+            const intensity = Math.min(1, (topZone - y) / topZone);
+            delta = -Math.ceil(8 + 24 * intensity);
+          } else if (y > bottomZone) {
+            const intensity = Math.min(1, (y - bottomZone) / topZone);
+            delta = Math.ceil(8 + 24 * intensity);
+          }
+
+          if (delta !== 0) {
+            window.scrollBy({ top: delta, left: 0, behavior: 'auto' });
+          }
+        }
+      }
+
+      touchAutoScrollRafRef.current = window.requestAnimationFrame(tick);
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    touchAutoScrollRafRef.current = window.requestAnimationFrame(tick);
+
     return () => {
-      document.removeEventListener('touchmove', preventManualScroll);
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      if (touchAutoScrollRafRef.current) {
+        window.cancelAnimationFrame(touchAutoScrollRafRef.current);
+        touchAutoScrollRafRef.current = null;
+      }
+      lastTouchYRef.current = null;
     };
   }, [activeDragId]);
 
@@ -729,7 +787,7 @@ const Dashboard = () => {
     const timer = setTimeout(() => {
       setIsEditMode(true);
       haptics.tick(); // Haptic on enter edit mode
-    }, 500); // 500ms long press
+    }, isAppleTouchDevice() ? 3000 : 500); // iPhone/iPad: 3s
     setLongPressTimer(timer);
   };
 
