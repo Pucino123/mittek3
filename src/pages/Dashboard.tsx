@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } 
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { IOSSwitch } from '@/components/ui/ios-switch';
-import { Shield, ClipboardCheck, BookOpen, HelpCircle, AlertTriangle, Camera, Lock, Settings, LogOut, Wrench, Loader2, ShieldCheck, Key, BookText, Battery, Star, Trash2, Wifi, HeartPulse, ShieldAlert, Smartphone, Clock, AlertCircle, Check, ChevronRight } from 'lucide-react';
+import { Shield, ClipboardCheck, BookOpen, HelpCircle, AlertTriangle, Camera, Lock, Settings, LogOut, Wrench, Loader2, ShieldCheck, Key, BookText, Battery, Star, Trash2, Wifi, HeartPulse, ShieldAlert, Smartphone, Clock, AlertCircle, Check, ChevronRight, CreditCard, HeartHandshake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +30,10 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStr
 import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon, StickyNote } from 'lucide-react';
 import { NoteWidgetCard } from '@/components/dashboard/NoteWidgetCard';
+import { SubscriptionTrackerCard } from '@/components/dashboard/SubscriptionTrackerCard';
+import { SpeedtestCard } from '@/components/dashboard/SpeedtestCard';
+import { DigitalLegacyCard } from '@/components/dashboard/DigitalLegacyCard';
+import { PasswordHealthCard } from '@/components/dashboard/PasswordHealthCard';
 
 // Card definition type
 interface CardDefinition {
@@ -211,6 +215,55 @@ const allCards: CardDefinition[] = [
   category: 'tools',
   isWidget: true,
   addedDate: '2025-01-10' // Added January 2025
+},
+// NEW PREMIUM TOOLS
+{
+  id: 'subscription-tracker',
+  title: 'Abonnements-overblik',
+  description: 'Hold styr på dine abonnementer',
+  icon: CreditCard,
+  href: '',
+  color: 'bg-primary/10 text-primary',
+  minPlan: 'pro',
+  category: 'tools',
+  isWidget: true,
+  addedDate: '2025-01-14'
+},
+{
+  id: 'speedtest',
+  title: 'Hastighedstest',
+  description: 'Test din internetforbindelse',
+  icon: Wifi,
+  href: '',
+  color: 'bg-info/10 text-info',
+  minPlan: 'plus',
+  category: 'tools',
+  isWidget: true,
+  addedDate: '2025-01-14'
+},
+{
+  id: 'digital-legacy',
+  title: 'Digital Arv',
+  description: 'Instrukser til dine pårørende',
+  icon: HeartHandshake,
+  href: '',
+  color: 'bg-accent/10 text-accent',
+  minPlan: 'pro',
+  category: 'extras',
+  isWidget: true,
+  addedDate: '2025-01-14'
+},
+{
+  id: 'password-health',
+  title: 'Kode-sundhed',
+  description: 'Test styrken af dine koder',
+  icon: ShieldCheck,
+  href: '',
+  color: 'bg-success/10 text-success',
+  minPlan: 'pro',
+  category: 'safety',
+  isWidget: true,
+  addedDate: '2025-01-14'
 }];
 
 // Standard Suite: The 16 tools visible by default on the dashboard
@@ -330,6 +383,33 @@ const animateLayoutChanges: AnimateLayoutChanges = args => {
   return true;
 };
 
+// Helper function to render the correct widget component based on card ID
+function renderWidgetCard(
+  card: CardDefinition,
+  props: {
+    isEditMode: boolean;
+    onRemove?: () => void;
+    isDragging?: boolean;
+    style?: React.CSSProperties;
+    onExitEditMode?: () => void;
+  }
+) {
+  switch (card.id) {
+    case 'notes':
+      return <NoteWidgetCard {...props} />;
+    case 'subscription-tracker':
+      return <SubscriptionTrackerCard {...props} />;
+    case 'speedtest':
+      return <SpeedtestCard {...props} />;
+    case 'digital-legacy':
+      return <DigitalLegacyCard {...props} />;
+    case 'password-health':
+      return <PasswordHealthCard {...props} />;
+    default:
+      return <NoteWidgetCard {...props} />;
+  }
+}
+
 // Sortable card wrapper - dnd-kit handles reflow automatically
 // We just show a dashed placeholder in the original slot during drag
 function SortableCard({
@@ -393,7 +473,7 @@ function SortableCard({
     <div className="w-full h-full flex items-center justify-center">
           <div className="text-primary/40 text-sm font-medium">↕️</div>
         </div> : (/* Render widget card (inline component) or regular card */
-    card.isWidget ? <NoteWidgetCard isEditMode={isEditMode} onRemove={onRemove} isDragging={isDragging} onExitEditMode={onExitEditMode} /> : <DashboardCard id={card.id} title={card.title} description={card.description} icon={card.icon} href={card.href} color={card.color} minPlan={card.minPlan} hasAccess={hasAccess} isEditMode={isEditMode} onRemove={onRemove} isDragging={isDragging} onExitEditMode={onExitEditMode} />)}
+    card.isWidget ? renderWidgetCard(card, { isEditMode, onRemove, isDragging, onExitEditMode }) : <DashboardCard id={card.id} title={card.title} description={card.description} icon={card.icon} href={card.href} color={card.color} minPlan={card.minPlan} hasAccess={hasAccess} isEditMode={isEditMode} onRemove={onRemove} isDragging={isDragging} onExitEditMode={onExitEditMode} />)}
     </div>;
 }
 
@@ -439,10 +519,7 @@ const DragOverlayCard = forwardRef<HTMLDivElement, {
     zIndex: 9999
   }}>
         {/* Render widget card or regular card */}
-        {card.isWidget ? <NoteWidgetCard isEditMode={true} isDragging={false} style={{
-      height: '100%',
-      transform: 'none'
-    }} /> : <DashboardCard id={card.id} title={card.title} description={card.description} icon={card.icon} href={card.href} color={card.color} minPlan={card.minPlan} hasAccess={hasAccess} isEditMode={true} isDragging={false} style={{
+        {card.isWidget ? renderWidgetCard(card, { isEditMode: true, isDragging: false, style: { height: '100%', transform: 'none' } }) : <DashboardCard id={card.id} title={card.title} description={card.description} icon={card.icon} href={card.href} color={card.color} minPlan={card.minPlan} hasAccess={hasAccess} isEditMode={true} isDragging={false} style={{
       height: '100%',
       transform: 'none'
     }} />}
