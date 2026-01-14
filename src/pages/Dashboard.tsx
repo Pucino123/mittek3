@@ -25,7 +25,7 @@ import { AddToolCard } from '@/components/dashboard/AddToolCard';
 import { AddToolModal } from '@/components/dashboard/AddToolModal';
 import { DashboardOnboardingTip } from '@/components/dashboard/DashboardOnboardingTip';
 import { EditableCategoryTitle } from '@/components/dashboard/EditableCategoryTitle';
-import { DndContext, closestCorners, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent, DragOverlay, useDroppable, MeasuringStrategy, AutoScrollActivator } from '@dnd-kit/core';
+import { DndContext, closestCorners, pointerWithin, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent, DragOverlay, useDroppable, MeasuringStrategy, AutoScrollActivator, type CollisionDetection } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from '@dnd-kit/sortable';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon, StickyNote } from 'lucide-react';
@@ -597,6 +597,13 @@ const Dashboard = () => {
     resetToDefault
   } = useDashboardSettings();
 
+  // Collision detection: prefer pointerWithin so empty categories accept drops across the whole box
+  const collisionDetectionStrategy = useCallback<CollisionDetection>((args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) return pointerCollisions;
+    return closestCorners(args);
+  }, []);
+
   // DnD sensors - In edit mode, drag starts immediately with small distance threshold
   // Outside edit mode, useSortable is disabled so this only matters when editing
   const sensors = useSensors(useSensor(PointerSensor, {
@@ -984,7 +991,11 @@ const Dashboard = () => {
 
     // For cross-category drags, track the target card for visual highlight
     // But DON'T inject placeholders mid-grid - let dnd-kit handle reflow
-    if (overId && overId !== activeId && !overId.startsWith('dropzone-') && !overId.startsWith('category-')) {
+    if (overId && overId !== activeId &&
+      !overId.startsWith('dropzone-') &&
+      !overId.startsWith('empty-zone-') &&
+      !overId.startsWith('category-') &&
+      !overId.startsWith('category-section-')) {
       setDropTargetId(overId);
     } else {
       setDropTargetId(null);
@@ -1408,7 +1419,7 @@ const Dashboard = () => {
         </div>
         {/* Categories with Cards */}
         <div ref={toolsSectionRef}>
-          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => {
+          <DndContext sensors={sensors} collisionDetection={collisionDetectionStrategy} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => {
           // Cleanup on drag cancel
           setActiveDropZone(null);
           setActiveDragId(null);
@@ -1437,7 +1448,7 @@ const Dashboard = () => {
         }}>
             {/* Single unified SortableContext for all cards - enables cross-category dragging */}
             <SortableContext items={[...currentCategoryOrder.map(id => `category-${id}`), ...visibleCards.map(c => c.id)]} strategy={rectSortingStrategy}>
-              <div id="dashboard-wrapper">
+              <div className="space-y-12 sm:space-y-16" id="dashboard-wrapper">
                 {currentCategoryOrder.map((categoryId, categoryIndex) => {
                 const categoryCards = cardsByCategory[categoryId] || [];
                 // Also check custom categories that might be empty but should still render
