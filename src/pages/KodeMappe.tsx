@@ -63,6 +63,8 @@ const KodeMappe = () => {
 
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isSetup, setIsSetup] = useState<boolean | null>(null);
+  const [hasLegacyBackup, setHasLegacyBackup] = useState(false);
+  const [isLegacyMode, setIsLegacyMode] = useState(false); // True if unlocked with legacy code
   const [passphrase, setPassphrase] = useState('');
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
@@ -143,15 +145,28 @@ const KodeMappe = () => {
         return;
       }
 
-      const { data } = await supabase
+      // Check for vault settings
+      const { data: vaultSettings } = await supabase
         .from('vault_settings')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      setIsSetup(!!data);
-      if (data) {
-        setSalt(data.salt);
+      // Also check if there's a legacy backup (from Digital Arv)
+      const { data: legacyBackup } = await supabase
+        .from('legacy_vault_backups')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const hasVaultSetup = !!vaultSettings;
+      const hasLegacy = !!legacyBackup;
+
+      setIsSetup(hasVaultSetup || hasLegacy); // Allow access if either exists
+      setHasLegacyBackup(hasLegacy);
+      
+      if (vaultSettings) {
+        setSalt(vaultSettings.salt);
       }
       setIsLoading(false);
     };
@@ -289,8 +304,56 @@ const KodeMappe = () => {
     setConfirmPassphrase('');
   };
 
+  // Helper function to derive key from legacy code (matches edge function)
+  const deriveKeyFromLegacyCode = async (code: string, saltString: string): Promise<CryptoKey> => {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(code),
+      'PBKDF2',
+      false,
+      ['deriveBits', 'deriveKey']
+    );
+    
+    return crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: encoder.encode(saltString),
+        iterations: 100000,
+        hash: 'SHA-256'
+      },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  };
+
+  // Decrypt legacy vault backup
+  const decryptLegacyBackup = async (encryptedData: string, iv: string, key: CryptoKey): Promise<VaultItem[]> => {
+    const ciphertextBuffer = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+    const ivBuffer = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
+    
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: ivBuffer },
+      key,
+      ciphertextBuffer
+    );
+    
+    const decoder = new TextDecoder();
+    const jsonData = decoder.decode(decrypted);
+    const parsed = JSON.parse(jsonData) as Array<{ title: string; secret: string; note?: string }>;
+    
+    return parsed.map((item, index) => ({
+      id: `legacy-${index}`,
+      title: item.title,
+      secret: item.secret,
+      note: item.note,
+    }));
+  };
+
   const handleUnlock = async () => {
-    if (!user || !salt) return;
+    if (!user) return;
     
     // Check if locked out
     if (lockoutUntil && Date.now() < lockoutUntil) {
@@ -303,77 +366,119 @@ const KodeMappe = () => {
     setError(null);
     setIsLoading(true);
 
-    try {
-      const key = await deriveKey(passphrase, salt);
-      
-      // Load encrypted items
-      const { data } = await supabase
-        .from('vault_items')
-        .select('*')
-        .eq('user_id', user.id);
+    let unlockSuccess = false;
 
-      if (data && data.length > 0) {
-        // Try to decrypt each item individually - robust approach
-        const decryptedItems: VaultItem[] = [];
-        let decryptionSucceeded = false;
-        let failedCount = 0;
+    // FIRST: Try to unlock with the user's vault passphrase (if salt exists)
+    if (salt) {
+      try {
+        const key = await deriveKey(passphrase, salt);
         
-        for (const item of data) {
-          try {
-            const decryptedTitle = await decrypt(item.title_encrypted, item.iv, key);
-            const decryptedSecret = await decrypt(item.secret_encrypted, item.iv, key);
-            const decryptedNote = item.note_encrypted 
-              ? await decrypt(item.note_encrypted, item.iv, key) 
-              : undefined;
-            
-            decryptedItems.push({
-              id: item.id,
-              title: decryptedTitle,
-              secret: decryptedSecret,
-              note: decryptedNote,
-              folder_id: item.folder_id || undefined,
-            });
-            decryptionSucceeded = true;
-          } catch (itemError) {
-            console.warn(`Failed to decrypt item ${item.id}:`, itemError);
-            failedCount++;
-            // Continue trying other items
+        // Load encrypted items
+        const { data } = await supabase
+          .from('vault_items')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (data && data.length > 0) {
+          // Try to decrypt each item individually - robust approach
+          const decryptedItems: VaultItem[] = [];
+          let decryptionSucceeded = false;
+          let failedCount = 0;
+          
+          for (const item of data) {
+            try {
+              const decryptedTitle = await decrypt(item.title_encrypted, item.iv, key);
+              const decryptedSecret = await decrypt(item.secret_encrypted, item.iv, key);
+              const decryptedNote = item.note_encrypted 
+                ? await decrypt(item.note_encrypted, item.iv, key) 
+                : undefined;
+              
+              decryptedItems.push({
+                id: item.id,
+                title: decryptedTitle,
+                secret: decryptedSecret,
+                note: decryptedNote,
+                folder_id: item.folder_id || undefined,
+              });
+              decryptionSucceeded = true;
+            } catch (itemError) {
+              console.warn(`Failed to decrypt item ${item.id}:`, itemError);
+              failedCount++;
+              // Continue trying other items
+            }
           }
+          
+          // If we decrypted at least one item, the password is correct
+          if (decryptionSucceeded) {
+            setItems(decryptedItems);
+            setCryptoKey(key);
+            setIsLegacyMode(false);
+            unlockSuccess = true;
+            
+            // Warn about corrupted items
+            if (failedCount > 0) {
+              toast({
+                title: `${failedCount} kode${failedCount > 1 ? 'r' : ''} kunne ikke læses`,
+                description: 'Nogle ældre poster kan være beskadiget. Nye koder vil fungere normalt.',
+                variant: 'destructive',
+              });
+            }
+            
+            // Cache items for Digital Arv backup
+            localStorage.setItem('mittek-vault-items-cache', JSON.stringify(
+              decryptedItems.map(i => ({ title: i.title, secret: i.secret, note: i.note }))
+            ));
+          }
+        } else {
+          // No items yet, just set the key - but we can't verify the password
+          // So we need to check if there's test data or assume it's correct
+          setCryptoKey(key);
+          setItems([]);
+          setIsLegacyMode(false);
+          unlockSuccess = true;
         }
-        
-        // If we couldn't decrypt ANY items, the password is wrong
-        if (!decryptionSucceeded && data.length > 0) {
-          throw new Error('Decryption failed - wrong password');
-        }
-        
-        setItems(decryptedItems);
-        setCryptoKey(key);
-        
-        // Warn about corrupted items
-        if (failedCount > 0) {
+      } catch (vaultError) {
+        console.log('Vault passphrase failed, trying legacy code...');
+      }
+    }
+
+    // SECOND: If vault passphrase failed, try legacy code (Digital Arv)
+    if (!unlockSuccess) {
+      try {
+        // Check if there's a legacy vault backup
+        const { data: legacyBackup } = await supabase
+          .from('legacy_vault_backups')
+          .select('encrypted_data, iv')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (legacyBackup?.encrypted_data && legacyBackup?.iv) {
+          // Try to decrypt with the legacy code (using user.id as salt, matching edge function)
+          const legacyKey = await deriveKeyFromLegacyCode(passphrase, user.id);
+          const decryptedItems = await decryptLegacyBackup(legacyBackup.encrypted_data, legacyBackup.iv, legacyKey);
+          
+          setItems(decryptedItems);
+          setIsLegacyMode(true);
+          // Note: We don't set cryptoKey because legacy items are read-only
+          unlockSuccess = true;
+          
           toast({
-            title: `${failedCount} kode${failedCount > 1 ? 'r' : ''} kunne ikke læses`,
-            description: 'Nogle ældre poster kan være beskadiget. Nye koder vil fungere normalt.',
-            variant: 'destructive',
+            title: 'Digital Arv backup låst op',
+            description: 'Du ser nu en kopi af kode-mappen fra Digital Arv. Nye koder kan ikke tilføjes.',
           });
         }
-        
-        // Cache items for Digital Arv backup
-        localStorage.setItem('mittek-vault-items-cache', JSON.stringify(
-          decryptedItems.map(i => ({ title: i.title, secret: i.secret, note: i.note }))
-        ));
-      } else {
-        // No items yet, just set the key
-        setCryptoKey(key);
-        setItems([]);
+      } catch (legacyError) {
+        console.log('Legacy code also failed:', legacyError);
       }
+    }
 
+    if (unlockSuccess) {
       // Reset failed attempts on successful unlock
       setFailedAttempts(0);
       setLockoutUntil(null);
       setIsUnlocked(true);
       setPassphrase('');
-    } catch (e) {
+    } else {
       // Track failed attempts
       const newFailedAttempts = failedAttempts + 1;
       setFailedAttempts(newFailedAttempts);
@@ -396,6 +501,7 @@ const KodeMappe = () => {
     setCryptoKey(null);
     setItems([]);
     setShowSecret({});
+    setIsLegacyMode(false);
     // Keep failed attempts across locks for extra security
   };
 
@@ -587,9 +693,23 @@ const KodeMappe = () => {
         doc.text((index + 1).toString(), xPos, yPos + 8);
         xPos += colWidths[0];
         
+        // Helper function to sanitize text for PDF (remove or replace problematic characters)
+        const sanitizeForPdf = (text: string): string => {
+          if (!text) return '';
+          // Replace common problematic characters
+          return text
+            .replace(/[\u2018\u2019]/g, "'") // Smart quotes
+            .replace(/[\u201C\u201D]/g, '"') // Smart double quotes
+            .replace(/[\u2013\u2014]/g, '-') // En/em dashes
+            .replace(/[\u2026]/g, '...') // Ellipsis
+            .replace(/[^\x00-\xFF]/g, ''); // Remove non-Latin1 characters
+        };
+
         // Truncate text if too long
-        const truncate = (text: string, maxLen: number) => 
-          text.length > maxLen ? text.substring(0, maxLen - 2) + '..' : text;
+        const truncate = (text: string, maxLen: number) => {
+          const sanitized = sanitizeForPdf(text);
+          return sanitized.length > maxLen ? sanitized.substring(0, maxLen - 2) + '..' : sanitized;
+        };
         
         doc.text(truncate(item.title, 22), xPos, yPos + 8);
         xPos += colWidths[1];
@@ -794,6 +914,21 @@ const KodeMappe = () => {
               </p>
             </div>
 
+            {/* Info about legacy code access */}
+            {hasLegacyBackup && (
+              <div className="card-elevated p-4 mb-4 bg-primary/5 border-primary/20">
+                <div className="flex items-start gap-3">
+                  <HeartHandshake className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-primary text-sm">Digital Arv kode</p>
+                    <p className="text-xs text-muted-foreground">
+                      Du kan også bruge koden fra Digital Arv til at se en backup af dine gemte koder.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="card-elevated p-5 sm:p-8">
               {error && (
                 <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
@@ -809,7 +944,7 @@ const KodeMappe = () => {
                     type="password"
                     value={passphrase}
                     onChange={(e) => setPassphrase(e.target.value)}
-                    placeholder="Din Kode-mappe adgangskode"
+                    placeholder={hasLegacyBackup ? "Din adgangskode eller Digital Arv kode" : "Din Kode-mappe adgangskode"}
                     className="h-12"
                     onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
                   />
@@ -1004,15 +1139,34 @@ const KodeMappe = () => {
 
       <main className="container py-6 sm:py-8 px-4">
         <div className="max-w-2xl mx-auto">
+          {/* Legacy mode banner */}
+          {isLegacyMode && (
+            <div className="mb-6 p-4 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="flex items-start gap-3">
+                <HeartHandshake className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-primary text-sm">Digital Arv Backup</p>
+                  <p className="text-xs text-muted-foreground">
+                    Du ser en kopi af kode-mappen fra Digital Arv. Denne visning er skrivebeskyttet – nye koder kan ikke tilføjes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold">Kode-mappe</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">Dine koder er sikkert krypteret</p>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                {isLegacyMode ? 'Digital Arv backup (skrivebeskyttet)' : 'Dine koder er sikkert krypteret'}
+              </p>
             </div>
-            <Button variant="hero" onClick={() => setShowAddItem(true)} className="w-full sm:w-auto">
-              <Plus className="mr-2 h-5 w-5" />
-              Tilføj kode
-            </Button>
+            {!isLegacyMode && (
+              <Button variant="hero" onClick={() => setShowAddItem(true)} className="w-full sm:w-auto">
+                <Plus className="mr-2 h-5 w-5" />
+                Tilføj kode
+              </Button>
+            )}
           </div>
 
           {/* Add item modal */}
