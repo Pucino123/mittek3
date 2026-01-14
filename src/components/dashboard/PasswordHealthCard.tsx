@@ -1,8 +1,7 @@
 import { forwardRef, useState, useEffect, useRef } from 'react';
-import { ShieldCheck, ExternalLink, X, Eye, EyeOff, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ShieldCheck, X, Eye, EyeOff, AlertTriangle, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { PasswordStrengthIndicator } from '@/components/ui/PasswordStrengthIndicator';
 import { ToolDetailModal } from './ToolDetailModal';
 
@@ -14,20 +13,95 @@ interface PasswordHealthCardProps {
   onExitEditMode?: () => void;
 }
 
+// SHA-1 hash function for k-anonymity check
+async function sha1(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-1', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+// Check password against Have I Been Pwned API using k-anonymity
+async function checkPasswordBreach(password: string): Promise<{ breached: boolean; count: number }> {
+  const hash = await sha1(password);
+  const prefix = hash.slice(0, 5);
+  const suffix = hash.slice(5);
+
+  const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+    headers: { 'Add-Padding': 'true' }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to check password');
+  }
+
+  const text = await response.text();
+  const lines = text.split('\n');
+
+  for (const line of lines) {
+    const [hashSuffix, count] = line.split(':');
+    if (hashSuffix.trim() === suffix) {
+      return { breached: true, count: parseInt(count.trim(), 10) };
+    }
+  }
+
+  return { breached: false, count: 0 };
+}
+
 export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardProps>(
   ({ isEditMode, onRemove, isDragging, style, onExitEditMode }, ref) => {
     const [testPassword, setTestPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [breachResult, setBreachResult] = useState<{ breached: boolean; count: number } | null>(null);
+    const [isCheckingBreach, setIsCheckingBreach] = useState(false);
+    const [breachError, setBreachError] = useState<string | null>(null);
 
     // Track when edit mode started to prevent immediate exit
     const editModeStartRef = useRef<number>(0);
+    const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
       if (isEditMode) {
         editModeStartRef.current = Date.now();
       }
     }, [isEditMode]);
+
+    // Auto-check password after typing stops (debounced)
+    useEffect(() => {
+      // Reset result when password changes
+      setBreachResult(null);
+      setBreachError(null);
+
+      // Only check if password is at least 4 characters
+      if (testPassword.length < 4) {
+        return;
+      }
+
+      // Debounce the check
+      if (checkTimeoutRef.current) {
+        clearTimeout(checkTimeoutRef.current);
+      }
+
+      checkTimeoutRef.current = setTimeout(async () => {
+        setIsCheckingBreach(true);
+        try {
+          const result = await checkPasswordBreach(testPassword);
+          setBreachResult(result);
+        } catch (error) {
+          console.error('Failed to check breach:', error);
+          setBreachError('Kunne ikke tjekke adgangskoden');
+        } finally {
+          setIsCheckingBreach(false);
+        }
+      }, 800);
+
+      return () => {
+        if (checkTimeoutRef.current) {
+          clearTimeout(checkTimeoutRef.current);
+        }
+      };
+    }, [testPassword]);
 
     const handleCardClick = (e: React.MouseEvent) => {
       if (isEditMode) {
@@ -41,10 +115,6 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
       } else {
         setIsModalOpen(true);
       }
-    };
-
-    const handleCheckBreach = () => {
-      window.open('https://haveibeenpwned.com', '_blank', 'noopener,noreferrer');
     };
 
     // Simple strength calculation for status indicator
@@ -65,6 +135,16 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
     };
 
     const status = getOverallStatus();
+
+    // Combined status considering breach result
+    const getCombinedStatus = () => {
+      if (breachResult?.breached) {
+        return { color: 'bg-destructive', textColor: 'text-destructive', label: 'Lækket!', status: 'breached' };
+      }
+      return status;
+    };
+
+    const combinedStatus = getCombinedStatus();
 
     return (
       <>
@@ -110,17 +190,17 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
           <div className="flex-1 flex flex-col justify-center items-center">
             <div className={cn(
               "w-16 h-16 rounded-full flex items-center justify-center mb-2",
-              status.status === 'neutral' ? 'bg-muted' : `${status.color}/10`
+              combinedStatus.status === 'neutral' ? 'bg-muted' : `${combinedStatus.color}/10`
             )}>
-              {status.status === 'weak' ? (
+              {combinedStatus.status === 'weak' || combinedStatus.status === 'breached' ? (
                 <AlertTriangle className="h-8 w-8 text-destructive" />
-              ) : status.status === 'strong' ? (
+              ) : combinedStatus.status === 'strong' ? (
                 <CheckCircle className="h-8 w-8 text-success" />
               ) : (
                 <ShieldCheck className="h-8 w-8 text-muted-foreground" />
               )}
             </div>
-            <p className={cn("text-sm font-medium", status.textColor)}>{status.label}</p>
+            <p className={cn("text-sm font-medium", combinedStatus.textColor)}>{combinedStatus.label}</p>
           </div>
 
           {/* Action hint */}
@@ -138,7 +218,7 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
           iconColor="text-success"
         >
           <p className="text-sm text-muted-foreground">
-            Test styrken af dine adgangskoder og tjek om din email er blevet lækket.
+            Test styrken af dine adgangskoder og tjek om de er blevet lækket i et databrud.
           </p>
 
           {/* Password test */}
@@ -169,7 +249,7 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
               )}
             </div>
 
-            {/* Status indicator */}
+            {/* Strength indicator */}
             {testPassword && (
               <div className={cn(
                 "p-3 rounded-lg flex items-center gap-3",
@@ -195,23 +275,58 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
                 </div>
               </div>
             )}
+
+            {/* Breach check result */}
+            {testPassword && testPassword.length >= 4 && (
+              <div className={cn(
+                "p-3 rounded-lg flex items-center gap-3",
+                isCheckingBreach ? 'bg-muted' :
+                breachError ? 'bg-warning/10' :
+                breachResult?.breached ? 'bg-destructive/10' : 'bg-success/10'
+              )}>
+                {isCheckingBreach ? (
+                  <>
+                    <Loader2 className="h-5 w-5 text-muted-foreground animate-spin shrink-0" />
+                    <div>
+                      <p className="font-medium text-sm">Tjekker databrud...</p>
+                      <p className="text-xs text-muted-foreground">Via Have I Been Pwned</p>
+                    </div>
+                  </>
+                ) : breachError ? (
+                  <>
+                    <AlertCircle className="h-5 w-5 text-warning shrink-0" />
+                    <div>
+                      <p className="font-medium text-sm text-warning">{breachError}</p>
+                      <p className="text-xs text-muted-foreground">Prøv igen senere</p>
+                    </div>
+                  </>
+                ) : breachResult?.breached ? (
+                  <>
+                    <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                    <div>
+                      <p className="font-medium text-sm text-destructive">Adgangskode er lækket!</p>
+                      <p className="text-xs text-muted-foreground">
+                        Fundet {breachResult.count.toLocaleString('da-DK')} gange i databrud. Brug den ikke!
+                      </p>
+                    </div>
+                  </>
+                ) : breachResult ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 text-success shrink-0" />
+                    <div>
+                      <p className="font-medium text-sm text-success">Ikke fundet i databrud</p>
+                      <p className="text-xs text-muted-foreground">Denne adgangskode er ikke i kendte læk</p>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            )}
           </div>
 
-          {/* Breach check */}
-          <div className="pt-4 border-t space-y-3">
-            <h4 className="font-medium text-sm">Er din email lækket?</h4>
-            <p className="text-xs text-muted-foreground">
-              Tjek om din email-adresse har været involveret i et datalæk.
-            </p>
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              onClick={handleCheckBreach}
-            >
-              <ExternalLink className="h-4 w-4" />
-              Tjek på HaveIBeenPwned.com
-            </Button>
-          </div>
+          {/* Privacy note */}
+          <p className="text-xs text-muted-foreground pt-2 border-t">
+            Din adgangskode sendes aldrig til servere. Vi bruger k-anonymity via Have I Been Pwned's sikre API.
+          </p>
         </ToolDetailModal>
       </>
     );
