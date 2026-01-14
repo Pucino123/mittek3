@@ -832,17 +832,32 @@ const Dashboard = () => {
     };
   }, [activeDragId]);
 
+  // Track when edit mode was entered to prevent immediate exit from click events
+  const editModeStartTimeRef = useRef<number>(0);
+  
+  // Update ref when entering edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      editModeStartTimeRef.current = Date.now();
+    }
+  }, [isEditMode]);
+
   // Exit edit mode when clicking outside cards
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (!isEditMode) return;
+      
+      // Ignore clicks that happen within 300ms of entering edit mode
+      // This prevents the mouseup from long-press from immediately exiting
+      if (Date.now() - editModeStartTimeRef.current < 300) return;
+      
       const target = e.target as HTMLElement;
 
       // Check if click is on the background, main, or container (not on cards)
       const isBackground = target.tagName === 'MAIN' || target.classList.contains('container') || target.classList.contains('space-y-10') || target.classList.contains('space-y-12') || target.id === 'dashboard-wrapper';
 
       // Also check if click is NOT on a card or interactive element
-      const isOnCard = target.closest('.card-interactive, [data-radix-collection-item], button, input');
+      const isOnCard = target.closest('.card-interactive, [data-radix-collection-item], button, input, [data-sortable-item]');
       if (isBackground && !isOnCard) {
         setIsEditMode(false);
       }
