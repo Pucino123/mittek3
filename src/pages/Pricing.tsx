@@ -77,7 +77,7 @@ const plans = [{
     included: true,
     icon: AlertTriangle
   }, {
-    text: '1 support-henvendelse pr. måned',
+    text: '2 support-henvendelser/md',
     included: true
   }]
 }, {
@@ -94,7 +94,7 @@ const plans = [{
     text: 'Alt fra Plus',
     included: true
   }, {
-    text: '2 support-henvendelser pr. måned',
+    text: 'Ubegrænset support',
     included: true
   }, {
     text: 'Prioritet i køen',
@@ -116,8 +116,8 @@ const featureTooltips: Record<string, string> = {
   'Sikkerhedsskjold (svindeltjek)': 'Hjælper dig med at spotte svindel og farlige beskeder. Du får en klar anbefaling: “det er sikkert” eller “vær forsigtig”.',
   'Tryghedsknap': 'Hvis du føler dig usikker, guider knappen dig roligt igennem de vigtigste skridt, så du ikke står alene med det.',
   'Tryghedsknap (panikflow)': 'Hvis du føler dig usikker, guider knappen dig roligt igennem de vigtigste skridt, så du ikke står alene med det.',
-  '1 support-henvendelse pr. måned': 'Du kan få personlig hjælp 1 gang om måneden. Perfekt hvis du af og til har brug for et menneske til at hjælpe dig helt i mål.',
-  '2 support-henvendelser pr. måned': 'Du kan få personlig hjælp 2 gange om måneden. Godt hvis du ofte har spørgsmål eller vil have ekstra tryghed.',
+  '2 support-henvendelser/md': 'Du kan få personlig hjælp 2 gange om måneden. Perfekt hvis du af og til har brug for et menneske til at hjælpe dig helt i mål fra en tekniker med Apple Tech ID.',
+  'Ubegrænset support': 'Ingen grænse for hvor mange gange du kan få hjælp. Perfekt hvis du har brug for løbende support fra vores teknikere.',
   'Prioritet i køen': 'Vi sidder klar til at hjælpe dig først, hvis du oplever problemer, så du ikke skal vente så længe.',
   'Alt fra Plus': 'Du får alle de samme funktioner som i Plus – og derudover ekstra fordele, som gør det endnu nemmere at få hjælp hurtigt.'
 };

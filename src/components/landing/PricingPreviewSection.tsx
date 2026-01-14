@@ -15,9 +15,9 @@ const featureTooltips: Record<string, string> = {
   'Sikkerhedsskjold': 'Hjælper dig med at spotte svindel og farlige beskeder. Du får en klar anbefaling: "det er sikkert" eller "vær forsigtig".',
   'Screenshot → AI Forklaring': 'Du kan tage et screenshot af noget du er i tvivl om. Så forklarer vi billedet og fortæller, hvad du trygt kan gøre bagefter.',
   'Tryghedsknap': 'Hvis du føler dig usikker, guider knappen dig roligt igennem de vigtigste skridt, så du ikke står alene med det.',
-  '1 support-henvendelse/md': 'Du kan få personlig hjælp 1 gang om måneden. Perfekt hvis du af og til har brug for et menneske til at hjælpe dig helt i mål.',
+  '2 support-henvendelser/md': 'Du kan få personlig hjælp 2 gange om måneden. Perfekt hvis du af og til har brug for et menneske til at hjælpe dig helt i mål fra en tekniker med Apple Tech ID.',
   'Alt i Plus': 'Du får alle de samme funktioner som i Plus – og derudover ekstra fordele, som gør det endnu nemmere at få hjælp hurtigt.',
-  '2 support-henvendelser/md': 'Du kan få personlig hjælp 2 gange om måneden. Godt hvis du ofte har spørgsmål eller vil have ekstra tryghed.',
+  'Ubegrænset support': 'Ingen grænse for hvor mange gange du kan få hjælp. Perfekt hvis du har brug for løbende support fra vores teknikere.',
   'Prioritet i køen': 'Vi sidder klar til at hjælpe dig først, hvis du oplever problemer, så du ikke skal vente så længe.',
 };
 
@@ -47,7 +47,7 @@ const plans = [
       'Sikkerhedsskjold',
       'Screenshot → AI Forklaring',
       'Tryghedsknap',
-      '1 support-henvendelse/md',
+      '2 support-henvendelser/md',
     ],
   },
   {
@@ -57,7 +57,7 @@ const plans = [
     popular: false,
     features: [
       'Alt i Plus',
-      '2 support-henvendelser/md',
+      'Ubegrænset support',
       'Prioritet i køen',
     ],
   },
