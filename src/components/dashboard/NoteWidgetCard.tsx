@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect } from 'react';
+import { forwardRef, useState, useEffect, useRef } from 'react';
 import { StickyNote, Loader2, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -74,22 +74,35 @@ export const NoteWidgetCard = forwardRef<HTMLDivElement, NoteWidgetCardProps>(
       }
     };
 
+    // Track when edit mode started to prevent immediate exit from the same click that activated it
+    const editModeStartRef = useRef<number>(0);
+    
+    useEffect(() => {
+      if (isEditMode) {
+        editModeStartRef.current = Date.now();
+      }
+    }, [isEditMode]);
+
+    const handleCardClick = (e: React.MouseEvent) => {
+      // In edit mode, clicking the card exits wiggle mode (iOS-style)
+      if (isEditMode) {
+        const target = e.target as HTMLElement;
+        // Only exit if not clicking the remove button or textarea
+        if (!target.closest('button') && !target.closest('textarea')) {
+          e.preventDefault();
+          e.stopPropagation();
+          // Ignore clicks within 400ms of entering edit mode to prevent the mouseup from long-press from exiting
+          if (Date.now() - editModeStartRef.current < 400) return;
+          onExitEditMode?.();
+        }
+      }
+    };
+
     return (
       <div
         ref={ref}
         style={style}
-        onClick={(e) => {
-          // In edit mode, clicking the card exits wiggle mode (iOS-style)
-          if (isEditMode) {
-            const target = e.target as HTMLElement;
-            // Only exit if not clicking the remove button or textarea
-            if (!target.closest('button') && !target.closest('textarea')) {
-              e.preventDefault();
-              e.stopPropagation();
-              onExitEditMode?.();
-            }
-          }
-        }}
+        onClick={handleCardClick}
         className={cn(
           "card-interactive p-3 sm:p-4 flex flex-col relative h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px]",
           isEditMode && "animate-wiggle cursor-grab",
