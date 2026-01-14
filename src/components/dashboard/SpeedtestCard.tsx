@@ -141,17 +141,6 @@ export const SpeedtestCard = forwardRef<HTMLDivElement, SpeedtestCardProps>(
               </div>
             )}
 
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={handleOpenExternal}
-              >
-                <ExternalLink className="h-4 w-4" />
-                Åbn i nyt vindue
-              </Button>
-            </div>
 
             <p className="text-xs text-muted-foreground text-center">
               Drevet af Fast.com (Netflix). Måler din reelle download-hastighed.
