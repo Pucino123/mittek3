@@ -211,7 +211,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       try {
         await resend.emails.send({
-          from: "MitTek <onboarding@resend.dev>",
+          from: "MitTek <noreply@mittek.dk>",
           to: [email],
           subject: "Nulstil din Kode-mappe adgangskode",
           html: `
