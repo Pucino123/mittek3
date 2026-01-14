@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { BackButton } from '@/components/layout/BackButton';
 import { 
   Shield, 
   Lock, 
@@ -497,12 +498,7 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
       <div className="min-h-screen bg-background">
         <header className="border-b border-border">
           <div className="container flex h-16 sm:h-18 items-center px-4">
-            <Link to="/dashboard" className="flex items-center gap-2 sm:gap-3">
-              <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-              <span className="text-lg sm:text-xl font-semibold">MitTek</span>
-            </Link>
+            <BackButton />
           </div>
         </header>
 
@@ -542,12 +538,7 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
       <div className="min-h-screen bg-background">
         <header className="border-b border-border">
           <div className="container flex h-16 sm:h-18 items-center px-4">
-            <Link to="/dashboard" className="flex items-center gap-2 sm:gap-3">
-              <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-              <span className="text-lg sm:text-xl font-semibold">MitTek</span>
-            </Link>
+            <BackButton />
           </div>
         </header>
 
@@ -637,12 +628,7 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
       <div className="min-h-screen bg-background">
         <header className="border-b border-border">
           <div className="container flex h-16 sm:h-18 items-center px-4">
-            <Link to="/dashboard" className="flex items-center gap-2 sm:gap-3">
-              <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-              <span className="text-lg sm:text-xl font-semibold">MitTek</span>
-            </Link>
+            <BackButton />
           </div>
         </header>
 
@@ -848,12 +834,7 @@ ${items.map((item, i) => `${i + 1}. ${item.title}
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
         <div className="container flex h-16 sm:h-18 items-center justify-between px-4">
-          <Link to="/dashboard" className="flex items-center gap-2 sm:gap-3">
-            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Shield className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            <span className="text-lg sm:text-xl font-semibold hidden sm:inline">MitTek</span>
-          </Link>
+          <BackButton />
 
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleExportBackup} className="hidden sm:flex">
