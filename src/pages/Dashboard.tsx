@@ -77,6 +77,8 @@ import {
   sortableKeyboardCoordinates,
   rectSortingStrategy,
   useSortable,
+  defaultAnimateLayoutChanges,
+  type AnimateLayoutChanges,
 } from '@dnd-kit/sortable';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon, StickyNote } from 'lucide-react';
@@ -196,7 +198,17 @@ const pointerPrecisionCollision: CollisionDetection = (args) => {
   // Fall back to closestCenter for edge cases
   return closestCenter(args);
 };
-// Sortable card wrapper with iOS-style gap insertion animations
+// Custom animateLayoutChanges - enables smooth reflow during drag
+const animateLayoutChanges: AnimateLayoutChanges = (args) => {
+  const { isSorting, wasDragging } = args;
+  // Always animate layout changes for smooth reflow effect
+  if (isSorting || wasDragging) {
+    return defaultAnimateLayoutChanges(args);
+  }
+  return true;
+};
+
+// Sortable card wrapper with real-time placeholder and gap insertion
 function SortableCard({ 
   card, 
   hasAccess, 
@@ -219,9 +231,11 @@ function SortableCard({
     transform,
     transition,
     isDragging,
+    isSorting,
   } = useSortable({ 
     id: card.id, 
     disabled: !isEditMode,
+    animateLayoutChanges, // Enable smooth layout animations
   });
 
   // Calculate transform - dnd-kit handles the reflow automatically with rectSortingStrategy
@@ -230,20 +244,25 @@ function SortableCard({
     return `translate3d(${transform.x}px, ${transform.y}px, 0)`;
   };
 
-  // Tight, snappy spring transition - high stiffness, high damping (no bounce)
-  // Uses a "critically damped" curve for instant settling
+  // When this card is being dragged, show a placeholder in its original position
+  // The placeholder is a dashed-border ghost that shows where the card will land
+  const showPlaceholder = isDragging;
+
+  // Smooth spring transition for non-dragged items (reflow effect)
   const style: React.CSSProperties = {
     transform: getTransformStyle(),
-    // Non-dragged items: fast, snappy transition with minimal overshoot
-    // 200ms with ease-out gives instant, tight feel
+    // Non-dragged items: smooth spring-like transition
     transition: isDragging 
       ? 'none' 
       : 'transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 150ms ease',
-    opacity: isBeingDragged ? 0.3 : 1,
-    zIndex: isDragging ? 10 : 1,
+    // Make dragged card invisible (we use DragOverlay for the floating card)
+    opacity: isDragging ? 0 : 1,
+    zIndex: isDragging ? 0 : 1,
     WebkitTouchCallout: 'none',
     WebkitUserSelect: 'none',
     userSelect: 'none',
+    // Maintain the card's height even when invisible to preserve grid layout
+    visibility: isDragging ? 'hidden' : 'visible',
   };
 
   return (
@@ -252,33 +271,42 @@ function SortableCard({
       {...attributes} 
       {...listeners}
       style={style}
-      className="relative h-full touch-none"
+      className={cn(
+        "relative h-full touch-none",
+        // Show dashed placeholder when this slot is the drop target
+        isDragging && "drop-placeholder"
+      )}
       data-sortable-item
       data-dragging={isDragging}
     >
-      {/* Render widget card (inline component) or regular card */}
-      {card.isWidget ? (
-        <NoteWidgetCard
-          isEditMode={isEditMode}
-          onRemove={onRemove}
-          isDragging={isDragging}
-          onExitEditMode={onExitEditMode}
-        />
+      {/* Show placeholder skeleton when dragging */}
+      {showPlaceholder ? (
+        <div className="w-full h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px] rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 animate-pulse" />
       ) : (
-        <DashboardCard
-          id={card.id}
-          title={card.title}
-          description={card.description}
-          icon={card.icon}
-          href={card.href}
-          color={card.color}
-          minPlan={card.minPlan}
-          hasAccess={hasAccess}
-          isEditMode={isEditMode}
-          onRemove={onRemove}
-          isDragging={isDragging}
-          onExitEditMode={onExitEditMode}
-        />
+        /* Render widget card (inline component) or regular card */
+        card.isWidget ? (
+          <NoteWidgetCard
+            isEditMode={isEditMode}
+            onRemove={onRemove}
+            isDragging={isDragging}
+            onExitEditMode={onExitEditMode}
+          />
+        ) : (
+          <DashboardCard
+            id={card.id}
+            title={card.title}
+            description={card.description}
+            icon={card.icon}
+            href={card.href}
+            color={card.color}
+            minPlan={card.minPlan}
+            hasAccess={hasAccess}
+            isEditMode={isEditMode}
+            onRemove={onRemove}
+            isDragging={isDragging}
+            onExitEditMode={onExitEditMode}
+          />
+        )
       )}
     </div>
   );
@@ -1142,7 +1170,7 @@ const Dashboard = () => {
                       {/* Cards Grid - 4 per row on desktop */}
                       {categoryCards && categoryCards.length > 0 ? (
                         <div 
-                          className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 auto-rows-fr items-stretch"
+                          className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 auto-rows-[minmax(180px,auto)] sm:auto-rows-[minmax(200px,auto)] md:auto-rows-[minmax(210px,auto)] items-stretch min-h-0"
                           onMouseDown={handleLongPressStart}
                           onMouseUp={handleLongPressEnd}
                           onMouseLeave={handleLongPressEnd}

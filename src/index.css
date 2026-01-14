@@ -515,12 +515,27 @@ body.dragging-active .card-interactive:not([data-dragging="true"]) {
   transition: transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* Grid layout - no transition during drag */
+/* Grid layout - smooth height transition during drag for container expansion */
 body.dragging-active .grid {
-  transition: none;
+  transition: height 200ms ease-out, min-height 200ms ease-out;
 }
 
 /* Sortable items - fast snappy movement, no overshoot */
 body.dragging-active [data-sortable-item] {
   transition: transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Drop placeholder styling - visible ghost card showing drop target */
+.drop-placeholder {
+  position: relative;
+}
+
+.drop-placeholder::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  border: 2px dashed hsl(var(--primary) / 0.4);
+  background: hsl(var(--primary) / 0.05);
+  pointer-events: none;
 }
