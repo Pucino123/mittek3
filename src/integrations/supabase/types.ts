@@ -349,6 +349,33 @@ export type Database = {
           },
         ]
       }
+      legacy_vault_backups: {
+        Row: {
+          created_at: string
+          encrypted_data: string
+          id: string
+          iv: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_data: string
+          id?: string
+          iv: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_data?: string
+          id?: string
+          iv?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       page_views: {
         Row: {
           city: string | null

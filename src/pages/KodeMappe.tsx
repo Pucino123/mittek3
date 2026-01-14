@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,9 @@ import {
   ArrowLeft,
   Loader2,
   Download,
-  FileText
+  FileText,
+  HeartHandshake,
+  Users
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,6 +56,9 @@ const folderIcons: Record<string, typeof Wifi> = {
 
 const KodeMappe = () => {
   useScrollRestoration();
+  const [searchParams] = useSearchParams();
+  const isHelperMode = searchParams.get('helper') === 'true';
+  const helperOwnerId = searchParams.get('owner');
 
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isSetup, setIsSetup] = useState<boolean | null>(null);
@@ -82,6 +87,12 @@ const KodeMappe = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
+  // Helper access state
+  const [helperAccessCode, setHelperAccessCode] = useState('');
+  const [helperUnlocking, setHelperUnlocking] = useState(false);
+  const [ownerName, setOwnerName] = useState<string>('');
+  const [hasHelperPermission, setHasHelperPermission] = useState(false);
+
   const { user, hasAccess } = useAuth();
   const { toast } = useToast();
 
@@ -100,10 +111,36 @@ const KodeMappe = () => {
     }
   }, [isUnlocked]);
 
-  // Check if vault is set up
+  // Check if vault is set up (or helper mode)
   useEffect(() => {
     const checkSetup = async () => {
       if (!user) return;
+
+      // If in helper mode, check permission and load owner info
+      if (isHelperMode && helperOwnerId) {
+        const { data: helperData } = await supabase
+          .from('trusted_helpers')
+          .select('can_view_vault, user_id')
+          .eq('helper_user_id', user.id)
+          .eq('user_id', helperOwnerId)
+          .eq('invitation_accepted', true)
+          .maybeSingle();
+
+        if (helperData?.can_view_vault) {
+          setHasHelperPermission(true);
+          
+          // Get owner's display name
+          const { data: ownerProfile } = await supabase
+            .from('profiles')
+            .select('display_name, email')
+            .eq('user_id', helperOwnerId)
+            .single();
+          
+          setOwnerName(ownerProfile?.display_name || ownerProfile?.email?.split('@')[0] || 'Bruger');
+        }
+        setIsLoading(false);
+        return;
+      }
 
       const { data } = await supabase
         .from('vault_settings')
@@ -119,7 +156,7 @@ const KodeMappe = () => {
     };
 
     checkSetup();
-  }, [user]);
+  }, [user, isHelperMode, helperOwnerId]);
 
   // Password strength validation
   const validatePasswordStrength = (pwd: string): { valid: boolean; message: string } => {
@@ -286,6 +323,11 @@ const KodeMappe = () => {
           }))
         );
         setItems(decryptedItems);
+        
+        // Cache items for Digital Arv backup
+        localStorage.setItem('mittek-vault-items-cache', JSON.stringify(
+          decryptedItems.map(i => ({ title: i.title, secret: i.secret, note: i.note }))
+        ));
       }
 
       // Reset failed attempts on successful unlock

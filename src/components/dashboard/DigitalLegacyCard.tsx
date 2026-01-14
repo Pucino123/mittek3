@@ -101,6 +101,19 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
           throw new Error('Ikke logget ind');
         }
 
+        // Fetch current vault items to include in backup
+        // Note: We need to fetch decrypted items from localStorage since vault is client-side encrypted
+        const vaultItemsRaw = localStorage.getItem('mittek-vault-items-cache');
+        let vaultItems: Array<{ title: string; secret: string; note?: string }> = [];
+        
+        if (vaultItemsRaw) {
+          try {
+            vaultItems = JSON.parse(vaultItemsRaw);
+          } catch (e) {
+            console.log('No cached vault items');
+          }
+        }
+
         const { data: result, error } = await supabase.functions.invoke('send-legacy-code', {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
@@ -110,6 +123,7 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
             contact_name: data.contactName,
             contact_email: data.contactEmail,
             instructions: data.instructions,
+            vault_items: vaultItems.length > 0 ? vaultItems : undefined,
           },
         });
 
