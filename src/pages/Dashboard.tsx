@@ -167,6 +167,12 @@ const haptics = {
       navigator.vibrate(20);
     }
   },
+  scroll: () => {
+    // Double-tap pattern for entering auto-scroll zone
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([10, 50, 10]);
+    }
+  },
 };
 
 // iOS-style spring animation config for Framer Motion
@@ -429,6 +435,7 @@ const Dashboard = () => {
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const toolsSectionRef = useRef<HTMLDivElement>(null);
+  const lastScrollZoneRef = useRef<'top' | 'bottom' | null>(null);
   
   // Undo history stack (full snapshots for robust restore)
   type DashboardSnapshot = {
@@ -477,8 +484,8 @@ const Dashboard = () => {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 1000, // MOBILE: Must hold for 1 full second before drag starts
-        tolerance: 5, // Very tight tolerance - small movement cancels drag
+        delay: 2000, // MOBILE: Must hold for 2 full seconds to avoid accidental activation during scroll
+        tolerance: 8, // Slightly more tolerance for natural finger movement during hold
       },
     }),
     useSensor(KeyboardSensor, {
@@ -585,6 +592,46 @@ const Dashboard = () => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isEditMode]);
+
+  // Auto-scroll zone haptic feedback - triggers when pointer enters/exits scroll zones during drag
+  useEffect(() => {
+    if (!activeDragId) {
+      // Reset when not dragging
+      lastScrollZoneRef.current = null;
+      return;
+    }
+
+    const threshold = 0.15; // 15% - matches autoScroll threshold
+    
+    const handlePointerMove = (e: PointerEvent) => {
+      const viewportHeight = window.innerHeight;
+      const topZone = viewportHeight * threshold;
+      const bottomZone = viewportHeight * (1 - threshold);
+      
+      let currentZone: 'top' | 'bottom' | null = null;
+      
+      if (e.clientY < topZone) {
+        currentZone = 'top';
+      } else if (e.clientY > bottomZone) {
+        currentZone = 'bottom';
+      }
+      
+      // Trigger haptic only when ENTERING or EXITING a scroll zone
+      if (currentZone !== lastScrollZoneRef.current) {
+        if (currentZone !== null && lastScrollZoneRef.current === null) {
+          // Entering scroll zone - double-tap pattern
+          haptics.scroll();
+        } else if (currentZone === null && lastScrollZoneRef.current !== null) {
+          // Exiting scroll zone - subtle feedback
+          haptics.soft();
+        }
+        lastScrollZoneRef.current = currentZone;
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    return () => window.removeEventListener('pointermove', handlePointerMove);
+  }, [activeDragId]);
 
   // Exit edit mode when clicking outside cards
   useEffect(() => {
@@ -1154,8 +1201,8 @@ const Dashboard = () => {
             // Auto-scroll when dragging near viewport edges - enables dropping items further down
             autoScroll={{
               enabled: true,
-              threshold: { x: 0.1, y: 0.15 }, // 15% from edge triggers scroll
-              acceleration: 10, // Smooth, moderate acceleration
+              threshold: { x: 0.15, y: 0.15 }, // 15% from edge triggers scroll
+              acceleration: 12, // Slightly faster for responsive feel
               interval: 5, // Fast polling for responsive feel
             }}
           >
