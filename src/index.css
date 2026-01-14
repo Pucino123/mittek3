@@ -515,32 +515,18 @@ body.dragging-active .card-interactive:not([data-dragging="true"]) {
   transition: transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* Grid layout - smooth height transition during drag for container expansion */
-body.dragging-active .grid {
-  transition: height 200ms ease-out, min-height 200ms ease-out;
+/* Dashboard grid - ensures height can grow during drag */
+.dashboard-grid {
+  min-height: 0;
+  height: auto;
 }
 
-/* Sortable items - fast snappy movement, no overshoot */
-body.dragging-active [data-sortable-item] {
+/* Sortable items - fast snappy movement */
+body.dragging-active [data-sortable-item]:not([data-dragging="true"]) {
   transition: transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* Drop placeholder styling - visible ghost card showing drop target */
-.drop-placeholder {
-  position: relative;
-}
-
-.drop-placeholder::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 1rem;
-  border: 2px dashed hsl(var(--primary) / 0.4);
-  background: hsl(var(--primary) / 0.05);
-  pointer-events: none;
-}
-
-/* Drop target highlight - card being hovered over during drag */
+/* Drop target highlight - card being hovered over during cross-category drag */
 .drop-target-highlight {
   position: relative;
 }
@@ -554,16 +540,22 @@ body.dragging-active [data-sortable-item] {
   background: transparent;
   pointer-events: none;
   z-index: 10;
-  animation: drop-target-pulse 1s ease-in-out infinite;
+  animation: drop-target-pulse 0.8s ease-in-out infinite;
 }
 
 @keyframes drop-target-pulse {
   0%, 100% {
     opacity: 1;
-    transform: scale(1);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.3);
   }
   50% {
-    opacity: 0.7;
-    transform: scale(1.02);
+    opacity: 0.85;
+    box-shadow: 0 0 0 6px hsl(var(--primary) / 0);
   }
+}
+
+/* Prevent body scroll during drag on mobile */
+body.dragging-active {
+  overflow: hidden;
+  touch-action: none;
 }

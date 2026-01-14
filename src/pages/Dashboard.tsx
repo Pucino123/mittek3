@@ -208,7 +208,8 @@ const animateLayoutChanges: AnimateLayoutChanges = (args) => {
   return true;
 };
 
-// Sortable card wrapper with real-time placeholder and gap insertion
+// Sortable card wrapper - dnd-kit handles reflow automatically
+// We just show a dashed placeholder in the original slot during drag
 function SortableCard({ 
   card, 
   hasAccess, 
@@ -233,37 +234,29 @@ function SortableCard({
     transform,
     transition,
     isDragging,
-    isSorting,
   } = useSortable({ 
     id: card.id, 
     disabled: !isEditMode,
-    animateLayoutChanges, // Enable smooth layout animations
+    animateLayoutChanges, // Enable smooth layout animations during reflow
   });
 
-  // Calculate transform - dnd-kit handles the reflow automatically with rectSortingStrategy
-  const getTransformStyle = () => {
-    if (!transform) return undefined;
-    return `translate3d(${transform.x}px, ${transform.y}px, 0)`;
-  };
-
-  // When this card is being dragged, show a placeholder in its original position
-  const showDragPlaceholder = isDragging;
-
-  // Smooth spring transition for non-dragged items (reflow effect)
+  // Let dnd-kit handle the transform - it calculates reflow positions
   const style: React.CSSProperties = {
-    transform: getTransformStyle(),
-    // Non-dragged items: smooth spring-like transition
+    // dnd-kit's transform handles the actual card movement during reflow
+    transform: transform 
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0)` 
+      : undefined,
+    // Smooth transition for items sliding out of the way (reflow effect)
     transition: isDragging 
-      ? 'none' 
-      : 'transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 150ms ease',
-    // Make dragged card invisible (we use DragOverlay for the floating card)
-    opacity: isDragging ? 0 : 1,
+      ? undefined 
+      : transition || 'transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+    // KEY: Do NOT hide the dragged card - keep it visible as a placeholder
+    // The DragOverlay shows the floating card, this slot shows where it came from
+    opacity: isDragging ? 0.3 : 1,
     zIndex: isDragging ? 0 : 1,
     WebkitTouchCallout: 'none',
     WebkitUserSelect: 'none',
     userSelect: 'none',
-    // Maintain the card's height even when invisible to preserve grid layout
-    visibility: isDragging ? 'hidden' : 'visible',
   };
 
   return (
@@ -273,19 +266,22 @@ function SortableCard({
       {...listeners}
       style={style}
       className={cn(
-        "relative h-full touch-none",
-        // Show dashed placeholder when this slot is the drop target
-        isDragging && "drop-placeholder",
-        // Highlight when this is the active drop target (item will be inserted here)
-        isDropTarget && "drop-target-highlight"
+        "relative h-full touch-none min-h-[180px] sm:min-h-[200px] md:min-h-[210px]",
+        // Show dashed border on the original slot during drag
+        isDragging && "rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5",
+        // Highlight when this is the active drop target
+        isDropTarget && !isDragging && "drop-target-highlight"
       )}
       data-sortable-item
       data-dragging={isDragging}
       data-drop-target={isDropTarget}
     >
-      {/* Show placeholder skeleton when dragging */}
-      {showDragPlaceholder ? (
-        <div className="w-full h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px] rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 animate-pulse" />
+      {/* Always render the card content - opacity handles the visual */}
+      {isDragging ? (
+        // Placeholder skeleton during drag
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-primary/40 text-sm font-medium">↕️</div>
+        </div>
       ) : (
         /* Render widget card (inline component) or regular card */
         card.isWidget ? (
@@ -1202,11 +1198,9 @@ const Dashboard = () => {
                       {categoryCards && categoryCards.length > 0 ? (
                         <div 
                           className={cn(
-                            "grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 items-stretch",
-                            // Use minmax for auto row height - allows expansion
-                            "auto-rows-[minmax(180px,auto)] sm:auto-rows-[minmax(200px,auto)] md:auto-rows-[minmax(210px,auto)]",
-                            // Smooth height transition when placeholder is injected
-                            "transition-[grid-template-rows] duration-200 ease-out"
+                            "grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 items-stretch dashboard-grid",
+                            // Use minmax for auto row height - allows expansion when placeholder is added
+                            "auto-rows-[minmax(180px,auto)] sm:auto-rows-[minmax(200px,auto)] md:auto-rows-[minmax(210px,auto)]"
                           )}
                           onMouseDown={handleLongPressStart}
                           onMouseUp={handleLongPressEnd}
@@ -1214,20 +1208,23 @@ const Dashboard = () => {
                           onTouchStart={handleLongPressStart}
                           onTouchEnd={handleLongPressEnd}
                         >
-                          {/* Inject drop placeholder BEFORE the target card when dragging into this category */}
-                          {categoryCards.map((card, index) => {
-                            // Determine if we should inject placeholder before this card
-                            const shouldShowPlaceholderBefore = 
+                          {/* Render cards - dnd-kit handles reflow automatically */}
+                          {categoryCards.map((card) => {
+                            // Check if this is a cross-category drag INTO this category
+                            const isDraggedFromOtherCategory = 
                               activeDragId && 
-                              dropTargetId === card.id && 
                               !categoryCards.some(c => c.id === activeDragId);
+                            
+                            // Show placeholder BEFORE this card if it's the drop target from another category
+                            const showPlaceholderBefore = 
+                              isDraggedFromOtherCategory && 
+                              dropTargetId === card.id;
                             
                             return (
                               <React.Fragment key={card.id}>
-                                {/* Placeholder injected before the target card */}
-                                {shouldShowPlaceholderBefore && (
-                                  <DropPlaceholderCard />
-                                )}
+                                {/* Cross-category placeholder - physically occupies a grid slot */}
+                                {showPlaceholderBefore && <DropPlaceholderCard />}
+                                
                                 <SortableCard
                                   card={card}
                                   hasAccess={hasAccess(card.minPlan)}
@@ -1235,12 +1232,13 @@ const Dashboard = () => {
                                   onRemove={() => handleRemoveCard(card.id)}
                                   isBeingDragged={activeDragId === card.id}
                                   onExitEditMode={() => setIsEditMode(false)}
-                                  isDropTarget={dropTargetId === card.id}
+                                  isDropTarget={dropTargetId === card.id && isDraggedFromOtherCategory}
                                 />
                               </React.Fragment>
                             );
                           })}
-                          {/* Inject placeholder at END if dragging into this category but no specific target */}
+                          
+                          {/* Placeholder at END when dragging into empty drop zone of this category */}
                           {activeDragId && 
                            activeDropZone === categoryId && 
                            !categoryCards.some(c => c.id === activeDragId) && (
