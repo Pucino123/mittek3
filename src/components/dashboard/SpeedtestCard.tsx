@@ -72,9 +72,11 @@ export const SpeedtestCard = forwardRef<HTMLDivElement, SpeedtestCardProps>(
                 e.stopPropagation();
                 onRemove();
               }}
-              className="absolute -top-2 -left-2 z-10 w-6 h-6 bg-destructive text-white rounded-full flex items-center justify-center shadow-lg hover:bg-destructive/90 transition-colors"
+              className="absolute -top-2 -left-2 z-10 flex items-center justify-center bg-muted text-muted-foreground rounded-full shadow-md border border-border hover:bg-destructive hover:text-destructive-foreground transition-colors"
+              style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', flexShrink: 0 }}
+              aria-label="Fjern Hastighedstest"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3 w-3" style={{ width: '12px', height: '12px' }} />
             </button>
           )}
 
