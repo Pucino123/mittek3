@@ -8,6 +8,15 @@ const STORAGE_KEY = 'mittek_dashboard_settings';
 // This is imported from Dashboard to stay in sync
 const DEFAULT_HIDDEN_TOOL_IDS = ['notes']; // Tool Library items
 
+// All tool IDs in default order (must match allCards in Dashboard.tsx)
+const DEFAULT_CARD_ORDER = [
+  'checkin', 'guides', 'help', 'dictionary',
+  'password-generator', 'battery-doctor', 'cleaning', 'hardware',
+  'scam-quiz', 'panic', 'safety', 'vault',
+  'wishlist', 'medical-id', 'guest-wifi', 'screenshot',
+  'notes'
+];
+
 interface CustomCategory {
   id: string;
   title: string;
@@ -173,11 +182,16 @@ export function useDashboardSettings() {
     // Ensure the card is in the card_order array - add to end if missing
     let newCardOrder = settings.card_order;
     if (newCardOrder && !newCardOrder.includes(cardId)) {
+      // Has custom order but card not in it - add to end
       newCardOrder = [...newCardOrder, cardId];
     } else if (!newCardOrder) {
-      // No card_order set yet - will use default, but ensure this card is visible
-      // by explicitly creating an order that includes it
-      newCardOrder = [...cardId ? [cardId] : []];
+      // No custom order yet - use default order but ensure this card is included
+      // This handles Tool Library items that aren't in the standard order
+      if (DEFAULT_CARD_ORDER.includes(cardId)) {
+        newCardOrder = [...DEFAULT_CARD_ORDER];
+      } else {
+        newCardOrder = [...DEFAULT_CARD_ORDER, cardId];
+      }
     }
     
     // If a target category is specified, also update card_categories
