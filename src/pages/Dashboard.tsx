@@ -655,11 +655,12 @@ const Dashboard = () => {
   }, [cardOrder, hiddenCards, getCardCategory]);
 
   // Get hidden card definitions for the modal
-  // Include both: 1) cards explicitly in hiddenCards, 2) cards NOT in cardOrder (missing from dashboard entirely)
+  // Show ALL tools that are NOT currently visible on the dashboard
+  // This includes: 1) cards explicitly in hiddenCards, 2) cards NOT in visibleCards
   const hiddenCardDefinitions = useMemo(() => {
-    const order = cardOrder || defaultCardOrder;
-    return allCards.filter(c => hiddenCards.includes(c.id) || !order.includes(c.id));
-  }, [hiddenCards, cardOrder]);
+    const visibleIds = new Set(visibleCards.map(c => c.id));
+    return allCards.filter(c => !visibleIds.has(c.id));
+  }, [visibleCards]);
 
   // Group cards by category for display
   const cardsByCategory = useMemo(() => {
