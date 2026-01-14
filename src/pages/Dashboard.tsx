@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { IOSSwitch } from '@/components/ui/ios-switch';
@@ -216,6 +216,7 @@ function SortableCard({
   onRemove,
   isBeingDragged,
   onExitEditMode,
+  isDropTarget,
 }: { 
   card: CardDefinition; 
   hasAccess: boolean; 
@@ -223,6 +224,7 @@ function SortableCard({
   onRemove: () => void;
   isBeingDragged: boolean;
   onExitEditMode: () => void;
+  isDropTarget?: boolean;
 }) {
   const {
     attributes,
@@ -245,8 +247,7 @@ function SortableCard({
   };
 
   // When this card is being dragged, show a placeholder in its original position
-  // The placeholder is a dashed-border ghost that shows where the card will land
-  const showPlaceholder = isDragging;
+  const showDragPlaceholder = isDragging;
 
   // Smooth spring transition for non-dragged items (reflow effect)
   const style: React.CSSProperties = {
@@ -274,13 +275,16 @@ function SortableCard({
       className={cn(
         "relative h-full touch-none",
         // Show dashed placeholder when this slot is the drop target
-        isDragging && "drop-placeholder"
+        isDragging && "drop-placeholder",
+        // Highlight when this is the active drop target (item will be inserted here)
+        isDropTarget && "drop-target-highlight"
       )}
       data-sortable-item
       data-dragging={isDragging}
+      data-drop-target={isDropTarget}
     >
       {/* Show placeholder skeleton when dragging */}
-      {showPlaceholder ? (
+      {showDragPlaceholder ? (
         <div className="w-full h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px] rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 animate-pulse" />
       ) : (
         /* Render widget card (inline component) or regular card */
@@ -309,6 +313,19 @@ function SortableCard({
         )
       )}
     </div>
+  );
+}
+
+// Ghost placeholder card rendered when dragging INTO a category
+// This physically occupies a grid slot to force container height expansion
+function DropPlaceholderCard() {
+  return (
+    <div 
+      className="w-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px] rounded-2xl border-2 border-dashed border-primary/50 bg-primary/10 transition-all duration-200 ease-out"
+      style={{
+        animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      }}
+    />
   );
 }
 
@@ -670,6 +687,9 @@ const Dashboard = () => {
 
   // Track previous over ID for haptic on change
   const prevOverIdRef = useRef<string | null>(null);
+  
+  // Track the current hover target for real-time drop placeholder
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   // Handle drag start - track active dragged item for overlay
   // This fires AFTER the 1-second long-press delay completes on mobile
@@ -686,15 +706,24 @@ const Dashboard = () => {
     document.body.classList.add('dragging-active');
   };
 
-  // Handle drag over for visual feedback on empty zones
+  // Handle drag over for visual feedback on empty zones AND real-time placeholder
   const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
+    const { active, over } = event;
+    const activeId = active?.id ? String(active.id) : null;
     const overId = over?.id ? String(over.id) : null;
     
     // Haptic feedback when hovering over a new target
     if (overId && overId !== prevOverIdRef.current) {
       haptics.soft();
       prevOverIdRef.current = overId;
+    }
+    
+    // Track drop target for real-time placeholder injection
+    // Only track if we're hovering over a different card (not the dragged one)
+    if (overId && overId !== activeId && !overId.startsWith('dropzone-') && !overId.startsWith('category-')) {
+      setDropTargetId(overId);
+    } else {
+      setDropTargetId(null);
     }
     
     if (over?.id && String(over.id).startsWith('dropzone-')) {
@@ -711,6 +740,7 @@ const Dashboard = () => {
     // Clear drag states and re-enable scrolling
     setActiveDropZone(null);
     setActiveDragId(null);
+    setDropTargetId(null);
     prevOverIdRef.current = null;
     document.body.classList.remove('dragging-active');
 
@@ -1116,6 +1146,7 @@ const Dashboard = () => {
               // Cleanup on drag cancel
               setActiveDropZone(null);
               setActiveDragId(null);
+              setDropTargetId(null);
               prevOverIdRef.current = null;
               document.body.classList.remove('dragging-active');
             }}
@@ -1170,24 +1201,51 @@ const Dashboard = () => {
                       {/* Cards Grid - 4 per row on desktop */}
                       {categoryCards && categoryCards.length > 0 ? (
                         <div 
-                          className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 auto-rows-[minmax(180px,auto)] sm:auto-rows-[minmax(200px,auto)] md:auto-rows-[minmax(210px,auto)] items-stretch min-h-0"
+                          className={cn(
+                            "grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 items-stretch",
+                            // Use minmax for auto row height - allows expansion
+                            "auto-rows-[minmax(180px,auto)] sm:auto-rows-[minmax(200px,auto)] md:auto-rows-[minmax(210px,auto)]",
+                            // Smooth height transition when placeholder is injected
+                            "transition-[grid-template-rows] duration-200 ease-out"
+                          )}
                           onMouseDown={handleLongPressStart}
                           onMouseUp={handleLongPressEnd}
                           onMouseLeave={handleLongPressEnd}
                           onTouchStart={handleLongPressStart}
                           onTouchEnd={handleLongPressEnd}
                         >
-                          {categoryCards.map((card) => (
-                            <SortableCard
-                              key={card.id}
-                              card={card}
-                              hasAccess={hasAccess(card.minPlan)}
-                              isEditMode={isEditMode}
-                              onRemove={() => handleRemoveCard(card.id)}
-                              isBeingDragged={activeDragId === card.id}
-                              onExitEditMode={() => setIsEditMode(false)}
-                            />
-                          ))}
+                          {/* Inject drop placeholder BEFORE the target card when dragging into this category */}
+                          {categoryCards.map((card, index) => {
+                            // Determine if we should inject placeholder before this card
+                            const shouldShowPlaceholderBefore = 
+                              activeDragId && 
+                              dropTargetId === card.id && 
+                              !categoryCards.some(c => c.id === activeDragId);
+                            
+                            return (
+                              <React.Fragment key={card.id}>
+                                {/* Placeholder injected before the target card */}
+                                {shouldShowPlaceholderBefore && (
+                                  <DropPlaceholderCard />
+                                )}
+                                <SortableCard
+                                  card={card}
+                                  hasAccess={hasAccess(card.minPlan)}
+                                  isEditMode={isEditMode}
+                                  onRemove={() => handleRemoveCard(card.id)}
+                                  isBeingDragged={activeDragId === card.id}
+                                  onExitEditMode={() => setIsEditMode(false)}
+                                  isDropTarget={dropTargetId === card.id}
+                                />
+                              </React.Fragment>
+                            );
+                          })}
+                          {/* Inject placeholder at END if dragging into this category but no specific target */}
+                          {activeDragId && 
+                           activeDropZone === categoryId && 
+                           !categoryCards.some(c => c.id === activeDragId) && (
+                            <DropPlaceholderCard />
+                          )}
                         </div>
                       ) : (
                         // Show drop zone for empty categories in edit mode
