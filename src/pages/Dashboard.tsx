@@ -277,10 +277,23 @@ const isAppleTouchDevice = () => {
   return isiOSUA || isiPadOS;
 };
 
-// Wiggle mode activation delay: 2s for Apple touch, 1.5s for other touch devices
+// Check if device has touch capability
+const isTouchDevice = () => {
+  if (typeof navigator === 'undefined') return false;
+  return navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+};
+
+// Wiggle mode activation delay:
+// - Desktop (mouse): 500ms for quick activation
+// - Apple touch devices: 2s to avoid accidental triggers during scroll
+// - Other touch devices: 1.5s
+const WIGGLE_DELAY_MS_DESKTOP = 500;
 const WIGGLE_DELAY_MS_APPLE = 2000;
 const WIGGLE_DELAY_MS_OTHER = 1500;
-const getWiggleDelayMs = () => isAppleTouchDevice() ? WIGGLE_DELAY_MS_APPLE : WIGGLE_DELAY_MS_OTHER;
+const getWiggleDelayMs = () => {
+  if (!isTouchDevice()) return WIGGLE_DELAY_MS_DESKTOP;
+  return isAppleTouchDevice() ? WIGGLE_DELAY_MS_APPLE : WIGGLE_DELAY_MS_OTHER;
+};
 
 // iOS-style spring animation config for Framer Motion
 const springTransition = {
