@@ -42,6 +42,7 @@ interface CardDefinition {
   minPlan: 'basic' | 'plus' | 'pro';
   category: string;
   isWidget?: boolean; // For inline widget cards like Notes
+  addedDate?: string; // ISO date string for "Ny!" badge (shows for 30 days)
 }
 
 // All available cards (flat list)
@@ -208,7 +209,8 @@ const allCards: CardDefinition[] = [
   color: 'bg-warning/10 text-warning',
   minPlan: 'basic',
   category: 'tools',
-  isWidget: true
+  isWidget: true,
+  addedDate: '2025-01-10' // Added January 2025
 }];
 
 // Standard Suite: The 16 tools visible by default on the dashboard
