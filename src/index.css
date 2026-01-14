@@ -539,3 +539,31 @@ body.dragging-active [data-sortable-item] {
   background: hsl(var(--primary) / 0.05);
   pointer-events: none;
 }
+
+/* Drop target highlight - card being hovered over during drag */
+.drop-target-highlight {
+  position: relative;
+}
+
+.drop-target-highlight::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 1.25rem;
+  border: 3px solid hsl(var(--primary) / 0.6);
+  background: transparent;
+  pointer-events: none;
+  z-index: 10;
+  animation: drop-target-pulse 1s ease-in-out infinite;
+}
+
+@keyframes drop-target-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.02);
+  }
+}
