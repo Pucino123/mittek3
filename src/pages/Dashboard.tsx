@@ -1521,7 +1521,7 @@ const Dashboard = () => {
       </main>
 
       {/* Add Tool Modal */}
-      <AddToolModal open={showAddModal} onOpenChange={setShowAddModal} hiddenCards={hiddenCardDefinitions} onAddCard={handleAddCard} onResetAll={handleResetAll} onCreateCategory={handleCreateCategory} />
+      <AddToolModal open={showAddModal} onOpenChange={setShowAddModal} hiddenCards={hiddenCardDefinitions} onAddCard={handleAddCard} onResetAll={handleResetAll} onCreateCategory={handleCreateCategory} currentPlan={subscription?.plan_tier || 'basic'} />
 
       {/* Floating AI Chat Widget - Only show if subscription is active */}
       {isSubscriptionActive && <>
