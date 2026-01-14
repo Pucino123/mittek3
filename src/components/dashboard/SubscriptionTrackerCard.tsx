@@ -3,6 +3,7 @@ import { CreditCard, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ToolDetailModal } from './ToolDetailModal';
 
 interface Subscription {
   id: string;
@@ -23,7 +24,7 @@ const STORAGE_KEY = 'mittek-subscriptions';
 export const SubscriptionTrackerCard = forwardRef<HTMLDivElement, SubscriptionTrackerCardProps>(
   ({ isEditMode, onRemove, isDragging, style, onExitEditMode }, ref) => {
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-    const [showInput, setShowInput] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [newName, setNewName] = useState('');
     const [newPrice, setNewPrice] = useState('');
 
@@ -66,7 +67,6 @@ export const SubscriptionTrackerCard = forwardRef<HTMLDivElement, SubscriptionTr
       ]);
       setNewName('');
       setNewPrice('');
-      setShowInput(false);
     };
 
     const handleRemove = (id: string) => {
@@ -76,113 +76,140 @@ export const SubscriptionTrackerCard = forwardRef<HTMLDivElement, SubscriptionTr
     const handleCardClick = (e: React.MouseEvent) => {
       if (isEditMode) {
         const target = e.target as HTMLElement;
-        if (!target.closest('button') && !target.closest('input')) {
+        if (!target.closest('button')) {
           e.preventDefault();
           e.stopPropagation();
           if (Date.now() - editModeStartRef.current < 400) return;
           onExitEditMode?.();
         }
+      } else {
+        // Open modal when not in edit mode
+        setIsModalOpen(true);
       }
     };
 
     return (
-      <div
-        ref={ref}
-        style={style}
-        onClick={handleCardClick}
-        className={cn(
-          "card-interactive p-3 sm:p-4 flex flex-col relative h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px]",
-          isEditMode && "animate-wiggle cursor-grab",
-          isDragging && "opacity-50"
-        )}
-      >
-        {/* Remove button in edit mode */}
-        {isEditMode && onRemove && (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onRemove();
-            }}
-            className="absolute -top-2 -left-2 z-10 w-6 h-6 bg-destructive text-white rounded-full flex items-center justify-center shadow-lg hover:bg-destructive/90 transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <CreditCard className="h-4 w-4 text-primary" />
-          </div>
-          <h3 className="font-semibold text-sm">Abonnementer</h3>
-        </div>
-
-        {/* Subscription list */}
-        <div className="flex-1 space-y-1 overflow-y-auto max-h-[80px]">
-          {subscriptions.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Ingen abonnementer endnu</p>
-          ) : (
-            subscriptions.map(sub => (
-              <div key={sub.id} className="flex items-center justify-between text-xs">
-                <span className="truncate flex-1">{sub.name}</span>
-                <div className="flex items-center gap-1">
-                  <span className="font-medium">{sub.price} kr</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemove(sub.id);
-                    }}
-                    className="p-0.5 hover:bg-destructive/10 rounded"
-                  >
-                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                  </button>
-                </div>
-              </div>
-            ))
+      <>
+        {/* Dashboard Card (Summary View) */}
+        <div
+          ref={ref}
+          style={style}
+          onClick={handleCardClick}
+          className={cn(
+            "card-interactive p-3 sm:p-4 flex flex-col relative h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px] cursor-pointer",
+            isEditMode && "animate-wiggle cursor-grab",
+            isDragging && "opacity-50"
           )}
+        >
+          {/* Remove button in edit mode */}
+          {isEditMode && onRemove && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="absolute -top-2 -left-2 z-10 w-6 h-6 bg-destructive text-white rounded-full flex items-center justify-center shadow-lg hover:bg-destructive/90 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <CreditCard className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm">Abonnementer</h3>
+              <p className="text-xs text-muted-foreground">Hold styr på udgifter</p>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="flex-1 flex flex-col justify-center items-center">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-primary">{totalMonthly} kr</p>
+              <p className="text-xs text-muted-foreground mt-1">pr. måned</p>
+            </div>
+            {subscriptions.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {subscriptions.length} abonnement{subscriptions.length !== 1 ? 'er' : ''}
+              </p>
+            )}
+          </div>
+
+          {/* Action hint */}
+          <div className="text-center mt-2">
+            <span className="text-xs text-muted-foreground">Tryk for at redigere →</span>
+          </div>
         </div>
 
-        {/* Add new subscription */}
-        {showInput ? (
-          <div className="mt-2 space-y-1.5">
+        {/* Detail Modal */}
+        <ToolDetailModal
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          title="Abonnements-overblik"
+          icon={CreditCard}
+          iconColor="text-primary"
+        >
+          {/* Subscription list */}
+          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+            {subscriptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Ingen abonnementer tilføjet endnu
+              </p>
+            ) : (
+              subscriptions.map(sub => (
+                <div key={sub.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <span className="font-medium">{sub.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">{sub.price} kr/md</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleRemove(sub.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Add new subscription */}
+          <div className="space-y-3 pt-4 border-t">
+            <h4 className="font-medium text-sm">Tilføj nyt abonnement</h4>
             <Input
-              placeholder="Navn (f.eks. Netflix)"
+              placeholder="Navn (f.eks. Netflix, Spotify)"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="h-7 text-xs"
-              onClick={(e) => e.stopPropagation()}
             />
-            <div className="flex gap-1">
+            <div className="flex gap-2">
               <Input
                 type="number"
-                placeholder="Pris/md"
+                placeholder="Pris pr. måned"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
-                className="h-7 text-xs flex-1"
-                onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                className="flex-1"
               />
-              <Button size="sm" className="h-7 px-2" onClick={(e) => { e.stopPropagation(); handleAdd(); }}>
-                <Plus className="h-3 w-3" />
+              <Button onClick={handleAdd} disabled={!newName.trim() || !newPrice}>
+                <Plus className="h-4 w-4 mr-1" />
+                Tilføj
               </Button>
             </div>
           </div>
-        ) : (
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowInput(true); }}
-            className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
-          >
-            <Plus className="h-3 w-3" /> Tilføj abonnement
-          </button>
-        )}
 
-        {/* Total */}
-        <div className="mt-2 pt-2 border-t flex justify-between items-center">
-          <span className="text-xs text-muted-foreground">Total pr. måned</span>
-          <span className="font-bold text-sm text-primary">{totalMonthly} kr</span>
-        </div>
-      </div>
+          {/* Total */}
+          <div className="pt-4 border-t flex justify-between items-center">
+            <span className="text-muted-foreground">Total pr. måned</span>
+            <span className="text-2xl font-bold text-primary">{totalMonthly} kr</span>
+          </div>
+        </ToolDetailModal>
+      </>
     );
   }
 );
