@@ -93,8 +93,8 @@ export const SpeedtestCard = forwardRef<HTMLDivElement, SpeedtestCardProps>(
 
           {/* Summary */}
           <div className="flex-1 flex flex-col justify-center items-center">
-            <div className="w-20 h-20 rounded-full bg-info/10 flex items-center justify-center mb-2">
-              <Play className="h-8 w-8 text-info" />
+            <div className="w-16 h-16 rounded-full bg-info/10 flex items-center justify-center mb-2">
+              <Play className="h-7 w-7 text-info" />
             </div>
             <p className="text-sm font-medium">Tjek hastighed</p>
           </div>
