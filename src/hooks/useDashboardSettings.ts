@@ -166,8 +166,19 @@ export function useDashboardSettings() {
   }, [settings.hidden_cards, saveSettings]);
 
   // Show a card (remove from hidden) and optionally assign to a category
+  // CRITICAL: Also add to card_order if not present (fixes bug where new tools never appear)
   const showCard = useCallback((cardId: string, targetCategoryId?: string) => {
     const newHiddenCards = settings.hidden_cards.filter(id => id !== cardId);
+    
+    // Ensure the card is in the card_order array - add to end if missing
+    let newCardOrder = settings.card_order;
+    if (newCardOrder && !newCardOrder.includes(cardId)) {
+      newCardOrder = [...newCardOrder, cardId];
+    } else if (!newCardOrder) {
+      // No card_order set yet - will use default, but ensure this card is visible
+      // by explicitly creating an order that includes it
+      newCardOrder = [...cardId ? [cardId] : []];
+    }
     
     // If a target category is specified, also update card_categories
     if (targetCategoryId) {
@@ -175,11 +186,15 @@ export function useDashboardSettings() {
       saveSettings({ 
         hidden_cards: newHiddenCards,
         card_categories: newCardCategories,
+        card_order: newCardOrder,
       });
     } else {
-      saveSettings({ hidden_cards: newHiddenCards });
+      saveSettings({ 
+        hidden_cards: newHiddenCards,
+        card_order: newCardOrder,
+      });
     }
-  }, [settings.hidden_cards, settings.card_categories, saveSettings]);
+  }, [settings.hidden_cards, settings.card_categories, settings.card_order, saveSettings]);
 
   // Update card order
   const updateCardOrder = useCallback((newOrder: string[]) => {
