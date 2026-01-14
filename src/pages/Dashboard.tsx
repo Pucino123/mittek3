@@ -67,6 +67,7 @@ import {
   DragOverlay,
   useDroppable,
   MeasuringStrategy,
+  AutoScrollActivator,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -631,6 +632,25 @@ const Dashboard = () => {
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     return () => window.removeEventListener('pointermove', handlePointerMove);
+  }, [activeDragId]);
+
+  // Block manual touch scrolling during drag, but allow programmatic auto-scroll
+  useEffect(() => {
+    if (!activeDragId) return;
+
+    const preventManualScroll = (e: TouchEvent) => {
+      // Only prevent default if it's a scroll attempt during drag
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    // Use passive: false to allow preventDefault
+    document.addEventListener('touchmove', preventManualScroll, { passive: false });
+    
+    return () => {
+      document.removeEventListener('touchmove', preventManualScroll);
+    };
   }, [activeDragId]);
 
   // Exit edit mode when clicking outside cards
@@ -1202,8 +1222,9 @@ const Dashboard = () => {
             autoScroll={{
               enabled: true,
               threshold: { x: 0.15, y: 0.15 }, // 15% from edge triggers scroll
-              acceleration: 12, // Slightly faster for responsive feel
+              acceleration: 15, // Faster for responsive feel on touch
               interval: 5, // Fast polling for responsive feel
+              activator: AutoScrollActivator.Pointer, // Follow finger position precisely on touch
             }}
           >
             {/* Single unified SortableContext for all cards - enables cross-category dragging */}
