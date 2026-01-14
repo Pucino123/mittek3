@@ -1,7 +1,8 @@
 import { forwardRef, useState, useEffect, useRef } from 'react';
-import { ShieldCheck, X, Eye, EyeOff, AlertTriangle, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { ShieldCheck, X, Eye, EyeOff, AlertTriangle, CheckCircle, Loader2, AlertCircle, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { PasswordStrengthIndicator } from '@/components/ui/PasswordStrengthIndicator';
 import { ToolDetailModal } from './ToolDetailModal';
 
@@ -276,7 +277,24 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
           {/* Password test */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Test en adgangskode</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Test en adgangskode</label>
+                {(testPassword || lastTestResult) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setTestPassword('');
+                      setBreachResult(null);
+                      setBreachError(null);
+                      setLastTestResult(null);
+                    }}
+                  >
+                    Nulstil
+                  </Button>
+                )}
+              </div>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
