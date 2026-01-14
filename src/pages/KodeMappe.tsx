@@ -305,30 +305,67 @@ const KodeMappe = () => {
 
     try {
       const key = await deriveKey(passphrase, salt);
-      setCryptoKey(key);
       
-      // Load and decrypt items
+      // Load encrypted items
       const { data } = await supabase
         .from('vault_items')
         .select('*')
         .eq('user_id', user.id);
 
-      if (data) {
-        const decryptedItems: VaultItem[] = await Promise.all(
-          data.map(async (item) => ({
-            id: item.id,
-            title: await decrypt(item.title_encrypted, item.iv, key),
-            secret: await decrypt(item.secret_encrypted, item.iv, key),
-            note: item.note_encrypted ? await decrypt(item.note_encrypted, item.iv, key) : undefined,
-            folder_id: item.folder_id || undefined,
-          }))
-        );
+      if (data && data.length > 0) {
+        // Try to decrypt each item individually - robust approach
+        const decryptedItems: VaultItem[] = [];
+        let decryptionSucceeded = false;
+        let failedCount = 0;
+        
+        for (const item of data) {
+          try {
+            const decryptedTitle = await decrypt(item.title_encrypted, item.iv, key);
+            const decryptedSecret = await decrypt(item.secret_encrypted, item.iv, key);
+            const decryptedNote = item.note_encrypted 
+              ? await decrypt(item.note_encrypted, item.iv, key) 
+              : undefined;
+            
+            decryptedItems.push({
+              id: item.id,
+              title: decryptedTitle,
+              secret: decryptedSecret,
+              note: decryptedNote,
+              folder_id: item.folder_id || undefined,
+            });
+            decryptionSucceeded = true;
+          } catch (itemError) {
+            console.warn(`Failed to decrypt item ${item.id}:`, itemError);
+            failedCount++;
+            // Continue trying other items
+          }
+        }
+        
+        // If we couldn't decrypt ANY items, the password is wrong
+        if (!decryptionSucceeded && data.length > 0) {
+          throw new Error('Decryption failed - wrong password');
+        }
+        
         setItems(decryptedItems);
+        setCryptoKey(key);
+        
+        // Warn about corrupted items
+        if (failedCount > 0) {
+          toast({
+            title: `${failedCount} kode${failedCount > 1 ? 'r' : ''} kunne ikke læses`,
+            description: 'Nogle ældre poster kan være beskadiget. Nye koder vil fungere normalt.',
+            variant: 'destructive',
+          });
+        }
         
         // Cache items for Digital Arv backup
         localStorage.setItem('mittek-vault-items-cache', JSON.stringify(
           decryptedItems.map(i => ({ title: i.title, secret: i.secret, note: i.note }))
         ));
+      } else {
+        // No items yet, just set the key
+        setCryptoKey(key);
+        setItems([]);
       }
 
       // Reset failed attempts on successful unlock
@@ -373,10 +410,15 @@ const KodeMappe = () => {
       return;
     }
 
-    const { ciphertext: titleEncrypted, iv } = await encrypt(newItem.title, cryptoKey);
-    const { ciphertext: secretEncrypted } = await encrypt(newItem.secret, cryptoKey);
+    // Generate a single IV to use for all fields
+    const sharedIv = new Uint8Array(12);
+    crypto.getRandomValues(sharedIv);
+
+    // Encrypt all fields with the SAME IV
+    const { ciphertext: titleEncrypted, iv } = await encrypt(newItem.title, cryptoKey, sharedIv);
+    const { ciphertext: secretEncrypted } = await encrypt(newItem.secret, cryptoKey, sharedIv);
     const noteEncrypted = newItem.note 
-      ? (await encrypt(newItem.note, cryptoKey)).ciphertext 
+      ? (await encrypt(newItem.note, cryptoKey, sharedIv)).ciphertext 
       : null;
 
     const { data, error: dbError } = await supabase.from('vault_items').insert({

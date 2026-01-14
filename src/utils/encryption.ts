@@ -82,27 +82,43 @@ export async function deriveKey(
 }
 
 // Encrypt plaintext using AES-GCM
+// If providedIv is passed, uses that IV instead of generating a new one
+// This is important when encrypting multiple fields that share the same IV
 export async function encrypt(
   plaintext: string,
-  key: CryptoKey
+  key: CryptoKey,
+  providedIv?: Uint8Array
 ): Promise<{ ciphertext: string; iv: string }> {
   const encoder = new TextEncoder();
   const plaintextBuffer = encoder.encode(plaintext);
   
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  // Generate or use provided IV
+  let ivBytes: Uint8Array;
+  if (providedIv) {
+    ivBytes = Uint8Array.from(providedIv);
+  } else {
+    ivBytes = new Uint8Array(12);
+    crypto.getRandomValues(ivBytes);
+  }
   
   const ciphertextBuffer = await crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
-      iv,
+      iv: ivBytes as unknown as BufferSource,
     },
     key,
     plaintextBuffer
   );
 
+  // Convert IV to base64 for storage
+  let ivBinary = '';
+  for (let i = 0; i < ivBytes.byteLength; i++) {
+    ivBinary += String.fromCharCode(ivBytes[i]);
+  }
+
   return {
     ciphertext: arrayBufferToBase64(ciphertextBuffer),
-    iv: arrayBufferToBase64(iv.buffer),
+    iv: btoa(ivBinary),
   };
 }
 
