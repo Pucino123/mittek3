@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, RotateCcw, FolderPlus } from 'lucide-react';
+import { Plus, RotateCcw, FolderPlus, Lock } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
 interface HiddenCard {
@@ -12,6 +12,7 @@ interface HiddenCard {
   description: string;
   icon: LucideIcon;
   color: string;
+  minPlan?: 'basic' | 'plus' | 'pro';
 }
 
 interface AddToolModalProps {
@@ -21,7 +22,11 @@ interface AddToolModalProps {
   onAddCard: (cardId: string) => void;
   onResetAll: () => void;
   onCreateCategory?: (categoryName: string) => void;
+  currentPlan?: 'basic' | 'plus' | 'pro';
 }
+
+// Plan tier hierarchy for access checking
+const PLAN_TIERS = { basic: 0, plus: 1, pro: 2 } as const;
 
 export function AddToolModal({ 
   open, 
@@ -29,10 +34,22 @@ export function AddToolModal({
   hiddenCards, 
   onAddCard,
   onResetAll,
-  onCreateCategory
+  onCreateCategory,
+  currentPlan = 'basic'
 }: AddToolModalProps) {
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Check if user has access to a tool based on their plan
+  const hasAccess = (minPlan?: 'basic' | 'plus' | 'pro') => {
+    if (!minPlan) return true;
+    return PLAN_TIERS[currentPlan] >= PLAN_TIERS[minPlan];
+  };
+
+  // Get label for required plan
+  const getPlanLabel = (minPlan: 'basic' | 'plus' | 'pro') => {
+    return minPlan === 'plus' ? 'Plus' : minPlan === 'pro' ? 'Pro' : '';
+  };
 
   const handleCreateCategory = () => {
     if (newCategoryName.trim() && onCreateCategory) {
@@ -128,27 +145,44 @@ export function AddToolModal({
           <>
             <ScrollArea className="max-h-[50vh]">
               <div className="space-y-2 pr-4">
-                {hiddenCards.map((card) => (
-                  <button
-                    key={card.id}
-                    onClick={() => {
-                      onAddCard(card.id);
-                      if (hiddenCards.length === 1) {
-                        handleClose();
-                      }
-                    }}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
-                  >
-                    <div className={`w-10 h-10 rounded-xl ${card.color} flex items-center justify-center shrink-0`}>
-                      <card.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{card.title}</p>
-                      <p className="text-sm text-muted-foreground truncate">{card.description}</p>
-                    </div>
-                    <Plus className="h-5 w-5 text-primary shrink-0" />
-                  </button>
-                ))}
+                {hiddenCards.map((card) => {
+                  const isLocked = !hasAccess(card.minPlan);
+                  const requiredPlan = card.minPlan && card.minPlan !== 'basic' ? getPlanLabel(card.minPlan) : null;
+                  
+                  return (
+                    <button
+                      key={card.id}
+                      onClick={() => {
+                        onAddCard(card.id);
+                        if (hiddenCards.length === 1) {
+                          handleClose();
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                    >
+                      <div className={`w-10 h-10 rounded-xl ${card.color} flex items-center justify-center shrink-0 relative`}>
+                        <card.icon className="h-5 w-5" />
+                        {isLocked && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-muted-foreground rounded-full flex items-center justify-center">
+                            <Lock className="h-3 w-3 text-background" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium truncate ${isLocked ? 'text-muted-foreground' : ''}`}>{card.title}</p>
+                          {requiredPlan && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${isLocked ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
+                              {requiredPlan}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{card.description}</p>
+                      </div>
+                      <Plus className={`h-5 w-5 shrink-0 ${isLocked ? 'text-muted-foreground' : 'text-primary'}`} />
+                    </button>
+                  );
+                })}
               </div>
             </ScrollArea>
 
