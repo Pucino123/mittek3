@@ -489,10 +489,13 @@
   user-select: none;
 }
 
-/* Prevent body scroll when dragging on touch devices */
+/* Prevent manual scroll when dragging, but allow auto-scroll from dnd-kit */
 body.dragging-active {
-  overflow: hidden;
+  /* Allow programmatic scrolling (auto-scroll), prevent user touch scroll */
   touch-action: none;
+  /* Enable scroll for auto-scroll to work */
+  overflow-y: auto !important;
+  overscroll-behavior: none;
 }
 
 /* iOS-style smooth card transitions during drag sorting */

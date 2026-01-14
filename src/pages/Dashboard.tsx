@@ -434,23 +434,31 @@ const Dashboard = () => {
     resetToDefault 
   } = useDashboardSettings();
 
-  // DnD sensors - optimized for iOS-like feel with reduced sensitivity
+  // DnD sensors - Long press activation to prevent accidental drags while scrolling
+  // User must hold for 1 second before drag activates (iOS-style "lift")
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 12, // Increased from 8 for less sensitive activation
+        distance: 12, // Desktop: small movement threshold before drag starts
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 150, // Reduced delay for faster response
-        tolerance: 8, // Increased tolerance for more forgiving touch
+        delay: 1000, // MOBILE: Must hold for 1 full second before drag starts
+        tolerance: 5, // Very tight tolerance - small movement cancels drag
       },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Haptic feedback when long-press drag activates (1 second hold complete)
+  const triggerDragHaptic = useCallback(() => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(50); // iOS-style haptic tap
+    }
+  }, []);
 
   // Get effective category for a card (user override or default)
   const getCardCategory = useCallback((cardId: string): string => {
@@ -636,11 +644,15 @@ const Dashboard = () => {
   const prevOverIdRef = useRef<string | null>(null);
 
   // Handle drag start - track active dragged item for overlay
+  // This fires AFTER the 1-second long-press delay completes on mobile
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     setActiveDragId(String(active.id));
     saveUndoState(); // Save state before drag for undo
-    haptics.tick(); // Haptic on drag start
+    
+    // Strong haptic feedback when long-press completes and drag starts
+    // This signals to the user: "You're now dragging this item"
+    triggerDragHaptic();
     
     // Prevent page scrolling on touch devices during drag
     document.body.classList.add('dragging-active');
@@ -1083,6 +1095,13 @@ const Dashboard = () => {
               droppable: {
                 strategy: MeasuringStrategy.Always,
               },
+            }}
+            // Auto-scroll when dragging near viewport edges - enables dropping items further down
+            autoScroll={{
+              enabled: true,
+              threshold: { x: 0.1, y: 0.15 }, // 15% from edge triggers scroll
+              acceleration: 10, // Smooth, moderate acceleration
+              interval: 5, // Fast polling for responsive feel
             }}
           >
             {/* Single unified SortableContext for all cards - enables cross-category dragging */}
