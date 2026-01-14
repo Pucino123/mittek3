@@ -439,6 +439,44 @@ function EmptyCategoryDropZone({ categoryId, isOver }: { categoryId: string; isO
   );
 }
 
+// Wrapper that makes the ENTIRE category section (header + content) a droppable target
+// This ensures iOS touch events always hit a valid drop zone
+function DroppableCategorySection({ 
+  categoryId, 
+  isOver,
+  isDragging,
+  children 
+}: { 
+  categoryId: string; 
+  isOver: boolean;
+  isDragging: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver: isDirectlyOver } = useDroppable({
+    id: `category-section-${categoryId}`,
+  });
+
+  const showHighlight = isDragging && (isOver || isDirectlyOver);
+
+  return (
+    <section 
+      ref={setNodeRef}
+      className={cn(
+        "relative rounded-2xl transition-all duration-200",
+        // Show highlight border when dragging over this category
+        showHighlight && "ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/5",
+      )}
+      style={{
+        // Add padding when highlighted to make the ring visible
+        padding: showHighlight ? '12px' : '0',
+        margin: showHighlight ? '-12px' : '0',
+      }}
+    >
+      {children}
+    </section>
+  );
+}
+
 const Dashboard = () => {
   // Enable scroll restoration for dashboard
   useScrollRestoration();
@@ -903,11 +941,14 @@ const Dashboard = () => {
       setDropTargetId(null);
     }
     
-    // Track empty drop zones AND category headers as valid drop targets
+    // Track empty drop zones AND category headers/sections as valid drop targets
     let zone: string | null = null;
 
     if (overId?.startsWith('dropzone-')) {
       zone = overId.replace('dropzone-', '');
+    } else if (overId?.startsWith('category-section-') && activeId && !activeId.startsWith('category-')) {
+      // Card being dragged over the full category section wrapper
+      zone = overId.replace('category-section-', '');
     } else if (overId?.startsWith('category-') && activeId && !activeId.startsWith('category-')) {
       // Card being dragged over a category header - treat as dropping into that category
       zone = overId.replace('category-', '');
@@ -971,6 +1012,20 @@ const Dashboard = () => {
 
     // If a category header was dragged but dropped on something else, ignore
     if (activeId.startsWith('category-')) {
+      return;
+    }
+    
+    // Handle drop on category section wrapper (full category area)
+    if (overId.startsWith('category-section-')) {
+      const targetCategoryId = overId.replace('category-section-', '');
+      const currentCardOrder = cardOrder || defaultCardOrder;
+      
+      // Move card to target category
+      updateCardCategoryAndOrder(activeId, targetCategoryId, currentCardOrder);
+      toast.success('Værktøj flyttet', {
+        description: `Flyttet til ny kategori`,
+        duration: 2000,
+      });
       return;
     }
     
@@ -1405,8 +1460,15 @@ const Dashboard = () => {
                   const defaultTitle = customCategoryData?.title || defaultCategoryTitles[categoryId] || categoryId;
                   const customTitle = customCategoryTitles[categoryId];
 
+                  const isCategoryDropTarget = activeDropZone === categoryId && activeDragId && !categoryCards.some(c => c.id === activeDragId);
+
                   return (
-                    <section key={categoryId}>
+                    <DroppableCategorySection 
+                      key={categoryId}
+                      categoryId={categoryId}
+                      isOver={isCategoryDropTarget}
+                      isDragging={!!activeDragId && !activeDragId.startsWith('category-')}
+                    >
                       {/* Category Header - Editable in edit mode, with drag & delete for custom */}
                       <EditableCategoryTitle
                         categoryId={categoryId}
@@ -1471,7 +1533,7 @@ const Dashboard = () => {
                           />
                         )
                       )}
-                    </section>
+                    </DroppableCategorySection>
                   );
                 })}
               </div>
