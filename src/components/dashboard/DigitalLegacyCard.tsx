@@ -1,5 +1,5 @@
 import { forwardRef, useState, useEffect, useRef } from 'react';
-import { HeartHandshake, Save, Check, X, User, Phone, FileText, Key, Send, Loader2, Mail } from 'lucide-react';
+import { HeartHandshake, Save, Check, X, User, Phone, FileText, Key, Send, Loader2, Mail, Lock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { ToolDetailModal } from './ToolDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 
 interface LegacyData {
   contactName: string;
@@ -41,6 +42,10 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [showSendForm, setShowSendForm] = useState(false);
+    
+    // Security: Track if code is already set (locked)
+    const [isCodeLocked, setIsCodeLocked] = useState(false);
+    const [isCheckingCodeStatus, setIsCheckingCodeStatus] = useState(true);
 
     // Track when edit mode started to prevent immediate exit
     const editModeStartRef = useRef<number>(0);
@@ -51,19 +56,55 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
       }
     }, [isEditMode]);
 
+    // Check if legacy code is already set in the database (read-only check)
+    useEffect(() => {
+      const checkCodeStatus = async () => {
+        if (!user) {
+          setIsCheckingCodeStatus(false);
+          return;
+        }
+
+        try {
+          // Only fetch whether the code exists, NOT the code itself
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('legacy_access_code_hash, legacy_access_code_sent_at')
+            .eq('user_id', user.id)
+            .single();
+
+          if (profile?.legacy_access_code_hash) {
+            setIsCodeLocked(true);
+            // Update local data with sent timestamp if available
+            if (profile.legacy_access_code_sent_at) {
+              setData(prev => ({
+                ...prev,
+                codeSentAt: profile.legacy_access_code_sent_at
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('Error checking code status:', error);
+        } finally {
+          setIsCheckingCodeStatus(false);
+        }
+      };
+
+      checkCodeStatus();
+    }, [user]);
+
     // Load from localStorage
     useEffect(() => {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          setData({
-            contactName: parsed.contactName || '',
+          setData(prev => ({
+            contactName: parsed.contactName || prev.contactName || '',
             contactPhone: parsed.contactPhone || '',
             contactEmail: parsed.contactEmail || '',
             instructions: parsed.instructions || '',
-            codeSentAt: parsed.codeSentAt
-          });
+            codeSentAt: prev.codeSentAt || parsed.codeSentAt
+          }));
         } catch (e) {
           console.error('Failed to parse legacy data', e);
         }
@@ -81,9 +122,15 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
         toast.error('Du skal være logget ind');
         return;
       }
+
+      // Double-check that code is not already locked
+      if (isCodeLocked) {
+        toast.error('Koden er allerede sat og kan ikke ændres');
+        return;
+      }
       
-      if (!accessCode || accessCode.length < 4) {
-        toast.error('Adgangskoden skal være mindst 4 tegn');
+      if (!accessCode || accessCode.length < 6) {
+        toast.error('Adgangskoden skal være mindst 6 tegn');
         return;
       }
       
@@ -102,7 +149,6 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
         }
 
         // Fetch current vault items to include in backup
-        // Note: We need to fetch decrypted items from localStorage since vault is client-side encrypted
         const vaultItemsRaw = localStorage.getItem('mittek-vault-items-cache');
         let vaultItems: Array<{ title: string; secret: string; note?: string }> = [];
         
@@ -129,13 +175,17 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
 
         if (error) throw error;
 
+        // Mark code as locked - it can never be changed again
+        setIsCodeLocked(true);
+
         // Update local data with sent timestamp
-        const updatedData = { ...data, codeSentAt: new Date().toISOString() };
+        const sentAt = new Date().toISOString();
+        const updatedData = { ...data, codeSentAt: sentAt };
         setData(updatedData);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
 
-        toast.success('Adgangskode sendt!', {
-          description: `Koden er sendt til ${data.contactEmail}`,
+        toast.success('Adgangskode sendt og låst!', {
+          description: `Koden er sendt til ${data.contactEmail} og kan ikke ændres.`,
         });
 
         setAccessCode('');
@@ -165,7 +215,7 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
     };
 
     const hasData = data.contactName || data.contactPhone || data.contactEmail || data.instructions;
-    const isComplete = data.contactName && data.contactEmail && data.codeSentAt;
+    const isComplete = data.contactName && data.contactEmail && isCodeLocked;
 
     return (
       <>
@@ -216,7 +266,7 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
                   isComplete ? "bg-success/10" : "bg-warning/10"
                 )}>
                   {isComplete ? (
-                    <Check className="h-6 w-6 text-success" />
+                    <Lock className="h-6 w-6 text-success" />
                   ) : (
                     <FileText className="h-6 w-6 text-warning" />
                   )}
@@ -224,7 +274,7 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
                 <div>
                   <p className="font-medium text-sm">{data.contactName || 'Ikke udfyldt'}</p>
                   <p className="text-xs text-muted-foreground">
-                    {isComplete ? 'Kode sendt' : data.codeSentAt ? 'Kode sendt' : 'Kode ikke sendt'}
+                    {isCodeLocked ? 'Kode låst ✓' : 'Kode ikke sendt'}
                   </p>
                 </div>
               </div>
@@ -322,89 +372,130 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
 
             {/* Send Code Section */}
             <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 space-y-3">
-              <div className="flex items-center gap-2">
-                <Key className="h-5 w-5 text-primary" />
-                <h4 className="font-medium">Adgangskode til Kode-mappe</h4>
-              </div>
-              
-              <p className="text-sm text-muted-foreground">
-                Send en hemmelig adgangskode til din kontaktperson. De kan bruge koden til at få adgang til din Kode-mappe, hvis det bliver nødvendigt.
-              </p>
-
-              {data.codeSentAt && (
-                <div className="flex items-center gap-2 text-sm text-success bg-success/10 p-2 rounded">
-                  <Check className="h-4 w-4" />
-                  <span>Kode sendt {new Date(data.codeSentAt).toLocaleDateString('da-DK')}</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Key className="h-5 w-5 text-primary" />
+                  <h4 className="font-medium">Hemmelig adgangskode</h4>
                 </div>
-              )}
+                {isCodeLocked && (
+                  <Badge variant="secondary" className="bg-success/10 text-success border-0">
+                    <Lock className="h-3 w-3 mr-1" />
+                    Låst
+                  </Badge>
+                )}
+              </div>
 
-              {showSendForm ? (
+              {isCheckingCodeStatus ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Tjekker status...
+                </div>
+              ) : isCodeLocked ? (
+                // Code is already set and locked - show locked status
                 <div className="space-y-3">
-                  <Input
-                    placeholder="Opret en hemmelig kode (min. 4 tegn)"
-                    type="text"
-                    value={accessCode}
-                    onChange={(e) => setAccessCode(e.target.value.slice(0, 20))}
-                    className="font-mono"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    💡 Vælg en kode du kan huske, f.eks. et fælles minde eller et kodeord I har aftalt mundtligt.
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setShowSendForm(false);
-                        setAccessCode('');
-                      }}
-                      disabled={isSending}
-                    >
-                      Annuller
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="gap-2 flex-1"
-                      onClick={handleSendCode}
-                      disabled={isSending || !accessCode || accessCode.length < 4 || !data.contactEmail}
-                    >
-                      {isSending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Sender...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4" />
-                          Send til {data.contactName || 'kontakt'}
-                        </>
-                      )}
-                    </Button>
+                  <div className="flex items-center gap-2 text-sm text-success bg-success/10 p-3 rounded-lg">
+                    <Lock className="h-4 w-4 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Kode er sat og låst</p>
+                      <p className="text-xs text-success/80">
+                        {data.codeSentAt 
+                          ? `Sendt ${new Date(data.codeSentAt).toLocaleDateString('da-DK')}`
+                          : 'Koden kan ikke ændres eller ses'}
+                      </p>
+                    </div>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    🔒 Din hemmelige kode er sikkert gemt og kan kun ses af modtageren via email. 
+                    Den kan ikke ændres eller nulstilles.
+                  </p>
                 </div>
               ) : (
-                <Button
-                  variant="default"
-                  className="w-full gap-2"
-                  onClick={() => setShowSendForm(true)}
-                  disabled={!data.contactName || !data.contactEmail}
-                >
-                  <Send className="h-4 w-4" />
-                  {data.codeSentAt ? 'Send ny kode' : 'Send adgangskode'}
-                </Button>
-              )}
-              
-              {(!data.contactName || !data.contactEmail) && (
-                <p className="text-xs text-warning">
-                  Udfyld kontaktpersons navn og email ovenfor først
-                </p>
+                // Code not yet set - show input form
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Opret en hemmelig kode til din kontaktperson. Koden bruges til at få adgang til din Kode-mappe.
+                  </p>
+
+                  <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-warning">
+                      <p className="font-medium">Vigtigt: Engangskode</p>
+                      <p>Når du sender koden, kan den IKKE ændres. Vælg koden med omhu.</p>
+                    </div>
+                  </div>
+
+                  {showSendForm ? (
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Input
+                          placeholder="Vælg en hemmelig kode (min. 6 tegn)"
+                          type="password"
+                          value={accessCode}
+                          onChange={(e) => setAccessCode(e.target.value.slice(0, 30))}
+                          className="font-mono"
+                          autoComplete="new-password"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          💡 Vælg en kode du kan huske, f.eks. et fælles minde.
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowSendForm(false);
+                            setAccessCode('');
+                          }}
+                          disabled={isSending}
+                        >
+                          Annuller
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="gap-2 flex-1"
+                          onClick={handleSendCode}
+                          disabled={isSending || !accessCode || accessCode.length < 6 || !data.contactEmail}
+                        >
+                          {isSending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Sender og låser...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="h-4 w-4" />
+                              Send og lås permanent
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="default"
+                      className="w-full gap-2"
+                      onClick={() => setShowSendForm(true)}
+                      disabled={!data.contactName || !data.contactEmail}
+                    >
+                      <Key className="h-4 w-4" />
+                      Opret hemmelig kode
+                    </Button>
+                  )}
+                  
+                  {(!data.contactName || !data.contactEmail) && (
+                    <p className="text-xs text-warning">
+                      Udfyld kontaktpersons navn og email ovenfor først
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
 
           <div className="pt-4 border-t">
             <p className="text-xs text-muted-foreground flex items-center gap-1">
-              🔒 Kontaktoplysninger gemmes lokalt. Adgangskoden sendes sikkert via email.
+              🔒 Kontaktoplysninger gemmes lokalt. Koden gemmes krypteret og kan kun læses af backend.
             </p>
           </div>
         </ToolDetailModal>

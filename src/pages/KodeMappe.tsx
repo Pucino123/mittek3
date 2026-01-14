@@ -466,8 +466,8 @@ const KodeMappe = () => {
     }
   };
 
-  // Export vault data as encrypted JSON file
-  const handleExportBackup = () => {
+  // Export vault data as professional PDF
+  const handleExportBackup = async () => {
     if (items.length === 0) {
       toast({
         title: 'Ingen koder at eksportere',
@@ -477,61 +477,145 @@ const KodeMappe = () => {
       return;
     }
 
-    const exportData = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      itemCount: items.length,
-      items: items.map(item => ({
-        title: item.title,
-        secret: item.secret,
-        note: item.note || null,
-      })),
-    };
+    try {
+      // Dynamically import jsPDF and autoTable
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      
+      // Header background
+      doc.setFillColor(30, 64, 175); // Primary blue
+      doc.rect(0, 0, pageWidth, 45, 'F');
+      
+      // Logo/Brand text
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(28);
+      doc.setFont('helvetica', 'bold');
+      doc.text('MitTek', pageWidth / 2, 22, { align: 'center' });
+      
+      // Subtitle
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Sikkerhed & Digitalt Overblik', pageWidth / 2, 32, { align: 'center' });
+      
+      // Document title
+      doc.setFontSize(10);
+      doc.text('KODE-MAPPE BACKUP', pageWidth / 2, 40, { align: 'center' });
+      
+      // Reset text color
+      doc.setTextColor(0, 0, 0);
+      
+      // Info section
+      let yPos = 55;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
+      const exportDate = new Date().toLocaleDateString('da-DK', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      doc.text(`Eksporteret: ${exportDate}`, margin, yPos);
+      doc.text(`Antal koder: ${items.length}`, margin, yPos + 6);
+      
+      // Warning box
+      yPos += 18;
+      doc.setFillColor(254, 243, 199); // Warning yellow background
+      doc.setDrawColor(234, 179, 8); // Warning yellow border
+      doc.roundedRect(margin, yPos, pageWidth - (margin * 2), 20, 3, 3, 'FD');
+      
+      doc.setFontSize(9);
+      doc.setTextColor(161, 98, 7); // Warning text color
+      doc.setFont('helvetica', 'bold');
+      doc.text('⚠️ FORTROLIGT DOKUMENT', margin + 5, yPos + 8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Denne fil indeholder dine adgangskoder. Opbevar den sikkert og slet den efter brug.', margin + 5, yPos + 14);
+      
+      doc.setTextColor(0, 0, 0);
+      yPos += 30;
+      
+      // Table with codes
+      const tableData = items.map((item, index) => [
+        (index + 1).toString(),
+        item.title,
+        item.secret,
+        item.note || '-'
+      ]);
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: [['#', 'Titel', 'Kode/Adgangskode', 'Note']],
+        body: tableData,
+        margin: { left: margin, right: margin },
+        headStyles: {
+          fillColor: [30, 64, 175],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 10,
+        },
+        bodyStyles: {
+          fontSize: 9,
+          cellPadding: 4,
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252],
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 60, fontStyle: 'bold' },
+          3: { cellWidth: 'auto' },
+        },
+        styles: {
+          overflow: 'linebreak',
+          lineColor: [226, 232, 240],
+          lineWidth: 0.5,
+        },
+      });
+      
+      // Footer
+      const finalY = (doc as any).lastAutoTable?.finalY || yPos + 50;
+      
+      // Add footer on each page
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        
+        // Footer line
+        doc.setDrawColor(226, 232, 240);
+        doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+        
+        // Footer text
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text('FORTROLIGT DOKUMENT', margin, pageHeight - 12);
+        doc.text(`Side ${i} af ${pageCount}`, pageWidth / 2, pageHeight - 12, { align: 'center' });
+        doc.text('Genereret af MitTek', pageWidth - margin, pageHeight - 12, { align: 'right' });
+      }
+      
+      // Save the PDF
+      const fileName = `mittek-kode-backup-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
 
-    // Create encrypted-looking but readable backup (base64 encoded)
-    const jsonString = JSON.stringify(exportData, null, 2);
-    const base64Data = btoa(unescape(encodeURIComponent(jsonString)));
-    
-    const backupContent = `=== MITTEK KODE-MAPPE BACKUP ===
-Eksporteret: ${new Date().toLocaleString('da-DK')}
-Antal koder: ${items.length}
-
-⚠️ VIGTIGT: Denne fil indeholder dine adgangskoder!
-Opbevar den sikkert og slet den efter brug.
-
---- DATA START ---
-${base64Data}
---- DATA END ---
-
-For at læse dine koder, kan du:
-1. Kopiere teksten mellem DATA START og DATA END
-2. Gå til base64decode.org
-3. Indsætte teksten og dekode den
-
-Eller bare gem denne fil sikkert som backup.
-
-=== DINE KODER (LÆSBAR KOPI) ===
-
-${items.map((item, i) => `${i + 1}. ${item.title}
-   Kode: ${item.secret}${item.note ? `\n   Note: ${item.note}` : ''}`).join('\n\n')}
-
-=== SLUT ===
-`;
-
-    const blob = new Blob([backupContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `kodemappe-backup-${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: 'Backup eksporteret',
-      description: 'Din backup-fil er blevet downloadet. Opbevar den sikkert!',
-    });
+      toast({
+        title: 'PDF eksporteret',
+        description: 'Din backup-fil er blevet downloadet. Opbevar den sikkert!',
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({
+        title: 'Fejl ved eksport',
+        description: 'Kunne ikke generere PDF. Prøv igen.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Check plan access
