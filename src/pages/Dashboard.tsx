@@ -836,12 +836,29 @@ const Dashboard = () => {
   // (On desktop, the mouseup after a long-press can otherwise trigger an immediate "exit wiggle" click.)
   const EXIT_EDIT_MODE_GRACE_MS = 350;
   const editModeStartTimeRef = useRef<number>(0);
+  const suppressNextClickRef = useRef(false);
 
   const requestExitEditMode = useCallback(() => {
     // Ignore clicks that happen right after entering edit mode
     if (Date.now() - editModeStartTimeRef.current < EXIT_EDIT_MODE_GRACE_MS) return;
     setIsEditMode(false);
   }, [setIsEditMode]);
+
+  // When edit mode is entered via long-press, the subsequent mouseup/touchend produces a click.
+  // Suppress exactly that next click (regardless of how long the user kept holding), otherwise
+  // some cards (e.g. Notes) will immediately trigger their "exit wiggle" click handler.
+  useEffect(() => {
+    const handleClickCapture = (e: MouseEvent) => {
+      if (!suppressNextClickRef.current) return;
+      suppressNextClickRef.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+      (e as any).stopImmediatePropagation?.();
+    };
+
+    document.addEventListener('click', handleClickCapture, true);
+    return () => document.removeEventListener('click', handleClickCapture, true);
+  }, []);
 
   // Update ref when entering edit mode
   useEffect(() => {
@@ -948,6 +965,7 @@ const Dashboard = () => {
     const timer = setTimeout(() => {
       // Set immediately so the mouseup click can't exit edit mode before React commits the update
       editModeStartTimeRef.current = Date.now();
+      suppressNextClickRef.current = true;
       setIsEditMode(true);
       haptics.tick(); // Haptic on enter edit mode
       pressStartRef.current = null;
