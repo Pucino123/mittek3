@@ -279,9 +279,15 @@ function SortableCard({
       ref={setNodeRef} 
       {...attributes} 
       {...listeners}
-      style={style}
+      style={{
+        ...style,
+        // Enable vertical scroll passthrough on touch - swipes scroll the page, taps/holds work normally
+        touchAction: isEditMode ? 'none' : 'pan-y',
+      }}
       className={cn(
-        "relative h-full touch-none min-h-[180px] sm:min-h-[200px] md:min-h-[210px]",
+        "relative h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px]",
+        // Only disable touch-action completely in edit mode (for dragging)
+        isEditMode && "touch-none",
         // Show dashed border on the original slot during drag
         isDragging && "rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5",
         // Highlight when this is the active drop target
@@ -406,6 +412,7 @@ DragOverlayCard.displayName = 'DragOverlayCard';
 
 
 // Droppable zone for empty categories with spring animation
+// ALWAYS rendered with min-height so there's always a drop target
 function EmptyCategoryDropZone({ categoryId, isOver }: { categoryId: string; isOver: boolean }) {
   const { setNodeRef } = useDroppable({
     id: `dropzone-${categoryId}`,
@@ -423,7 +430,7 @@ function EmptyCategoryDropZone({ categoryId, isOver }: { categoryId: string; isO
         backgroundColor: isOver ? 'hsl(var(--primary) / 0.1)' : 'hsl(var(--muted) / 0.2)',
       }}
       transition={springTransition}
-      className="border-2 border-dashed rounded-xl p-8 text-center min-h-[140px] flex items-center justify-center"
+      className="border-2 border-dashed rounded-xl p-8 text-center min-h-[120px] flex items-center justify-center"
     >
       <motion.p 
         className="text-sm font-medium"
@@ -1446,7 +1453,7 @@ const Dashboard = () => {
               ]}
               strategy={rectSortingStrategy}
             >
-              <div className="space-y-10 sm:space-y-12" id="dashboard-wrapper">
+              <div className="space-y-12 sm:space-y-16" id="dashboard-wrapper">
                 {currentCategoryOrder.map((categoryId) => {
                   const categoryCards = cardsByCategory[categoryId] || [];
                   // Also check custom categories that might be empty but should still render
@@ -1525,13 +1532,14 @@ const Dashboard = () => {
                           )}
                         </div>
                       ) : (
-                        // Show drop zone for empty categories in edit mode
-                        isEditMode && (
+                        // ALWAYS show drop zone for empty categories in edit mode
+                        // Must have min-height so there's a valid drop target on iOS
+                        isEditMode ? (
                           <EmptyCategoryDropZone 
                             categoryId={categoryId} 
                             isOver={activeDropZone === categoryId}
                           />
-                        )
+                        ) : null
                       )}
                     </DroppableCategorySection>
                   );

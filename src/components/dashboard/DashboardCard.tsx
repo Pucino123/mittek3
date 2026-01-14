@@ -128,6 +128,7 @@ export const DashboardCard = forwardRef<HTMLDivElement, DashboardCardProps>(
           "card-interactive p-3 sm:p-5 flex flex-col h-full min-h-[180px] sm:min-h-[200px] md:min-h-[210px]",
           !hasAccess && "opacity-60 grayscale-[20%]"
         )}
+        style={{ touchAction: 'pan-y' }}
       >
         {cardContent}
       </Link>
