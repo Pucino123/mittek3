@@ -10,6 +10,7 @@ interface EditableCategoryTitleProps {
   customTitle?: string;
   isEditMode: boolean;
   isCustomCategory?: boolean;
+  isFirstCategory?: boolean; // Don't add top margin to first category
   onTitleChange: (categoryId: string, newTitle: string) => void;
   onDelete?: (categoryId: string) => void;
 }
@@ -20,6 +21,7 @@ export function EditableCategoryTitle({
   customTitle,
   isEditMode,
   isCustomCategory = false,
+  isFirstCategory = false,
   onTitleChange,
   onDelete,
 }: EditableCategoryTitleProps) {
@@ -102,7 +104,7 @@ export function EditableCategoryTitle({
 
   if (isEditing) {
     return (
-      <div ref={setNodeRef} style={style} className="flex items-center gap-2 mb-4 sm:mb-6">
+      <div ref={setNodeRef} style={style} className={`flex items-center gap-2 ${isFirstCategory ? '' : 'mt-6 sm:mt-8'} mb-4 sm:mb-6`}>
         <div className="drag-handle cursor-grab" {...attributes} {...listeners}>
           <GripVertical className="h-5 w-5 text-muted-foreground opacity-50" />
         </div>
@@ -132,7 +134,7 @@ export function EditableCategoryTitle({
     <div 
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 mb-4 sm:mb-6 ${isEditMode ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
+      className={`flex items-center gap-2 ${isFirstCategory ? '' : 'mt-6 sm:mt-8'} mb-4 sm:mb-6 ${isEditMode ? 'cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
       onClick={handleClick}
     >
       {isEditMode && (

@@ -437,6 +437,7 @@ DragOverlayCard.displayName = 'DragOverlayCard';
 
 // Droppable zone for empty categories with spring animation
 // ALWAYS rendered with min-height so there's always a drop target
+// Uses the same ID pattern as the category section for consistent collision detection
 function EmptyCategoryDropZone({
   categoryId,
   isOver
@@ -444,27 +445,53 @@ function EmptyCategoryDropZone({
   categoryId: string;
   isOver: boolean;
 }) {
+  // Use same ID pattern as DroppableCategorySection for consistent collision detection
   const {
-    setNodeRef
+    setNodeRef,
+    isOver: isDirectlyOver
   } = useDroppable({
-    id: `dropzone-${categoryId}`
+    id: `empty-zone-${categoryId}`,
+    data: {
+      type: 'empty-zone',
+      categoryId
+    }
   });
-  return <motion.div ref={setNodeRef} layout initial={{
-    opacity: 0,
-    scale: 0.95
-  }} animate={{
-    opacity: 1,
-    scale: isOver ? 1.02 : 1,
-    borderColor: isOver ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground) / 0.3)',
-    backgroundColor: isOver ? 'hsl(var(--primary) / 0.1)' : 'hsl(var(--muted) / 0.2)'
-  }} transition={springTransition} className="border-2 border-dashed rounded-xl p-8 text-center min-h-[120px] flex items-center justify-center">
-      <motion.p className="text-sm font-medium" animate={{
-      color: isOver ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-      scale: isOver ? 1.05 : 1
-    }} transition={springTransition}>
-        {isOver ? "Slip for at placere her" : "Træk værktøjer hertil"}
+  
+  const showActive = isOver || isDirectlyOver;
+  
+  return (
+    <motion.div 
+      ref={setNodeRef} 
+      layout 
+      initial={{
+        opacity: 0,
+        scale: 0.95
+      }} 
+      animate={{
+        opacity: 1,
+        scale: showActive ? 1.02 : 1,
+        borderColor: showActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground) / 0.3)',
+        backgroundColor: showActive ? 'hsl(var(--primary) / 0.1)' : 'hsl(var(--muted) / 0.2)'
+      }} 
+      transition={springTransition} 
+      className="border-2 border-dashed rounded-xl text-center min-h-[140px] flex items-center justify-center cursor-pointer"
+      style={{
+        // Ensure the entire box is the drop target, not just the text
+        width: '100%'
+      }}
+    >
+      <motion.p 
+        className="text-sm font-medium pointer-events-none select-none" 
+        animate={{
+          color: showActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+          scale: showActive ? 1.05 : 1
+        }} 
+        transition={springTransition}
+      >
+        {showActive ? "Slip for at placere her" : "Træk værktøjer hertil"}
       </motion.p>
-    </motion.div>;
+    </motion.div>
+  );
 }
 
 // Wrapper that makes the ENTIRE category section (header + content) a droppable target
@@ -965,7 +992,11 @@ const Dashboard = () => {
 
     // Track empty drop zones AND category headers/sections as valid drop targets
     let zone: string | null = null;
-    if (overId?.startsWith('dropzone-')) {
+    if (overId?.startsWith('empty-zone-')) {
+      // New empty zone ID pattern
+      zone = overId.replace('empty-zone-', '');
+    } else if (overId?.startsWith('dropzone-')) {
+      // Legacy support for dropzone-xxx
       zone = overId.replace('dropzone-', '');
     } else if (overId?.startsWith('category-section-') && activeId && !activeId.startsWith('category-')) {
       // Card being dragged over the full category section wrapper
@@ -1063,9 +1094,9 @@ const Dashboard = () => {
       return;
     }
 
-    // Handle drop on empty category zone (dropzone-xxx)
-    if (overId.startsWith('dropzone-')) {
-      const targetCategoryId = overId.replace('dropzone-', '');
+    // Handle drop on empty category zone (empty-zone-xxx or legacy dropzone-xxx)
+    if (overId.startsWith('empty-zone-') || overId.startsWith('dropzone-')) {
+      const targetCategoryId = overId.replace('empty-zone-', '').replace('dropzone-', '');
       const currentCardOrder = cardOrder || defaultCardOrder;
 
       // Move card to target category
@@ -1406,8 +1437,8 @@ const Dashboard = () => {
         }}>
             {/* Single unified SortableContext for all cards - enables cross-category dragging */}
             <SortableContext items={[...currentCategoryOrder.map(id => `category-${id}`), ...visibleCards.map(c => c.id)]} strategy={rectSortingStrategy}>
-              <div className="space-y-12 sm:space-y-16" id="dashboard-wrapper">
-                {currentCategoryOrder.map(categoryId => {
+              <div id="dashboard-wrapper">
+                {currentCategoryOrder.map((categoryId, categoryIndex) => {
                 const categoryCards = cardsByCategory[categoryId] || [];
                 // Also check custom categories that might be empty but should still render
                 const isCustomCategory = categoryId.startsWith('custom_');
@@ -1419,9 +1450,18 @@ const Dashboard = () => {
                 const defaultTitle = customCategoryData?.title || defaultCategoryTitles[categoryId] || categoryId;
                 const customTitle = customCategoryTitles[categoryId];
                 const isCategoryDropTarget = activeDropZone === categoryId && activeDragId && !categoryCards.some(c => c.id === activeDragId);
+                
+                // Calculate if this is the first visible category
+                const isFirstVisibleCategory = categoryIndex === 0 || 
+                  currentCategoryOrder.slice(0, categoryIndex).every(prevId => {
+                    const prevCards = cardsByCategory[prevId] || [];
+                    const isPrevCustom = prevId.startsWith('custom_');
+                    return prevCards.length === 0 && !isPrevCustom && !isEditMode;
+                  });
+                
                 return <DroppableCategorySection key={categoryId} categoryId={categoryId} isOver={isCategoryDropTarget} isDragging={!!activeDragId && !activeDragId.startsWith('category-')}>
                       {/* Category Header - Editable in edit mode, with drag & delete for custom */}
-                      <EditableCategoryTitle categoryId={categoryId} defaultTitle={defaultTitle} customTitle={customTitle} isEditMode={isEditMode} isCustomCategory={isCustomCategory} onTitleChange={updateCategoryTitle} onDelete={handleDeleteCategory} />
+                      <EditableCategoryTitle categoryId={categoryId} defaultTitle={defaultTitle} customTitle={customTitle} isEditMode={isEditMode} isCustomCategory={isCustomCategory} isFirstCategory={isFirstVisibleCategory} onTitleChange={updateCategoryTitle} onDelete={handleDeleteCategory} />
                     
                       {categoryCards && categoryCards.length > 0 ? <div className={cn("grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 items-stretch dashboard-grid",
                   // Use minmax for auto row height - allows expansion when placeholder is added
