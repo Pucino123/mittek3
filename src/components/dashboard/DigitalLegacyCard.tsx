@@ -1,5 +1,5 @@
 import { forwardRef, useState, useEffect, useRef } from 'react';
-import { HeartHandshake, Save, Check, X, User, Phone, FileText } from 'lucide-react';
+import { HeartHandshake, Save, Check, X, User, Phone, FileText, Key, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,6 +10,7 @@ interface LegacyData {
   contactName: string;
   contactPhone: string;
   instructions: string;
+  accessCode: string;
 }
 
 interface DigitalLegacyCardProps {
@@ -27,10 +28,12 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
     const [data, setData] = useState<LegacyData>({
       contactName: '',
       contactPhone: '',
-      instructions: ''
+      instructions: '',
+      accessCode: ''
     });
     const [saved, setSaved] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [showCode, setShowCode] = useState(false);
 
     // Track when edit mode started to prevent immediate exit
     const editModeStartRef = useRef<number>(0);
@@ -46,7 +49,13 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         try {
-          setData(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          setData({
+            contactName: parsed.contactName || '',
+            contactPhone: parsed.contactPhone || '',
+            instructions: parsed.instructions || '',
+            accessCode: parsed.accessCode || ''
+          });
         } catch (e) {
           console.error('Failed to parse legacy data', e);
         }
@@ -73,8 +82,8 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
       }
     };
 
-    const hasData = data.contactName || data.contactPhone || data.instructions;
-    const isComplete = data.contactName && data.contactPhone;
+    const hasData = data.contactName || data.contactPhone || data.instructions || data.accessCode;
+    const isComplete = data.contactName && data.contactPhone && data.accessCode;
 
     return (
       <>
@@ -119,7 +128,7 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
           {/* Summary */}
           <div className="flex-1 flex flex-col justify-center items-center">
             {hasData ? (
-              <div className="text-center space-y-2">
+              <div className="text-center space-y-1">
                 <div className={cn(
                   "w-12 h-12 mx-auto rounded-full flex items-center justify-center",
                   isComplete ? "bg-success/10" : "bg-warning/10"
@@ -138,7 +147,7 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
                 </div>
               </div>
             ) : (
-              <div className="text-center space-y-2">
+              <div className="text-center space-y-1">
                 <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center">
                   <HeartHandshake className="h-6 w-6 text-muted-foreground" />
                 </div>
@@ -194,6 +203,39 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
               />
             </div>
 
+            {/* Access Code Section */}
+            <div className="space-y-2 p-3 rounded-lg bg-primary/5 border border-primary/10">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Key className="h-4 w-4 text-primary" />
+                Adgangskode til dine pårørende
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Denne kode skal din nærmeste bruge for at tilgå din kode-mappe.
+              </p>
+              <div className="relative">
+                <Input
+                  placeholder="Opret en hemmelig kode"
+                  type={showCode ? 'text' : 'password'}
+                  value={data.accessCode}
+                  onChange={(e) => setData(prev => ({ ...prev, accessCode: e.target.value.slice(0, 20) }))}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCode(!showCode)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                >
+                  {showCode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {data.accessCode && (
+                <p className="text-xs text-success flex items-center gap-1">
+                  <Check className="h-3 w-3" />
+                  Husk at dele denne kode med din kontaktperson
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
@@ -203,7 +245,7 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
                 placeholder="Skriv instrukser til dine pårørende. F.eks. hvor de kan finde vigtige dokumenter, passwords, eller andre oplysninger de skal bruge..."
                 value={data.instructions}
                 onChange={(e) => setData(prev => ({ ...prev, instructions: e.target.value }))}
-                className="min-h-[120px] resize-none"
+                className="min-h-[100px] resize-none"
               />
             </div>
 
