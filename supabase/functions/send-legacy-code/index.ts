@@ -18,6 +18,7 @@ interface SendCodeRequest {
   contact_name: string;
   contact_email: string;
   instructions?: string;
+  vault_items?: Array<{ title: string; secret: string; note?: string }>;
 }
 
 const logStep = (step: string, details?: unknown) => {
@@ -76,6 +77,48 @@ async function hashCode(code: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Derive encryption key from access code
+async function deriveKeyFromCode(code: string, salt: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(code),
+    'PBKDF2',
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+  
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode(salt),
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+// Encrypt vault data with access code
+async function encryptVaultData(data: string, key: CryptoKey): Promise<{ ciphertext: string; iv: string }> {
+  const encoder = new TextEncoder();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    encoder.encode(data)
+  );
+  
+  return {
+    ciphertext: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
+    iv: btoa(String.fromCharCode(...iv))
+  };
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -125,7 +168,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const { access_code, contact_name, contact_email, instructions }: SendCodeRequest = await req.json();
+    const { access_code, contact_name, contact_email, instructions, vault_items }: SendCodeRequest = await req.json();
 
     // Validate inputs
     if (!access_code || access_code.length < 4) {
@@ -149,7 +192,7 @@ serve(async (req: Request) => {
       );
     }
 
-    logStep("Sending legacy code", { contactEmail: contact_email, userId: user.id });
+    logStep("Sending legacy code", { contactEmail: contact_email, userId: user.id, hasVaultItems: !!vault_items });
 
     // Get user profile for display name
     const { data: profile } = await supabaseAdmin
@@ -170,6 +213,25 @@ serve(async (req: Request) => {
         legacy_access_code_sent_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);
+
+    // If vault items are provided, encrypt and store them as a backup
+    if (vault_items && vault_items.length > 0) {
+      const key = await deriveKeyFromCode(access_code, user.id);
+      const vaultDataJson = JSON.stringify(vault_items);
+      const { ciphertext, iv } = await encryptVaultData(vaultDataJson, key);
+      
+      // Upsert the backup
+      await supabaseAdmin
+        .from("legacy_vault_backups")
+        .upsert({
+          user_id: user.id,
+          encrypted_data: ciphertext,
+          iv: iv,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+      
+      logStep("Vault backup created", { itemCount: vault_items.length });
+    }
 
     // Send email via Resend
     const appUrl = "https://www.mittek.dk";
