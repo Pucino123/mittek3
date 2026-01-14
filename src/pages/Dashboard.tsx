@@ -55,9 +55,7 @@ import { EditableCategoryTitle } from '@/components/dashboard/EditableCategoryTi
 
 import {
   DndContext,
-  closestCenter,
-  pointerWithin,
-  rectIntersection,
+  closestCorners,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -69,7 +67,6 @@ import {
   DragOverlay,
   useDroppable,
   MeasuringStrategy,
-  type CollisionDetection,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -186,22 +183,17 @@ const smoothTransition = {
   easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
 };
 
-// Custom collision detection - uses pointer position for precise targeting
-// Prevents the "too low" bug by centering on the pointer, not the card bottom
-const pointerPrecisionCollision: CollisionDetection = (args) => {
-  // First try pointerWithin - most precise, uses actual pointer position
-  const pointerCollisions = pointerWithin(args);
-  if (pointerCollisions.length > 0) {
-    return pointerCollisions;
+// Custom animateLayoutChanges - DISABLE animation for the dragged item
+// This prevents the active item from trying to animate back to its old position
+const animateLayoutChanges: AnimateLayoutChanges = (args) => {
+  const { isSorting, wasDragging, active } = args;
+  
+  // CRITICAL: Never animate the item being dragged - it follows the pointer directly
+  if (active?.id === args.id) {
+    return false;
   }
   
-  // Fall back to closestCenter for edge cases
-  return closestCenter(args);
-};
-// Custom animateLayoutChanges - enables smooth reflow during drag
-const animateLayoutChanges: AnimateLayoutChanges = (args) => {
-  const { isSorting, wasDragging } = args;
-  // Always animate layout changes for smooth reflow effect
+  // Normal items get smooth reflow animation
   if (isSorting || wasDragging) {
     return defaultAnimateLayoutChanges(args);
   }
@@ -702,28 +694,36 @@ const Dashboard = () => {
     document.body.classList.add('dragging-active');
   };
 
-  // Handle drag over for visual feedback on empty zones AND real-time placeholder
+  // Handle drag over for visual feedback on empty zones
+  // STABILIZED: Only update state when target actually changes to prevent jitter
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     const activeId = active?.id ? String(active.id) : null;
     const overId = over?.id ? String(over.id) : null;
     
-    // Haptic feedback when hovering over a new target
-    if (overId && overId !== prevOverIdRef.current) {
+    // GUARD: Only process if target has actually changed
+    // This prevents the constant state updates that cause cross-category jitter
+    if (overId === prevOverIdRef.current) {
+      return;
+    }
+    prevOverIdRef.current = overId;
+    
+    // Haptic feedback only on real target change
+    if (overId && overId !== activeId) {
       haptics.soft();
-      prevOverIdRef.current = overId;
     }
     
-    // Track drop target for real-time placeholder injection
-    // Only track if we're hovering over a different card (not the dragged one)
+    // For cross-category drags, track the target card for visual highlight
+    // But DON'T inject placeholders mid-grid - let dnd-kit handle reflow
     if (overId && overId !== activeId && !overId.startsWith('dropzone-') && !overId.startsWith('category-')) {
       setDropTargetId(overId);
     } else {
       setDropTargetId(null);
     }
     
-    if (over?.id && String(over.id).startsWith('dropzone-')) {
-      setActiveDropZone(String(over.id).replace('dropzone-', ''));
+    // Track empty drop zones
+    if (overId?.startsWith('dropzone-')) {
+      setActiveDropZone(overId.replace('dropzone-', ''));
     } else {
       setActiveDropZone(null);
     }
@@ -1134,7 +1134,7 @@ const Dashboard = () => {
         <div ref={toolsSectionRef}>
           <DndContext
             sensors={sensors}
-            collisionDetection={pointerPrecisionCollision}
+            collisionDetection={closestCorners}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
@@ -1208,37 +1208,29 @@ const Dashboard = () => {
                           onTouchStart={handleLongPressStart}
                           onTouchEnd={handleLongPressEnd}
                         >
-                          {/* Render cards - dnd-kit handles reflow automatically */}
+                          {/* Render cards - dnd-kit handles ALL reflow automatically */}
+                          {/* REMOVED: Mid-grid placeholder injection that caused jitter */}
                           {categoryCards.map((card) => {
-                            // Check if this is a cross-category drag INTO this category
+                            // Check if this card is the drop target during cross-category drag
                             const isDraggedFromOtherCategory = 
                               activeDragId && 
                               !categoryCards.some(c => c.id === activeDragId);
                             
-                            // Show placeholder BEFORE this card if it's the drop target from another category
-                            const showPlaceholderBefore = 
-                              isDraggedFromOtherCategory && 
-                              dropTargetId === card.id;
-                            
                             return (
-                              <React.Fragment key={card.id}>
-                                {/* Cross-category placeholder - physically occupies a grid slot */}
-                                {showPlaceholderBefore && <DropPlaceholderCard />}
-                                
-                                <SortableCard
-                                  card={card}
-                                  hasAccess={hasAccess(card.minPlan)}
-                                  isEditMode={isEditMode}
-                                  onRemove={() => handleRemoveCard(card.id)}
-                                  isBeingDragged={activeDragId === card.id}
-                                  onExitEditMode={() => setIsEditMode(false)}
-                                  isDropTarget={dropTargetId === card.id && isDraggedFromOtherCategory}
-                                />
-                              </React.Fragment>
+                              <SortableCard
+                                key={card.id}
+                                card={card}
+                                hasAccess={hasAccess(card.minPlan)}
+                                isEditMode={isEditMode}
+                                onRemove={() => handleRemoveCard(card.id)}
+                                isBeingDragged={activeDragId === card.id}
+                                onExitEditMode={() => setIsEditMode(false)}
+                                isDropTarget={dropTargetId === card.id && isDraggedFromOtherCategory}
+                              />
                             );
                           })}
                           
-                          {/* Placeholder at END when dragging into empty drop zone of this category */}
+                          {/* Placeholder ONLY at END when hovering over empty zone */}
                           {activeDragId && 
                            activeDropZone === categoryId && 
                            !categoryCards.some(c => c.id === activeDragId) && (
