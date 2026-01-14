@@ -56,6 +56,12 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
     const [breachResult, setBreachResult] = useState<{ breached: boolean; count: number } | null>(null);
     const [isCheckingBreach, setIsCheckingBreach] = useState(false);
     const [breachError, setBreachError] = useState<string | null>(null);
+    
+    // Persistent last test result for dashboard display
+    const [lastTestResult, setLastTestResult] = useState<{
+      status: 'weak' | 'ok' | 'strong' | 'breached';
+      label: string;
+    } | null>(null);
 
     // Track when edit mode started to prevent immediate exit
     const editModeStartRef = useRef<number>(0);
@@ -88,6 +94,28 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
         try {
           const result = await checkPasswordBreach(testPassword);
           setBreachResult(result);
+          
+          // Update persistent last test result
+          if (result.breached) {
+            setLastTestResult({ status: 'breached', label: 'Lækket!' });
+          } else {
+            // Calculate strength for the persistent result
+            let score = 0;
+            if (testPassword.length >= 8) score += 1;
+            if (testPassword.length >= 12) score += 1;
+            if (/[A-Z]/.test(testPassword)) score += 1;
+            if (/[a-z]/.test(testPassword)) score += 1;
+            if (/[0-9]/.test(testPassword)) score += 1;
+            if (/[^a-zA-Z0-9]/.test(testPassword)) score += 1;
+            
+            if (score <= 2) {
+              setLastTestResult({ status: 'weak', label: 'Svag' });
+            } else if (score <= 4) {
+              setLastTestResult({ status: 'ok', label: 'OK' });
+            } else {
+              setLastTestResult({ status: 'strong', label: 'Stærk' });
+            }
+          }
         } catch (error) {
           console.error('Failed to check breach:', error);
           setBreachError('Kunne ikke tjekke adgangskoden');
@@ -136,7 +164,7 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
 
     const status = getOverallStatus();
 
-    // Combined status considering breach result
+    // Combined status considering breach result (for modal display)
     const getCombinedStatus = () => {
       if (breachResult?.breached) {
         return { color: 'bg-destructive', textColor: 'text-destructive', label: 'Lækket!', status: 'breached' };
@@ -145,6 +173,28 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
     };
 
     const combinedStatus = getCombinedStatus();
+
+    // Dashboard display status - use last test result if available
+    const getDashboardStatus = () => {
+      if (!lastTestResult) {
+        return { color: 'bg-muted', textColor: 'text-muted-foreground', label: 'Ikke testet', status: 'neutral' };
+      }
+      
+      switch (lastTestResult.status) {
+        case 'breached':
+          return { color: 'bg-destructive', textColor: 'text-destructive', label: lastTestResult.label, status: 'breached' };
+        case 'weak':
+          return { color: 'bg-destructive', textColor: 'text-destructive', label: lastTestResult.label, status: 'weak' };
+        case 'ok':
+          return { color: 'bg-warning', textColor: 'text-warning', label: lastTestResult.label, status: 'ok' };
+        case 'strong':
+          return { color: 'bg-success', textColor: 'text-success', label: lastTestResult.label, status: 'strong' };
+        default:
+          return { color: 'bg-muted', textColor: 'text-muted-foreground', label: 'Ikke testet', status: 'neutral' };
+      }
+    };
+
+    const dashboardStatus = getDashboardStatus();
 
     return (
       <>
@@ -190,17 +240,19 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
           <div className="flex-1 flex flex-col justify-center items-center">
             <div className={cn(
               "w-16 h-16 rounded-full flex items-center justify-center mb-2",
-              combinedStatus.status === 'neutral' ? 'bg-muted' : `${combinedStatus.color}/10`
+              dashboardStatus.status === 'neutral' ? 'bg-muted' : `${dashboardStatus.color}/10`
             )}>
-              {combinedStatus.status === 'weak' || combinedStatus.status === 'breached' ? (
+              {dashboardStatus.status === 'weak' || dashboardStatus.status === 'breached' ? (
                 <AlertTriangle className="h-8 w-8 text-destructive" />
-              ) : combinedStatus.status === 'strong' ? (
+              ) : dashboardStatus.status === 'strong' ? (
                 <CheckCircle className="h-8 w-8 text-success" />
+              ) : dashboardStatus.status === 'ok' ? (
+                <ShieldCheck className="h-8 w-8 text-warning" />
               ) : (
                 <ShieldCheck className="h-8 w-8 text-muted-foreground" />
               )}
             </div>
-            <p className={cn("text-sm font-medium", combinedStatus.textColor)}>{combinedStatus.label}</p>
+            <p className={cn("text-sm font-medium", dashboardStatus.textColor)}>{dashboardStatus.label}</p>
           </div>
 
           {/* Action hint */}
