@@ -240,17 +240,17 @@ export const PasswordHealthCard = forwardRef<HTMLDivElement, PasswordHealthCardP
           {/* Summary */}
           <div className="flex-1 flex flex-col justify-center items-center">
             <div className={cn(
-              "w-16 h-16 rounded-full flex items-center justify-center mb-2",
+              "w-12 h-12 rounded-full flex items-center justify-center mb-1",
               dashboardStatus.status === 'neutral' ? 'bg-muted' : `${dashboardStatus.color}/10`
             )}>
               {dashboardStatus.status === 'weak' || dashboardStatus.status === 'breached' ? (
-                <AlertTriangle className="h-8 w-8 text-destructive" />
+                <AlertTriangle className="h-6 w-6 text-destructive" />
               ) : dashboardStatus.status === 'strong' ? (
-                <CheckCircle className="h-8 w-8 text-success" />
+                <CheckCircle className="h-6 w-6 text-success" />
               ) : dashboardStatus.status === 'ok' ? (
-                <ShieldCheck className="h-8 w-8 text-warning" />
+                <ShieldCheck className="h-6 w-6 text-warning" />
               ) : (
-                <ShieldCheck className="h-8 w-8 text-muted-foreground" />
+                <ShieldCheck className="h-6 w-6 text-muted-foreground" />
               )}
             </div>
             <p className={cn("text-sm font-medium", dashboardStatus.textColor)}>{dashboardStatus.label}</p>

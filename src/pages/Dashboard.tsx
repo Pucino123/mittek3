@@ -1620,8 +1620,8 @@ const Dashboard = () => {
                       <EditableCategoryTitle categoryId={categoryId} defaultTitle={defaultTitle} customTitle={customTitle} isEditMode={isEditMode} isCustomCategory={isCustomCategory} isFirstCategory={isFirstVisibleCategory} onTitleChange={updateCategoryTitle} onDelete={handleDeleteCategory} />
                     
                       {categoryCards && categoryCards.length > 0 ? <div className={cn("grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 dashboard-grid",
-                  // Use fixed row height for consistent card sizing across categories
-                  "auto-rows-[180px] sm:auto-rows-[200px] md:auto-rows-[210px]")} onMouseDown={handleLongPressStart} onMouseUp={handleLongPressEnd} onMouseLeave={handleLongPressEnd} onTouchStart={handleLongPressStart} onTouchEnd={handleLongPressEnd} onTouchMove={handleLongPressMove} onMouseMove={handleLongPressMove}>
+                  // Use minmax for auto row height - allows expansion when placeholder is added
+                  "auto-rows-[minmax(180px,auto)] sm:auto-rows-[minmax(200px,auto)] md:auto-rows-[minmax(210px,auto)]")} onMouseDown={handleLongPressStart} onMouseUp={handleLongPressEnd} onMouseLeave={handleLongPressEnd} onTouchStart={handleLongPressStart} onTouchEnd={handleLongPressEnd} onTouchMove={handleLongPressMove} onMouseMove={handleLongPressMove}>
                           {/* Render cards - dnd-kit handles ALL reflow automatically */}
                           {/* REMOVED: Mid-grid placeholder injection that caused jitter */}
                           {categoryCards.map(card => {

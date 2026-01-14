@@ -131,11 +131,11 @@ export const SubscriptionTrackerCard = forwardRef<HTMLDivElement, SubscriptionTr
           {/* Summary */}
           <div className="flex-1 flex flex-col justify-center items-center">
             <div className="text-center">
-              <p className="text-3xl font-bold text-primary">{totalMonthly} kr</p>
-              <p className="text-xs text-muted-foreground mt-1">pr. måned</p>
+              <p className="text-2xl font-bold text-primary">{totalMonthly} kr</p>
+              <p className="text-xs text-muted-foreground">pr. måned</p>
             </div>
             {subscriptions.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-xs text-muted-foreground mt-1">
                 {subscriptions.length} abonnement{subscriptions.length !== 1 ? 'er' : ''}
               </p>
             )}
