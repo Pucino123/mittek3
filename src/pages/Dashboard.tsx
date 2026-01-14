@@ -451,6 +451,7 @@ const Dashboard = () => {
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const activeDropZoneRef = useRef<string | null>(null);
   const toolsSectionRef = useRef<HTMLDivElement>(null);
   const lastScrollZoneRef = useRef<'top' | 'bottom' | null>(null);
   const lastPointerYRef = useRef<number | null>(null);
@@ -863,11 +864,14 @@ const Dashboard = () => {
     const { active } = event;
     setActiveDragId(String(active.id));
     saveUndoState(); // Save state before drag for undo
-    
+
+    // Reset drop zone tracking
+    activeDropZoneRef.current = null;
+
     // Strong haptic feedback when long-press completes and drag starts
     // This signals to the user: "You're now dragging this item"
     triggerDragHaptic();
-    
+
     // Prevent page scrolling on touch devices during drag
     document.body.classList.add('dragging-active');
   };
@@ -900,19 +904,26 @@ const Dashboard = () => {
     }
     
     // Track empty drop zones AND category headers as valid drop targets
+    let zone: string | null = null;
+
     if (overId?.startsWith('dropzone-')) {
-      setActiveDropZone(overId.replace('dropzone-', ''));
+      zone = overId.replace('dropzone-', '');
     } else if (overId?.startsWith('category-') && activeId && !activeId.startsWith('category-')) {
       // Card being dragged over a category header - treat as dropping into that category
-      setActiveDropZone(overId.replace('category-', ''));
-    } else {
-      setActiveDropZone(null);
+      zone = overId.replace('category-', '');
     }
+
+    setActiveDropZone(zone);
+    activeDropZoneRef.current = zone;
   };
 
   // Handle drag end for both cards and categories
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+
+    const activeId = String(active.id);
+    const fallbackCategoryId = activeDropZoneRef.current;
+    activeDropZoneRef.current = null;
     
     // Clear drag states and re-enable scrolling
     setActiveDropZone(null);
@@ -921,9 +932,19 @@ const Dashboard = () => {
     prevOverIdRef.current = null;
     document.body.classList.remove('dragging-active');
 
-    if (!over) return;
+    // iOS can sometimes report over=null on touch end; use last known drop zone as fallback
+    if (!over) {
+      if (fallbackCategoryId && !activeId.startsWith('category-')) {
+        const currentCardOrder = cardOrder || defaultCardOrder;
+        updateCardCategoryAndOrder(activeId, fallbackCategoryId, currentCardOrder);
+        toast.success('Værktøj flyttet', {
+          description: `Flyttet til ny kategori`,
+          duration: 2000,
+        });
+      }
+      return;
+    }
 
-    const activeId = String(active.id);
     const overId = String(over.id);
     
     // Don't do anything if dropped on itself
@@ -945,6 +966,11 @@ const Dashboard = () => {
         const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
         updateCategoryOrder(newOrder);
       }
+      return;
+    }
+
+    // If a category header was dragged but dropped on something else, ignore
+    if (activeId.startsWith('category-')) {
       return;
     }
     
@@ -1340,6 +1366,7 @@ const Dashboard = () => {
               setActiveDragId(null);
               setDropTargetId(null);
               prevOverIdRef.current = null;
+              activeDropZoneRef.current = null;
               document.body.classList.remove('dragging-active');
             }}
             measuring={{
