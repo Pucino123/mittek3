@@ -15,6 +15,7 @@ interface HiddenCard {
   icon: LucideIcon;
   color: string;
   minPlan?: 'basic' | 'plus' | 'pro';
+  addedDate?: string; // ISO date string for "Ny!" badge
 }
 
 interface AddToolModalProps {
@@ -60,6 +61,15 @@ export function AddToolModal({
     return minPlan === 'plus' ? 'Plus' : minPlan === 'pro' ? 'Pro' : '';
   };
 
+  // Check if tool is new (added within last 30 days)
+  const isNewTool = (addedDate?: string) => {
+    if (!addedDate) return false;
+    const added = new Date(addedDate);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - added.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 30;
+  };
+
   // Sort cards: unlocked first, then locked
   const sortedCards = useMemo(() => {
     return [...hiddenCards].sort((a, b) => {
@@ -97,6 +107,7 @@ export function AddToolModal({
   const renderCard = (card: HiddenCard, isLocked: boolean) => {
     const requiredPlan = card.minPlan && card.minPlan !== 'basic' ? getPlanLabel(card.minPlan) : null;
     const planDescription = card.minPlan ? PLAN_DESCRIPTIONS[card.minPlan] : '';
+    const isNew = isNewTool(card.addedDate);
     
     const cardContent = (
       <button
@@ -124,6 +135,11 @@ export function AddToolModal({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className={`font-medium truncate ${isLocked ? 'text-muted-foreground' : ''}`}>{card.title}</p>
+            {isNew && !isLocked && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full shrink-0 bg-success/20 text-success font-medium animate-pulse">
+                Ny!
+              </span>
+            )}
             {requiredPlan && (
               <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${isLocked ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
                 {requiredPlan}
