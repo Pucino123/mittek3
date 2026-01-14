@@ -187,7 +187,10 @@ const isAppleTouchDevice = () => {
   return isiOSUA || isiPadOS;
 };
 
-const getTouchDragDelayMs = () => (isAppleTouchDevice() ? 3000 : 2000);
+// Wiggle mode activation delay: 2s for Apple touch, 1.5s for other touch devices
+const WIGGLE_DELAY_MS_APPLE = 2000;
+const WIGGLE_DELAY_MS_OTHER = 1500;
+const getWiggleDelayMs = () => (isAppleTouchDevice() ? WIGGLE_DELAY_MS_APPLE : WIGGLE_DELAY_MS_OTHER);
 
 // iOS-style spring animation config for Framer Motion
 const springTransition = {
@@ -450,8 +453,11 @@ const Dashboard = () => {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const toolsSectionRef = useRef<HTMLDivElement>(null);
   const lastScrollZoneRef = useRef<'top' | 'bottom' | null>(null);
-  const lastTouchYRef = useRef<number | null>(null);
+  const lastPointerYRef = useRef<number | null>(null);
   const touchAutoScrollRafRef = useRef<number | null>(null);
+  
+  // Long-press tracking for cancellation on movement
+  const pressStartRef = useRef<{ x: number; y: number; scrollTop: number } | null>(null);
   
   // Undo history stack (full snapshots for robust restore)
   type DashboardSnapshot = {
@@ -490,19 +496,18 @@ const Dashboard = () => {
     resetToDefault 
   } = useDashboardSettings();
 
-  // DnD sensors - Long press activation to prevent accidental drags while scrolling
-  // User must hold for 1 second before drag activates (iOS-style "lift")
+  // DnD sensors - In edit mode, drag starts immediately with small distance threshold
+  // Outside edit mode, useSortable is disabled so this only matters when editing
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 12, // Desktop: small movement threshold before drag starts
+        distance: isEditMode ? 6 : 12, // Tighter threshold in edit mode
       },
     }),
     useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: getTouchDragDelayMs(), // iPhone/iPad: 3s, other touch devices: 2s
-        tolerance: 8, // Slightly more tolerance for natural finger movement during hold
-      },
+      activationConstraint: isEditMode
+        ? { distance: 8 } // In edit mode: immediate drag (distance-based, no delay)
+        : { delay: getWiggleDelayMs(), tolerance: 8 }, // Before edit mode: long press required
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -649,30 +654,32 @@ const Dashboard = () => {
     return () => window.removeEventListener('pointermove', handlePointerMove);
   }, [activeDragId]);
 
-  // Block manual touch scrolling during drag.
-  // On iPhone/iPad we also run our own auto-scroll loop as a fallback (dnd-kit autoScroll can be flaky on iOS).
+  // Block manual touch scrolling during drag + run custom auto-scroll on iOS/iPadOS.
+  // Uses pointermove as primary Y source (more reliable than touchmove on iOS during dnd).
   useEffect(() => {
     if (!activeDragId) return;
 
     const threshold = 0.15; // 15% - matches autoScroll threshold
+    const scroller = document.scrollingElement || document.documentElement;
 
-    const handleTouchStart = (e: TouchEvent) => {
-      const t = e.touches?.[0];
-      if (t) lastTouchYRef.current = t.clientY;
+    // Track pointer position (works better than touch events during dnd on iOS)
+    const handlePointerMoveForScroll = (e: PointerEvent) => {
+      lastPointerYRef.current = e.clientY;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      // Also update from touch as fallback
       const t = e.touches?.[0];
-      if (t) lastTouchYRef.current = t.clientY;
+      if (t) lastPointerYRef.current = t.clientY;
 
       // Prevent iOS from treating this as a page scroll gesture while dragging
       if (e.cancelable) e.preventDefault();
     };
 
-    // Fallback auto-scroll on iOS/iPadOS
+    // Fallback auto-scroll on iOS/iPadOS (dnd-kit autoScroll can be flaky)
     const tick = () => {
       if (isAppleTouchDevice()) {
-        const y = lastTouchYRef.current;
+        const y = lastPointerYRef.current;
         if (typeof y === 'number') {
           const viewportHeight = window.innerHeight;
           const topZone = viewportHeight * threshold;
@@ -688,7 +695,7 @@ const Dashboard = () => {
           }
 
           if (delta !== 0) {
-            window.scrollBy({ top: delta, left: 0, behavior: 'auto' });
+            scroller.scrollTop += delta;
           }
         }
       }
@@ -696,18 +703,18 @@ const Dashboard = () => {
       touchAutoScrollRafRef.current = window.requestAnimationFrame(tick);
     };
 
-    document.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('pointermove', handlePointerMoveForScroll, { passive: true });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     touchAutoScrollRafRef.current = window.requestAnimationFrame(tick);
 
     return () => {
-      document.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('pointermove', handlePointerMoveForScroll);
       document.removeEventListener('touchmove', handleTouchMove);
       if (touchAutoScrollRafRef.current) {
         window.cancelAnimationFrame(touchAutoScrollRafRef.current);
         touchAutoScrollRafRef.current = null;
       }
-      lastTouchYRef.current = null;
+      lastPointerYRef.current = null;
     };
   }, [activeDragId]);
 
@@ -782,12 +789,30 @@ const Dashboard = () => {
     }
   };
 
-  // Long press handlers for entering edit mode
-  const handleLongPressStart = () => {
+  // Long press handlers for entering edit mode (only triggers when pressing on a card)
+  const handleLongPressStart = (e: React.TouchEvent | React.MouseEvent) => {
+    // Only start timer if pressing on an actual card
+    const target = e.target as HTMLElement;
+    if (!target.closest('[data-sortable-item]')) return;
+    
+    // Record start position for movement cancellation
+    let startX = 0, startY = 0;
+    if ('touches' in e && e.touches[0]) {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    } else if ('clientX' in e) {
+      startX = e.clientX;
+      startY = e.clientY;
+    }
+    
+    const scrollTop = (document.scrollingElement || document.documentElement).scrollTop;
+    pressStartRef.current = { x: startX, y: startY, scrollTop };
+    
     const timer = setTimeout(() => {
       setIsEditMode(true);
       haptics.tick(); // Haptic on enter edit mode
-    }, isAppleTouchDevice() ? 3000 : 500); // iPhone/iPad: 3s
+      pressStartRef.current = null;
+    }, getWiggleDelayMs());
     setLongPressTimer(timer);
   };
 
@@ -795,6 +820,34 @@ const Dashboard = () => {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
+    }
+    pressStartRef.current = null;
+  };
+  
+  // Cancel long press if user moves finger or scrolls (prevents wiggle during scroll)
+  const handleLongPressMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!longPressTimer || !pressStartRef.current) return;
+    
+    let currentX = 0, currentY = 0;
+    if ('touches' in e && e.touches[0]) {
+      currentX = e.touches[0].clientX;
+      currentY = e.touches[0].clientY;
+    } else if ('clientX' in e) {
+      currentX = e.clientX;
+      currentY = e.clientY;
+    }
+    
+    const { x: startX, y: startY, scrollTop: startScrollTop } = pressStartRef.current;
+    const currentScrollTop = (document.scrollingElement || document.documentElement).scrollTop;
+    
+    const distance = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
+    const scrollDistance = Math.abs(currentScrollTop - startScrollTop);
+    
+    // Cancel if moved more than 12px or scrolled more than 10px
+    if (distance > 12 || scrollDistance > 10) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+      pressStartRef.current = null;
     }
   };
 
@@ -846,9 +899,12 @@ const Dashboard = () => {
       setDropTargetId(null);
     }
     
-    // Track empty drop zones
+    // Track empty drop zones AND category headers as valid drop targets
     if (overId?.startsWith('dropzone-')) {
       setActiveDropZone(overId.replace('dropzone-', ''));
+    } else if (overId?.startsWith('category-') && activeId && !activeId.startsWith('category-')) {
+      // Card being dragged over a category header - treat as dropping into that category
+      setActiveDropZone(overId.replace('category-', ''));
     } else {
       setActiveDropZone(null);
     }
@@ -876,7 +932,7 @@ const Dashboard = () => {
     // Haptic feedback on successful drop
     haptics.success();
 
-    // Check if dragging categories
+    // Check if dragging categories (category → category reorder)
     if (activeId.startsWith('category-') && overId.startsWith('category-')) {
       const activeCategoryId = activeId.replace('category-', '');
       const overCategoryId = overId.replace('category-', '');
@@ -891,8 +947,23 @@ const Dashboard = () => {
       }
       return;
     }
+    
+    // Handle drop on category header (card → category header = move to that category)
+    // This allows dropping on "Træk værktøjer hertil" or category title when category is empty
+    if (overId.startsWith('category-') && !activeId.startsWith('category-')) {
+      const targetCategoryId = overId.replace('category-', '');
+      const currentCardOrder = cardOrder || defaultCardOrder;
+      
+      // Move card to target category
+      updateCardCategoryAndOrder(activeId, targetCategoryId, currentCardOrder);
+      toast.success('Værktøj flyttet', {
+        description: `Flyttet til ny kategori`,
+        duration: 2000,
+      });
+      return;
+    }
 
-    // Handle drop on empty category zone
+    // Handle drop on empty category zone (dropzone-xxx)
     if (overId.startsWith('dropzone-')) {
       const targetCategoryId = overId.replace('dropzone-', '');
       const currentCardOrder = cardOrder || defaultCardOrder;
@@ -1320,7 +1391,6 @@ const Dashboard = () => {
                         onDelete={handleDeleteCategory}
                       />
                     
-                      {/* Cards Grid - 4 per row on desktop */}
                       {categoryCards && categoryCards.length > 0 ? (
                         <div 
                           className={cn(
@@ -1333,6 +1403,8 @@ const Dashboard = () => {
                           onMouseLeave={handleLongPressEnd}
                           onTouchStart={handleLongPressStart}
                           onTouchEnd={handleLongPressEnd}
+                          onTouchMove={handleLongPressMove}
+                          onMouseMove={handleLongPressMove}
                         >
                           {/* Render cards - dnd-kit handles ALL reflow automatically */}
                           {/* REMOVED: Mid-grid placeholder injection that caused jitter */}
