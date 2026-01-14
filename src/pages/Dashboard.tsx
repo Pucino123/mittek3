@@ -1255,8 +1255,34 @@ const Dashboard = () => {
             {/* DragOverlay - renders a floating copy with iOS spring animation */}
             <DragOverlay 
               dropAnimation={{
-                duration: 300,
-                easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+                // Satisfying bounce animation on drop
+                duration: 350,
+                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Overshoot curve for bounce
+                keyframes({ transform }) {
+                  return [
+                    // Start: lifted position
+                    { 
+                      transform: transform?.initial ? `${transform.initial} scale(1.05)` : 'scale(1.05)',
+                      opacity: 1,
+                    },
+                    // Mid: overshoot (bounce)
+                    { 
+                      transform: transform?.final ? `${transform.final} scale(1.02)` : 'scale(1.02)',
+                      opacity: 1,
+                    },
+                    // End: settled position
+                    { 
+                      transform: transform?.final ? `${transform.final} scale(1)` : 'scale(1)',
+                      opacity: 1,
+                    },
+                  ];
+                },
+                sideEffects({ active }) {
+                  // Trigger haptic on drop completion
+                  if (active?.node) {
+                    haptics.success();
+                  }
+                },
               }}
               style={{ zIndex: 9999 }}
             >
