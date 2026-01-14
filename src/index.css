@@ -567,8 +567,10 @@ body.dragging-active [data-sortable-item]:not([data-dragging="true"]) {
   }
 }
 
-/* Prevent body scroll during drag on mobile */
+/* Prevent manual scroll during drag but allow programmatic auto-scroll */
 body.dragging-active {
-  overflow: hidden;
-  touch-action: none;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: auto; /* Disable momentum to prevent interference */
+  overscroll-behavior: none; /* Prevent rubber-banding */
+  /* touch-action: none is REMOVED - it blocks dnd-kit auto-scroll */
 }
