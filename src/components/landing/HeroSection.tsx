@@ -2,8 +2,13 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Shield, CheckCircle, ArrowRight } from 'lucide-react';
 import { trackCTAClick } from '@/utils/analytics';
+
 export function HeroSection() {
-  return <section className="relative overflow-hidden" aria-labelledby="hero-heading">
+  return (
+    <section 
+      className="relative overflow-hidden"
+      aria-labelledby="hero-heading"
+    >
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-trust-soft via-background to-background -z-10" aria-hidden="true" />
       
@@ -20,24 +25,28 @@ export function HeroSection() {
           </div>
 
           {/* Main headline - H1 for SEO */}
-          <h1 id="hero-heading" className="md:text-5xl lg:text-6xl font-bold text-foreground mb-4 md:mb-6 animate-slide-up leading-tight text-2xl">Din personlige IT-hjælp. 
-Sikkerhed & ro i maven.<span className="block text-primary mt-2">
+          <h1 
+            id="hero-heading"
+            className="text-3xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 md:mb-6 animate-slide-up leading-tight"
+          >
+            Din personlige IT-hjælp.
+            <span className="block text-primary mt-2">
               Sikkerhed og ro i maven.
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="md:text-2xl text-muted-foreground mb-8 md:mb-10 max-w-2xl mx-auto animate-slide-up px-2 text-base" style={{
-          animationDelay: '0.1s'
-        }}>
+          <p className="text-lg md:text-2xl text-muted-foreground mb-8 md:mb-10 max-w-2xl mx-auto animate-slide-up px-2" style={{ animationDelay: '0.1s' }}>
             Få hjælp til din iPhone, iPad og Mac — på helt almindeligt dansk. 
             Ingen teknisk snak, bare tryghed.
           </p>
 
           {/* CTA Buttons */}
-          <nav className="flex flex-col gap-4 sm:flex-row sm:gap-4 justify-center mb-6 md:mb-8 animate-slide-up px-4 sm:px-0" style={{
-          animationDelay: '0.2s'
-        }} aria-label="Primære handlinger">
+          <nav 
+            className="flex flex-col gap-4 sm:flex-row sm:gap-4 justify-center mb-6 md:mb-8 animate-slide-up px-4 sm:px-0" 
+            style={{ animationDelay: '0.2s' }}
+            aria-label="Primære handlinger"
+          >
             <div className="flex flex-col items-center">
               <Link to="/pricing?signup=true" className="w-full sm:w-auto" onClick={() => trackCTAClick('pricing', 'hero')}>
                 <Button variant="hero" size="xl" className="w-full min-h-[56px]">
@@ -55,9 +64,11 @@ Sikkerhed & ro i maven.<span className="block text-primary mt-2">
           </nav>
 
           {/* Trust indicators */}
-          <ul className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 sm:gap-6 text-muted-foreground animate-fade-in px-4 list-none" style={{
-          animationDelay: '0.3s'
-        }} aria-label="Fordele">
+          <ul 
+            className="flex flex-col sm:flex-row flex-wrap justify-center gap-4 sm:gap-6 text-muted-foreground animate-fade-in px-4 list-none" 
+            style={{ animationDelay: '0.3s' }}
+            aria-label="Fordele"
+          >
             <li className="flex items-center justify-center gap-2">
               <CheckCircle className="h-5 w-5 text-success flex-shrink-0" aria-hidden="true" />
               <span>Ingen binding</span>
@@ -73,5 +84,6 @@ Sikkerhed & ro i maven.<span className="block text-primary mt-2">
           </ul>
         </div>
       </div>
-    </section>;
+    </section>
+  );
 }
