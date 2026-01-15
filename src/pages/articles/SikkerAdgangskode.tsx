@@ -181,7 +181,8 @@ const SikkerAdgangskode = () => {
           <Alert className="my-8 border-primary/30 bg-primary/5">
             <Lightbulb className="h-5 w-5 text-primary" />
             <AlertDescription className="text-base">
-              <strong>Tip fra MitTek:</strong> Brug vores <Link to="/password-generator" className="text-primary hover:underline font-medium">gratis kode-generator</Link> til 
+              <strong>Tip fra MitTek:</strong> Brug vores kode-generator, der er inkluderet i{' '}
+              <Link to="/pricing" className="text-primary hover:underline font-medium">alle vores planer</Link>, til 
               at få forslag til sikre passphrases, du nemt kan huske.
             </AlertDescription>
           </Alert>
