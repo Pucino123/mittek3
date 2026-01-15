@@ -66,6 +66,11 @@ export function Header() {
             </>
           ) : (
             <>
+              {/* Gratis Tips link */}
+              <Link to="/viden" className="text-muted-foreground hover:text-foreground transition-colors font-medium">
+                Gratis Tips
+              </Link>
+
               {/* Senior Mode Toggle - iOS Style */}
               <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary">
                 <IOSSwitch 

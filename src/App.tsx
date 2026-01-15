@@ -53,6 +53,9 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Contact = lazy(() => import("./pages/Contact"));
 const FAQ = lazy(() => import("./pages/FAQ"));
+const Viden = lazy(() => import("./pages/Viden"));
+const SikkerAdgangskode = lazy(() => import("./pages/articles/SikkerAdgangskode"));
+const LangsomIphone = lazy(() => import("./pages/articles/LangsomIphone"));
 
 const queryClient = new QueryClient();
 
@@ -94,6 +97,9 @@ const App = () => (
               <Route path="/terms" element={<LazyRoute><Terms /></LazyRoute>} />
               <Route path="/contact" element={<LazyRoute><Contact /></LazyRoute>} />
               <Route path="/faq" element={<LazyRoute><FAQ /></LazyRoute>} />
+              <Route path="/viden" element={<LazyRoute><Viden /></LazyRoute>} />
+              <Route path="/viden/sikker-adgangskode" element={<LazyRoute><SikkerAdgangskode /></LazyRoute>} />
+              <Route path="/viden/langsom-iphone" element={<LazyRoute><LangsomIphone /></LazyRoute>} />
               
               {/* Protected routes - Basic+ */}
               <Route path="/dashboard" element={
