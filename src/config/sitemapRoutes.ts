@@ -38,6 +38,21 @@ export const sitemapRoutes: SitemapRoute[] = [
     priority: 0.9,
   },
   {
+    path: '/viden',
+    changefreq: 'weekly',
+    priority: 0.8,
+  },
+  {
+    path: '/viden/sikker-adgangskode',
+    changefreq: 'monthly',
+    priority: 0.7,
+  },
+  {
+    path: '/viden/langsom-iphone',
+    changefreq: 'monthly',
+    priority: 0.7,
+  },
+  {
     path: '/faq',
     changefreq: 'weekly',
     priority: 0.8,
