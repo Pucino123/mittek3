@@ -502,6 +502,8 @@ const KodeMappe = () => {
     setItems([]);
     setShowSecret({});
     setIsLegacyMode(false);
+    // Clear cached vault data to prevent plaintext exposure
+    localStorage.removeItem('mittek-vault-items-cache');
     // Keep failed attempts across locks for extra security
   };
 

@@ -262,6 +262,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear sensitive cached data before signing out
+    localStorage.removeItem('mittek-vault-items-cache');
+    
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
