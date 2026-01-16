@@ -36,9 +36,8 @@ export function HeroSection() {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-lg md:text-2xl text-muted-foreground mb-8 md:mb-10 max-w-2xl mx-auto animate-slide-up px-2" style={{ animationDelay: '0.1s' }}>
-            Få hjælp til din iPhone, iPad og Mac — på helt almindeligt dansk. 
-            Ingen teknisk snak, bare tryghed.
+          <p className="text-base md:text-2xl text-muted-foreground mb-8 md:mb-10 max-w-2xl mx-auto animate-slide-up px-2" style={{ animationDelay: '0.1s' }}>
+            Hjælp til iPhone, iPad & Mac — på almindeligt dansk.
           </p>
 
           {/* CTA Buttons */}
