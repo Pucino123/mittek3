@@ -27,11 +27,11 @@ export function HeroSection() {
           {/* Main headline - H1 for SEO */}
           <h1 
             id="hero-heading"
-            className="text-3xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 md:mb-6 animate-slide-up leading-tight"
+            className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 md:mb-6 animate-slide-up leading-tight"
           >
             Din personlige IT-hjælp.
-            <span className="block text-primary mt-2">
-              Sikkerhed og ro i maven.
+            <span className="block text-primary mt-1 sm:mt-2">
+              Sikkerhed & ro i maven.
             </span>
           </h1>
 
