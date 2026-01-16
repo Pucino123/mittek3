@@ -420,14 +420,38 @@
     }
   }
 
-  /* Remove hover background on touch devices for buttons and interactive elements */
-  @media (hover: none) {
+  /* Remove ALL hover effects on touch devices to prevent sticky states */
+  @media (hover: none), (pointer: coarse) {
     button:hover,
     a:hover,
+    [role="button"]:hover,
     .hover\:bg-muted:hover,
     .hover\:bg-secondary:hover,
-    .hover\:bg-accent:hover {
-      background-color: inherit;
+    .hover\:bg-accent:hover,
+    .hover\:bg-primary:hover,
+    .hover\:bg-destructive:hover {
+      background-color: inherit !important;
+      color: inherit !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+    
+    /* Reset all Tailwind hover utilities on touch */
+    .hover\:scale-105:hover,
+    .hover\:-translate-y-0\.5:hover,
+    .hover\:-translate-y-1:hover {
+      transform: none !important;
+    }
+    
+    .hover\:shadow-lg:hover,
+    .hover\:shadow-xl:hover,
+    .hover\:shadow-2xl:hover {
+      box-shadow: inherit !important;
+    }
+    
+    .hover\:opacity-90:hover,
+    .hover\:opacity-80:hover {
+      opacity: inherit !important;
     }
   }
 }
