@@ -124,10 +124,53 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Admin access required" }, 403);
     }
 
-    const { action, userId: requestUserId, email, planTier }: ManageUserRequest = await req.json();
+    // Parse and validate request body
+    let rawBody;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return jsonResponse({ error: "Invalid JSON in request body" }, 400);
+    }
 
-    if (!action) {
-      return jsonResponse({ error: "Action is required" }, 400);
+    const { action, userId: requestUserId, email, planTier } = rawBody;
+
+    // Validate action
+    const VALID_ACTIONS = [
+      'reset_password', 'update_plan', 'toggle_status', 
+      'delete_user', 'delete_user_by_email', 'remove_plan', 'reset_legacy_code'
+    ];
+    if (typeof action !== 'string' || !VALID_ACTIONS.includes(action)) {
+      return jsonResponse({ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(', ')}` }, 400);
+    }
+
+    // Validate planTier if provided
+    if (planTier !== undefined) {
+      const VALID_PLAN_TIERS = ['basic', 'plus', 'pro'];
+      if (typeof planTier !== 'string' || !VALID_PLAN_TIERS.includes(planTier)) {
+        return jsonResponse({ error: `Invalid plan tier. Must be one of: ${VALID_PLAN_TIERS.join(', ')}` }, 400);
+      }
+    }
+
+    // Validate email format if provided
+    if (email !== undefined && email !== null) {
+      if (typeof email !== 'string') {
+        return jsonResponse({ error: "Email must be a string" }, 400);
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim()) || email.length > 255) {
+        return jsonResponse({ error: "Invalid email format" }, 400);
+      }
+    }
+
+    // Validate UUID format if provided
+    if (requestUserId !== undefined && requestUserId !== null) {
+      if (typeof requestUserId !== 'string') {
+        return jsonResponse({ error: "userId must be a string" }, 400);
+      }
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(requestUserId.trim())) {
+        return jsonResponse({ error: "Invalid userId format" }, 400);
+      }
     }
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey, {

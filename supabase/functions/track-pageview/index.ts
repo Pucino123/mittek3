@@ -26,7 +26,58 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const body: PageViewRequest = await req.json();
+    // Parse and validate request body
+    let body: PageViewRequest;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Validate and sanitize path (required field)
+    if (typeof body.path !== 'string' || body.path.trim().length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Path is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const MAX_PATH_LENGTH = 500;
+    const MAX_REFERRER_LENGTH = 2000;
+    const MAX_USER_AGENT_LENGTH = 500;
+    const MAX_SESSION_ID_LENGTH = 100;
+
+    // Sanitize all inputs
+    let sanitizedPath = body.path.trim().slice(0, MAX_PATH_LENGTH);
+    if (!sanitizedPath.startsWith('/')) {
+      sanitizedPath = '/' + sanitizedPath;
+    }
+    // Remove potentially dangerous characters
+    sanitizedPath = sanitizedPath.replace(/[<>'"]/g, '');
+
+    const sanitizedReferrer = typeof body.referrer === 'string' 
+      ? body.referrer.trim().slice(0, MAX_REFERRER_LENGTH).replace(/[<>'"]/g, '')
+      : null;
+
+    const sanitizedUserAgent = typeof body.user_agent === 'string'
+      ? body.user_agent.trim().slice(0, MAX_USER_AGENT_LENGTH)
+      : null;
+
+    const sanitizedSessionId = typeof body.session_id === 'string'
+      ? body.session_id.trim().slice(0, MAX_SESSION_ID_LENGTH).replace(/[^a-zA-Z0-9-_]/g, '')
+      : null;
+
+    // Validate user_id if provided (must be valid UUID)
+    let sanitizedUserId: string | null = null;
+    if (body.user_id) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (typeof body.user_id === 'string' && uuidRegex.test(body.user_id.trim())) {
+        sanitizedUserId = body.user_id.trim().toLowerCase();
+      }
+    }
     
     // Get client IP from headers
     const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
@@ -55,15 +106,15 @@ serve(async (req) => {
       }
     }
 
-    // Insert page view with geo data
+    // Insert page view with sanitized and validated data
     const { error } = await supabaseClient
       .from('page_views')
       .insert({
-        path: body.path,
-        referrer: body.referrer || null,
-        user_agent: body.user_agent || null,
-        session_id: body.session_id || null,
-        user_id: body.user_id || null,
+        path: sanitizedPath,
+        referrer: sanitizedReferrer,
+        user_agent: sanitizedUserAgent,
+        session_id: sanitizedSessionId,
+        user_id: sanitizedUserId,
         country,
         city,
       });

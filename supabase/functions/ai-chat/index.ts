@@ -217,8 +217,80 @@ serve(async (req) => {
 
     logStep("User profile loaded", { devices: deviceList });
 
-    // 4. Parse request body
-    const { messages } = await req.json();
+    // 4. Parse and validate request body
+    let rawBody;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { messages } = rawBody;
+    
+    // Validate messages array
+    if (!Array.isArray(messages)) {
+      return new Response(JSON.stringify({ error: "Messages must be an array" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (messages.length === 0) {
+      return new Response(JSON.stringify({ error: "At least one message is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (messages.length > 50) {
+      return new Response(JSON.stringify({ error: "Too many messages (max 50)" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate and sanitize each message
+    const MAX_MESSAGE_LENGTH = 10000;
+    const sanitizedMessages = [];
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      
+      if (typeof msg !== 'object' || msg === null) {
+        return new Response(JSON.stringify({ error: `Message ${i + 1} must be an object` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { role, content } = msg;
+
+      if (typeof role !== 'string' || !['user', 'assistant'].includes(role)) {
+        return new Response(JSON.stringify({ error: `Message ${i + 1} has invalid role` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (typeof content !== 'string') {
+        return new Response(JSON.stringify({ error: `Message ${i + 1} content must be a string` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (content.length > MAX_MESSAGE_LENGTH) {
+        return new Response(JSON.stringify({ error: `Message ${i + 1} is too long (max ${MAX_MESSAGE_LENGTH} characters)` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      sanitizedMessages.push({ role, content: content.trim() });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -226,7 +298,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    logStep("Processing request", { messageCount: messages?.length || 0, userId: user.id });
+    logStep("Processing request", { messageCount: sanitizedMessages.length, userId: user.id });
 
     // Build personalized system prompt with user's devices
     const personalizedPrompt = `${SYSTEM_PROMPT}
@@ -239,7 +311,7 @@ Når du svarer:
 - Hvis det er uklart hvilken enhed de mener, spørg venligt: "Er det på din iPhone eller Mac?"
 - Tilpas altid instruktioner til den relevante enhed`;
 
-    // 5. Call AI gateway
+    // 5. Call AI gateway with sanitized messages
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -250,7 +322,7 @@ Når du svarer:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: personalizedPrompt },
-          ...messages,
+          ...sanitizedMessages,
         ],
         stream: true,
       }),
