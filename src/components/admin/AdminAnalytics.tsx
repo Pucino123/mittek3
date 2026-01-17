@@ -76,20 +76,20 @@ export function AdminAnalytics() {
   const handleResetAnalytics = async () => {
     setIsResetting(true);
     try {
-      // Delete all page views (analytics data source)
-      const thirtyDaysAgo = subDays(new Date(), 30);
+      // Delete ALL page views (removes all analytics data including unique visitors, sessions, etc.)
+      // Using a very old date to ensure all records are deleted
       const { error } = await supabase
         .from('page_views')
         .delete()
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        .gte('created_at', '1970-01-01T00:00:00.000Z');
 
       if (error) throw error;
 
       toast.success('Analysedata nulstillet', {
-        description: 'Alle sidevisninger fra de seneste 30 dage er slettet',
+        description: 'Alle sidevisninger og brugerdata er slettet',
       });
       
-      // Refresh data
+      // Refresh data to show blank state
       await fetchAnalytics();
     } catch (err: any) {
       console.error('Reset error:', err);
