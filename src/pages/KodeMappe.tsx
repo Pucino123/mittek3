@@ -424,8 +424,9 @@ const KodeMappe = () => {
               });
             }
             
-            // Cache items for Digital Arv backup
-            localStorage.setItem('mittek-vault-items-cache', JSON.stringify(
+            // Cache items for Digital Arv backup - use sessionStorage for security
+            // Data clears automatically when browser tab is closed
+            sessionStorage.setItem('mittek-vault-items-cache', JSON.stringify(
               decryptedItems.map(i => ({ title: i.title, secret: i.secret, note: i.note }))
             ));
           }
@@ -503,7 +504,7 @@ const KodeMappe = () => {
     setShowSecret({});
     setIsLegacyMode(false);
     // Clear cached vault data to prevent plaintext exposure
-    localStorage.removeItem('mittek-vault-items-cache');
+    sessionStorage.removeItem('mittek-vault-items-cache');
     // Keep failed attempts across locks for extra security
   };
 

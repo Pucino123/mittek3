@@ -149,8 +149,8 @@ export const DigitalLegacyCard = forwardRef<HTMLDivElement, DigitalLegacyCardPro
           throw new Error('Ikke logget ind');
         }
 
-        // Fetch current vault items to include in backup
-        const vaultItemsRaw = localStorage.getItem('mittek-vault-items-cache');
+        // Fetch current vault items to include in backup (from sessionStorage for security)
+        const vaultItemsRaw = sessionStorage.getItem('mittek-vault-items-cache');
         let vaultItems: Array<{ title: string; secret: string; note?: string }> = [];
         
         if (vaultItemsRaw) {
