@@ -177,15 +177,17 @@ const Settings = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      // Create signed URL that expires in 1 year (bucket is now private for security)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('avatars')
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year expiry
 
-      // Update profile
+      if (signedUrlError) throw signedUrlError;
+
+      // Update profile with signed URL
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl })
+        .update({ avatar_url: signedUrlData.signedUrl })
         .eq('user_id', user.id);
 
       if (updateError) throw updateError;
