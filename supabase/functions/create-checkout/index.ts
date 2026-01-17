@@ -119,20 +119,65 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
-    const { planTier, email } = await req.json();
-    logStep("Request received", { planTier, email });
+    // Parse and validate request body
+    let rawBody;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
 
-    const priceId = PRICE_IDS[planTier];
+    const { planTier, email } = rawBody;
+
+    // Validate planTier
+    const VALID_PLAN_TIERS = ['basic', 'plus', 'pro'];
+    if (typeof planTier !== 'string' || !VALID_PLAN_TIERS.includes(planTier.trim().toLowerCase())) {
+      return new Response(JSON.stringify({ error: `Invalid plan tier. Must be one of: ${VALID_PLAN_TIERS.join(', ')}` }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    const sanitizedPlanTier = planTier.trim().toLowerCase();
+
+    // Validate email if provided
+    let sanitizedEmail: string | undefined;
+    if (email !== undefined && email !== null) {
+      if (typeof email !== 'string') {
+        return new Response(JSON.stringify({ error: "Email must be a string" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+
+      const trimmedEmail = email.trim().toLowerCase();
+      if (trimmedEmail.length > 0) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedEmail) || trimmedEmail.length > 255) {
+          return new Response(JSON.stringify({ error: "Invalid email format" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          });
+        }
+        sanitizedEmail = trimmedEmail;
+      }
+    }
+
+    logStep("Request received", { planTier: sanitizedPlanTier, email: sanitizedEmail || 'anonymous' });
+
+    const priceId = PRICE_IDS[sanitizedPlanTier];
     if (!priceId) {
-      throw new Error(`Invalid plan tier: ${planTier}`);
+      throw new Error(`Invalid plan tier: ${sanitizedPlanTier}`);
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     
     // Check if customer exists
     let customerId: string | undefined;
-    if (email) {
-      const customers = await stripe.customers.list({ email, limit: 1 });
+    if (sanitizedEmail) {
+      const customers = await stripe.customers.list({ email: sanitizedEmail, limit: 1 });
       if (customers.data.length > 0) {
         customerId = customers.data[0].id;
         logStep("Found existing customer", { customerId });
@@ -144,7 +189,7 @@ serve(async (req) => {
     // Build checkout session params
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
-      customer_email: customerId ? undefined : email,
+      customer_email: customerId ? undefined : sanitizedEmail,
       locale: "da",
       line_items: [
         {
@@ -167,7 +212,7 @@ serve(async (req) => {
         },
       },
       metadata: {
-        plan_tier: planTier,
+        plan_tier: sanitizedPlanTier,
       },
     };
 
@@ -188,7 +233,7 @@ serve(async (req) => {
       "checkout_initiated",
       "checkout",
       session.id,
-      { planTier, email: email || "anonymous" },
+      { planTier: sanitizedPlanTier, email: sanitizedEmail || "anonymous" },
       "info",
       ipAddress,
       userAgent

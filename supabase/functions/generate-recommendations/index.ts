@@ -37,8 +37,17 @@ serve(async (req) => {
       });
     }
 
-    // Parse request body - support both old and new format
-    const body = await req.json();
+    // Parse and validate request body
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { checkinData, issues, devices } = body;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
@@ -48,9 +57,26 @@ serve(async (req) => {
 
     // New format with issues string
     if (issues !== undefined) {
+      // Validate and sanitize issues
+      const MAX_ISSUES_LENGTH = 5000;
+      const sanitizedIssues = typeof issues === 'string' 
+        ? issues.trim().slice(0, MAX_ISSUES_LENGTH)
+        : '';
+
+      // Validate and sanitize devices array
+      const VALID_DEVICES = ['iphone', 'ipad', 'mac'];
+      const sanitizedDevices: string[] = [];
+      if (Array.isArray(devices)) {
+        for (const d of devices) {
+          if (typeof d === 'string' && VALID_DEVICES.includes(d.toLowerCase())) {
+            sanitizedDevices.push(d.toLowerCase());
+          }
+        }
+      }
+
       // Build strict device list for AI
-      const deviceList = devices?.length > 0 
-        ? devices.map((d: string) => {
+      const deviceList = sanitizedDevices.length > 0 
+        ? sanitizedDevices.map((d: string) => {
             if (d === 'iphone') return 'iPhone';
             if (d === 'ipad') return 'iPad';
             if (d === 'mac') return 'Mac';
@@ -85,10 +111,10 @@ EKSEMPEL OUTPUT FORMAT:
   ]
 }`;
 
-      const userPrompt = `Brugerens enheder: ${devices?.join(', ') || 'Ukendt'}
+      const userPrompt = `Brugerens enheder: ${sanitizedDevices.join(', ') || 'Ukendt'}
 
 Fundne problemer:
-${issues || 'Ingen problemer fundet'}
+${sanitizedIssues || 'Ingen problemer fundet'}
 
 Generer anbefalinger baseret på disse problemer.`;
 

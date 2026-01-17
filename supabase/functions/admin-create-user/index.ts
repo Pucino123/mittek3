@@ -63,26 +63,44 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request
-    const { email, password, displayName, planTier }: CreateUserRequest = await req.json();
-
-    if (!email || !password || !displayName) {
+    // Parse and validate request body
+    let rawBody;
+    try {
+      rawBody = await req.json();
+    } catch {
       return new Response(
-        JSON.stringify({ error: "Email, password, and displayName are required" }),
+        JSON.stringify({ error: "Invalid JSON in request body" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Validate email format
+    const { email, password, displayName, planTier }: CreateUserRequest = rawBody;
+
+    // Validate email
+    if (!email || typeof email !== 'string') {
+      return new Response(
+        JSON.stringify({ error: "Email is required and must be a string" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(trimmedEmail) || trimmedEmail.length > 255) {
       return new Response(
-        JSON.stringify({ error: "Invalid email format" }),
+        JSON.stringify({ error: "Invalid email format or email too long (max 255 chars)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Validate password length
+    // Validate password
+    if (!password || typeof password !== 'string') {
+      return new Response(
+        JSON.stringify({ error: "Password is required and must be a string" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (password.length < 6) {
       return new Response(
         JSON.stringify({ error: "Password must be at least 6 characters" }),
@@ -90,17 +108,53 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (password.length > 128) {
+      return new Response(
+        JSON.stringify({ error: "Password must be less than 128 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate displayName
+    if (!displayName || typeof displayName !== 'string') {
+      return new Response(
+        JSON.stringify({ error: "Display name is required and must be a string" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const trimmedDisplayName = displayName.trim();
+    if (trimmedDisplayName.length === 0 || trimmedDisplayName.length > 100) {
+      return new Response(
+        JSON.stringify({ error: "Display name must be between 1 and 100 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate planTier if provided
+    const VALID_PLAN_TIERS = ['basic', 'plus', 'pro'];
+    let sanitizedPlanTier: "basic" | "plus" | "pro" | undefined;
+    if (planTier !== undefined) {
+      if (typeof planTier !== 'string' || !VALID_PLAN_TIERS.includes(planTier)) {
+        return new Response(
+          JSON.stringify({ error: `Invalid plan tier. Must be one of: ${VALID_PLAN_TIERS.join(', ')}` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      sanitizedPlanTier = planTier as "basic" | "plus" | "pro";
+    }
+
     // Use admin client to create user
     const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Create user with admin API
+    // Create user with admin API using sanitized values
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email,
+      email: trimmedEmail,
       password,
       email_confirm: true, // Auto-confirm email
-      user_metadata: { display_name: displayName }
+      user_metadata: { display_name: trimmedDisplayName }
     });
 
     if (createError) {
@@ -112,7 +166,7 @@ Deno.serve(async (req) => {
     }
 
     // If a plan tier is specified, create a subscription
-    if (planTier && planTier !== "basic" && newUser.user) {
+    if (sanitizedPlanTier && sanitizedPlanTier !== "basic" && newUser.user) {
       const now = new Date();
       const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
@@ -120,7 +174,7 @@ Deno.serve(async (req) => {
         .from("subscriptions")
         .insert({
           user_id: newUser.user.id,
-          plan_tier: planTier,
+          plan_tier: sanitizedPlanTier,
           status: "active",
           current_period_start: now.toISOString(),
           current_period_end: periodEnd.toISOString(),
@@ -141,9 +195,9 @@ Deno.serve(async (req) => {
       resource_type: "user",
       resource_id: newUser.user?.id,
       metadata: {
-        created_email: email,
-        display_name: displayName,
-        plan_tier: planTier || "basic",
+        created_email: trimmedEmail,
+        display_name: trimmedDisplayName,
+        plan_tier: sanitizedPlanTier || "basic",
       },
       severity: "info",
     });
@@ -154,8 +208,8 @@ Deno.serve(async (req) => {
         user: {
           id: newUser.user?.id,
           email: newUser.user?.email,
-          displayName,
-          planTier: planTier || "basic"
+          displayName: trimmedDisplayName,
+          planTier: sanitizedPlanTier || "basic"
         }
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -143,11 +143,51 @@ serve(async (req) => {
 
     logStep("Subscription verified", { planTier: subscription.plan_tier });
 
-    // 3. Parse request body
-    const { imageBase64 } = await req.json();
+    // 3. Parse and validate request body
+    let rawBody;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON in request body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { imageBase64 } = rawBody;
     
+    // Validate image data exists
     if (!imageBase64) {
-      throw new Error("No image provided");
+      return new Response(JSON.stringify({ error: "No image provided" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate image data type
+    if (typeof imageBase64 !== 'string') {
+      return new Response(JSON.stringify({ error: "Image data must be a string" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate image size (max 10MB base64 = ~7.5MB raw)
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (imageBase64.length > MAX_IMAGE_SIZE) {
+      return new Response(JSON.stringify({ error: "Image is too large (max 10MB)" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Basic base64 validation
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(imageBase64)) {
+      return new Response(JSON.stringify({ error: "Invalid image encoding" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -155,7 +195,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    logStep("Processing image", { userId: user.id });
+    logStep("Processing image", { userId: user.id, imageSize: imageBase64.length });
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
