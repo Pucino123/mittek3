@@ -141,11 +141,11 @@ const SubscriptionManagement = () => {
   const fetchSubscriptionData = async () => {
     if (!user) return;
     
+    // Fetch any subscription for the user, not just active/trialing
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', user.id)
-      .in('status', ['active', 'trialing'])
       .order('created_at', { ascending: false })
       .maybeSingle();
     
@@ -697,39 +697,60 @@ const SubscriptionManagement = () => {
             )}
           </div>
 
-          {/* Subscription Status & Danger Zone */}
-          {subscription && currentPlan !== 'basic' && (
-            <div className="border-t border-border pt-8">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="font-semibold text-lg mb-1">
-                    Abonnementsstatus
-                  </h2>
-                  <p className="text-muted-foreground text-sm">
-                    {cancelAtPeriodEnd 
+          {/* Subscription Status - Always visible */}
+          <div className="border-t border-border pt-8">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-semibold text-lg mb-1">
+                  Abonnementsstatus
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  {!subscription 
+                    ? 'Ingen aktiv abonnement fundet.'
+                    : cancelAtPeriodEnd 
                       ? 'Dit abonnement stopper ved periodens udløb.' 
                       : 'Dit abonnement fornyes automatisk.'}
-                  </p>
-                </div>
-                <Badge 
-                  variant={cancelAtPeriodEnd ? 'destructive' : 'default'}
-                  className="text-sm px-3 py-1"
-                >
-                  {cancelAtPeriodEnd ? 'Afmeldt' : subscription.status === 'trialing' ? 'Prøveperiode' : 'Aktiv'}
-                </Badge>
+                </p>
               </div>
-
-              {!cancelAtPeriodEnd && (
-                <Button
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setShowCancelDialog(true)}
-                >
-                  Afmeld abonnement
-                </Button>
-              )}
+              <Badge 
+                variant={
+                  !subscription ? 'secondary' :
+                  cancelAtPeriodEnd ? 'destructive' : 
+                  subscription.status === 'canceled' ? 'destructive' :
+                  subscription.status === 'past_due' ? 'destructive' :
+                  subscription.status === 'incomplete' ? 'secondary' :
+                  'default'
+                }
+                className="text-sm px-3 py-1"
+              >
+                {!subscription 
+                  ? 'Ingen' 
+                  : cancelAtPeriodEnd 
+                    ? 'Afmeldt' 
+                    : subscription.status === 'trialing' 
+                      ? 'Prøveperiode' 
+                      : subscription.status === 'active'
+                        ? 'Aktiv'
+                        : subscription.status === 'past_due'
+                          ? 'Forfalden'
+                          : subscription.status === 'canceled'
+                            ? 'Annulleret'
+                            : subscription.status === 'incomplete'
+                              ? 'Ufuldstændig'
+                              : 'Ukendt'}
+              </Badge>
             </div>
-          )}
+
+            {subscription && !cancelAtPeriodEnd && subscription.status !== 'canceled' && (
+              <Button
+                variant="ghost"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setShowCancelDialog(true)}
+              >
+                Afmeld abonnement
+              </Button>
+            )}
+          </div>
         </div>
       </main>
 
