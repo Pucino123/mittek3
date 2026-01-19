@@ -53,38 +53,77 @@ async function checkRateLimit(supabase: any, identifier: string, endpoint: strin
 
 // Guide links for smart recommendations
 const GUIDE_LINKS = `
-TILGÆNGELIGE INTERNE GUIDES (brug disse til at hjælpe brugeren):
+═══ TILGÆNGELIGE MITTEK-GUIDES ═══
+
+📱 APPS:
+- [Hent nye apps](/guides/download-apps) - Download apps fra App Store
+- [Opdater dine apps](/guides/update-apps) - Hold apps opdateret
+- [Organiser dine apps](/guides/organize-apps) - Ryd op på hjemmeskærmen
+- [Slet apps du ikke bruger](/guides/delete-apps) - Fjern unødvendige apps
+
+🔋 BATTERI:
+- [Forlæng din batteritid](/guides/extend-battery-life) - Spar på batteriet
+- [Pas på dit batteri](/guides/battery-health-tips) - Batterisundhed og pleje
+
+💬 BESKEDER:
+- [Bloker uønskede beskeder](/guides/block-spam-messages) - Stop spam-SMS
+- [Kom i gang med iMessage](/guides/imessage-setup) - Opsæt iMessage
+- [Ryd op i Beskeder](/guides/cleanup-messages) - Slet gamle beskeder
+
+📅 HVERDAG:
+- [Gør teksten større](/guides/bigger-text) - Skærmtilgængelighed
 - [Opdater din enhed sikkert](/guides/update-ios) - Software-opdateringer
 - [Stop irriterende popups](/guides/stop-popups) - Safari popup-blocker
-- [Gør teksten større](/guides/bigger-text) - Skærmtilgængelighed
-- [Forlæng din batteritid](/guides/extend-battery-life) - Batteri-tips
-- [Pas på dit batteri](/guides/battery-health-tips) - Batterisundhed
-- [Undgå falske opkald](/guides/block-unknown-calls) - Blokér spam
+
+☁️ ICLOUD:
+- [Gem dine billeder i iCloud](/guides/icloud-photos) - Billedesynkronisering
+- [Ryd op i iCloud](/guides/icloud-cleanup) - Frigør iCloud-plads
+- [Sikkerhedskopier til iCloud](/guides/icloud-backup) - Backup af enhed
+
+🔒 SIKKERHED:
 - [Beskyt din Apple-konto](/guides/enable-2fa) - To-faktor-godkendelse
+- [Find min iPhone](/guides/find-my-iphone) - Find min enhed
 - [Genkend svindelbeskeder](/guides/recognize-scam-messages) - Svindel-genkendelse
 - [Genstart en frosset enhed](/guides/hard-reset) - Force restart
-- [Sikkerhedskopier til iCloud](/guides/icloud-backup) - iCloud backup
-- [Frigør plads på din enhed](/guides/free-up-storage) - Lagerplads
-- [Ryd op i dubletter](/guides/delete-duplicates) - Fjern dubletter
-- [Administrer iMessage](/guides/imessage-settings) - Beskeder
-- [Find min iPhone](/guides/find-my-device) - Find min enhed
-- [Skjul min email](/guides/hide-my-email) - Email-privatliv
+- [Undgå falske opkald](/guides/block-unknown-calls) - Blokér spam-opkald
 
-EKSTERNE RESSOURCER (brug når vi ikke har en intern guide):
-- Printer-opsætning iPhone: [Apple Support - AirPrint](https://support.apple.com/da-dk/102781)
-- Facebook privatlivsindstillinger: [Facebook Hjælpecenter](https://www.facebook.com/help/325807937506242)
-- Netflix problemer: [Netflix Hjælpecenter](https://help.netflix.com/da)
-- YouTube indstillinger: [YouTube Hjælp](https://support.google.com/youtube)
-- Instagram privatliv: [Instagram Hjælpecenter](https://help.instagram.com/196883487377501)
-- WhatsApp hjælp: [WhatsApp FAQ](https://faq.whatsapp.com/da)
-- DR TV app: [DR Hjælp](https://www.dr.dk/hjaelp)
+═══ MITTEK-VÆRKTØJER ═══
+- [Sikkerhedstjek](/sikkerhedstjek) - Tjek din enheds sikkerhed
+- [Batteridoktor](/battery-doctor) - Analysér batterisundhed
+- [Kode-mappe](/kodemappe) - Gem adgangskoder sikkert
+- [Panik-knap](/panik) - Hurtig hjælp ved svindel
+- [Adgangskodenøgle](/adgangskode) - Generer stærke koder
+- [Svindelquiz](/svindelquiz) - Test din viden om svindel
+- [Gæste-WiFi](/gaeste-wifi) - Del WiFi sikkert
+- [Ordbog](/ordbog) - Tekniske begreber forklaret
+
+═══ EKSTERNE RESSOURCER ═══
+Brug når MitTek ikke har en guide:
+
+📞 Apple Support:
+- Generel hjælp: [Apple Support Danmark](https://support.apple.com/da-dk)
+- Printer-opsætning: [AirPrint](https://support.apple.com/da-dk/102781)
+
+📱 Sociale medier:
+- Facebook: [Facebook Hjælpecenter](https://www.facebook.com/help/325807937506242)
+- Instagram: [Instagram Hjælpecenter](https://help.instagram.com/196883487377501)
+- YouTube: [YouTube Hjælp](https://support.google.com/youtube)
+
+📺 Streaming:
+- Netflix: [Netflix Hjælpecenter](https://help.netflix.com/da)
+- DR TV: [DR Hjælp](https://www.dr.dk/hjaelp)
 - TV 2 Play: [TV 2 Kundeservice](https://kundeservice.tv2.dk/)
-- MobilePay support: [MobilePay Hjælp](https://www.mobilepay.dk/hjaelp)
-- NemID/MitID: [MitID Support](https://www.mitid.dk/hjaelp/)
-- E-Boks hjælp: [E-Boks Support](https://www.e-boks.com/danmark/da/support)
-- PostNord app: [PostNord Kundeservice](https://www.postnord.dk/kundeservice)
-- Sundhed.dk: [Sundhed.dk vejledning](https://www.sundhed.dk/borger/guides/)
+
+💳 Betaling & offentlige tjenester:
+- MobilePay: [MobilePay Hjælp](https://www.mobilepay.dk/hjaelp)
+- MitID: [MitID Support](https://www.mitid.dk/hjaelp/)
+- E-Boks: [E-Boks Support](https://www.e-boks.com/danmark/da/support)
 - Borger.dk: [Borger.dk hjælp](https://www.borger.dk/Hjaelp)
+- Sundhed.dk: [Sundhed.dk vejledning](https://www.sundhed.dk/borger/guides/)
+
+📦 Andet:
+- WhatsApp: [WhatsApp FAQ](https://faq.whatsapp.com/da)
+- PostNord: [PostNord Kundeservice](https://www.postnord.dk/kundeservice)
 `;
 
 const SYSTEM_PROMPT = `Du er "Din Digitale Hjælper" – MitTeks rolige og venlige digitale assistent.
