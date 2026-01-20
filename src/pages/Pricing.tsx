@@ -287,6 +287,13 @@ const Pricing = () => {
                 <span className="text-sm md:text-base">Dansk kundeservice</span>
               </div>
             </div>
+            
+            {/* Link to tools explanation page */}
+            <div className="mt-6">
+              <Link to="/vores-hjaelp" className="text-primary hover:underline text-sm md:text-base font-medium">
+                Se hvad hjælpen indeholder →
+              </Link>
+            </div>
           </div>
         </div>
       </section>

@@ -29,63 +29,157 @@ interface DeviceQuestion {
 const iphoneQuestions: DeviceQuestion[] = [
   {
     id: 'iphone_update',
-    text: 'Gå til Indstillinger → Generelt → Softwareopdatering. Er den opdateret?',
+    text: 'Er din iPhone opdateret? (Indstillinger → Generelt → Softwareopdatering)',
     type: 'boolean',
-    weight: 25,
+    weight: 20,
     goodAnswer: true,
-    recommendation: 'Din iPhone mangler opdateringer. Installer dem for at få vigtige sikkerhedsrettelser.',
-    checkLabel: 'Softwareopdatering',
+    recommendation: 'Din iPhone mangler en opdatering. Det er vigtigt for sikkerheden. Vi hjælper dig med at installere den.',
+    checkLabel: 'Opdatering',
     helpData: {
-      title: 'Find Softwareopdatering',
+      title: 'Tjek om din iPhone er opdateret',
       screenshot: 'settings',
       steps: [
-        { instruction: 'Åbn "Indstillinger" appen', detail: 'Den grå app med tandhjul-ikonet på din startskærm', icon: 'settings' },
-        { instruction: 'Tryk på "Generelt"', detail: 'Rul lidt ned på listen', icon: 'tap' },
-        { instruction: 'Tryk på "Softwareopdatering"', detail: 'Øverst i menuen', icon: 'tap' },
-        { instruction: 'Tjek hvad der står', detail: 'Hvis der står "iOS er opdateret" er alt godt. Ellers tryk "Download og installer"', icon: 'tap' }
+        { instruction: 'Åbn "Indstillinger"', detail: 'Den grå app med et tandhjul', icon: 'settings' },
+        { instruction: 'Tryk på "Generelt"', detail: 'Du skal rulle lidt ned', icon: 'tap' },
+        { instruction: 'Tryk på "Softwareopdatering"', detail: 'Øverst i listen', icon: 'tap' },
+        { instruction: 'Læs hvad der står', detail: 'Hvis der står "iOS er opdateret", er alt godt', icon: 'tap' }
       ],
-      tip: 'Sørg for at have mindst 50% batteri og være på WiFi før du opdaterer.'
+      tip: 'Sørg for at have mindst halvt batteri og være på WiFi, før du opdaterer.'
+    }
+  },
+  {
+    id: 'iphone_slow',
+    text: 'Føles din iPhone langsom eller træg?',
+    type: 'boolean',
+    weight: 10,
+    goodAnswer: false,
+    recommendation: 'Din iPhone føles langsom. Det kan hjælpe at genstarte den eller lukke apps, du ikke bruger.',
+    checkLabel: 'Hastighed',
+    helpData: {
+      title: 'Gør din iPhone hurtigere',
+      screenshot: 'settings',
+      steps: [
+        { instruction: 'Genstart din iPhone', detail: 'Sluk og tænd den igen', icon: 'refresh' },
+        { instruction: 'Luk apps du ikke bruger', detail: 'Stryg op fra bunden og stryg apps væk', icon: 'tap' },
+        { instruction: 'Tjek din lagerplads', detail: 'Indstillinger → Generelt → iPhone-lagring', icon: 'tap' }
+      ],
+      tip: 'En genstart løser ofte problemet. Prøv det først.'
     }
   },
   {
     id: 'iphone_battery',
-    text: 'Gå til Indstillinger → Batteri → Batteritilstand. Er den over 80%?',
+    text: 'Holder dit batteri hele dagen?',
     type: 'boolean',
     weight: 15,
     goodAnswer: true,
-    recommendation: 'Dit batteri er slidt og holder måske ikke hele dagen. Overvej at få det skiftet.',
-    checkLabel: 'Batteritilstand',
+    recommendation: 'Dit batteri holder ikke så længe som før. Det kan skyldes, at det er slidt. Vi kan hjælpe dig med at tjekke det.',
+    checkLabel: 'Batteri',
     helpData: {
-      title: 'Tjek Batterisundhed',
+      title: 'Tjek dit batteris sundhed',
       screenshot: 'battery',
       steps: [
-        { instruction: 'Åbn "Indstillinger" appen', detail: 'Den grå app med tandhjul-ikonet', icon: 'settings' },
-        { instruction: 'Tryk på "Batteri"', detail: 'Rul ned på listen til du finder den', icon: 'battery' },
-        { instruction: 'Tryk på "Batterisundhed og opladning"', detail: 'Øverst i batteri-menuen', icon: 'tap' },
-        { instruction: 'Kig på "Maksimal kapacitet"', detail: 'Tallet viser hvor sundt dit batteri er. Over 80% er godt!', icon: 'tap' }
+        { instruction: 'Åbn "Indstillinger"', detail: 'Den grå app med tandhjul', icon: 'settings' },
+        { instruction: 'Tryk på "Batteri"', detail: 'Rul ned på listen', icon: 'battery' },
+        { instruction: 'Tryk på "Batterisundhed"', detail: 'Øverst i menuen', icon: 'tap' },
+        { instruction: 'Se på tallet', detail: 'Over 80% er godt. Under 80% betyder batteriet er slidt.', icon: 'tap' }
       ],
-      tip: 'Batterier slides naturligt over tid. Under 80% betyder det er tid til et nyt.'
+      tip: 'Batterier slides over tid. Det er helt normalt.'
+    }
+  },
+  {
+    id: 'iphone_storage',
+    text: 'Har du plads nok på din iPhone? (Ikke næsten fyldt)',
+    type: 'boolean',
+    weight: 10,
+    goodAnswer: true,
+    recommendation: 'Din iPhone er næsten fyldt. Det kan gøre den langsom. Overvej at slette gamle billeder eller apps.',
+    checkLabel: 'Lagerplads',
+    helpData: {
+      title: 'Tjek hvor meget plads du har',
+      screenshot: 'settings',
+      steps: [
+        { instruction: 'Åbn "Indstillinger"', detail: 'Den grå app med tandhjul', icon: 'settings' },
+        { instruction: 'Tryk på "Generelt"', detail: 'Rul lidt ned', icon: 'tap' },
+        { instruction: 'Tryk på "iPhone-lagring"', detail: 'Her kan du se, hvor meget plads der er brugt', icon: 'tap' }
+      ],
+      tip: 'Hvis stregen er næsten fuld, bør du rydde op.'
     }
   },
   {
     id: 'iphone_backup',
-    text: 'Har du lavet en iCloud Sikkerhedskopi inden for den sidste uge?',
+    text: 'Er dine billeder og kontakter sikkerhedskopieret?',
     type: 'boolean',
     weight: 20,
     goodAnswer: true,
-    recommendation: 'KRITISK: Ingen backup! Hvis din telefon går i stykker, mister du alt. Slå iCloud-backup til nu.',
+    recommendation: 'Dine billeder og kontakter er ikke sikkerhedskopieret. Hvis din telefon går i stykker, kan du miste dem. Slå iCloud-backup til.',
     checkLabel: 'Sikkerhedskopi',
     helpData: {
-      title: 'Tjek iCloud Sikkerhedskopi',
+      title: 'Tjek din sikkerhedskopi',
       screenshot: 'icloud',
       steps: [
-        { instruction: 'Åbn "Indstillinger" appen', detail: 'Den grå app med tandhjul-ikonet', icon: 'settings' },
+        { instruction: 'Åbn "Indstillinger"', detail: 'Den grå app med tandhjul', icon: 'settings' },
         { instruction: 'Tryk på dit navn øverst', detail: 'Der hvor dit billede og navn står', icon: 'tap' },
         { instruction: 'Tryk på "iCloud"', detail: 'I menuen under dit navn', icon: 'cloud' },
-        { instruction: 'Tryk på "iCloud-sikkerhedskopiering"', detail: 'Rul ned til du finder den', icon: 'tap' },
-        { instruction: 'Tjek "Sidst sikkerhedskopieret"', detail: 'Her kan du se hvornår din sidste backup blev lavet', icon: 'tap' }
+        { instruction: 'Tryk på "iCloud-sikkerhedskopiering"', detail: 'Her kan du se, hvornår der sidst blev taget backup', icon: 'tap' }
       ],
-      tip: 'Slå "Sikkerhedskopiér denne iPhone" til, så sker det automatisk hver nat når du oplader.'
+      tip: 'Slå backup til, så sker det automatisk hver nat.'
+    }
+  },
+  {
+    id: 'iphone_strange_messages',
+    text: 'Har du modtaget mærkelige beskeder eller e-mails på det seneste?',
+    type: 'boolean',
+    weight: 10,
+    goodAnswer: false,
+    recommendation: 'Du har modtaget mistænkelige beskeder. Slet dem uden at trykke på links. Hvis du er i tvivl, kan vi hjælpe dig med at tjekke dem.',
+    checkLabel: 'Mistænkelige beskeder',
+    helpData: {
+      title: 'Håndter mistænkelige beskeder',
+      screenshot: 'settings',
+      steps: [
+        { instruction: 'Tryk IKKE på links', detail: 'Det kan være svindel', icon: 'settings' },
+        { instruction: 'Slet beskeden', detail: 'Hvis du er i tvivl, er det bedst at slette', icon: 'trash' },
+        { instruction: 'Spørg os', detail: 'Du kan altid sende os et screenshot, så hjælper vi dig', icon: 'tap' }
+      ],
+      tip: 'Er du usikker? Så er det nok svindel. Slet den.'
+    }
+  },
+  {
+    id: 'iphone_internet',
+    text: 'Virker dit internet ordentligt?',
+    type: 'boolean',
+    weight: 10,
+    goodAnswer: true,
+    recommendation: 'Dit internet virker ikke optimalt. Prøv at slå WiFi fra og til igen, eller genstart din router.',
+    checkLabel: 'Internet',
+    helpData: {
+      title: 'Fejlfind dit internet',
+      screenshot: 'settings',
+      steps: [
+        { instruction: 'Slå WiFi fra og til', detail: 'Indstillinger → WiFi → sluk og tænd', icon: 'settings' },
+        { instruction: 'Genstart din router', detail: 'Sluk den, vent 30 sekunder, tænd igen', icon: 'refresh' },
+        { instruction: 'Prøv igen', detail: 'Det løser ofte problemet', icon: 'tap' }
+      ],
+      tip: 'At genstarte routeren løser de fleste problemer.'
+    }
+  },
+  {
+    id: 'iphone_text_size',
+    text: 'Er teksten på din skærm behagelig at læse?',
+    type: 'boolean',
+    weight: 5,
+    goodAnswer: true,
+    recommendation: 'Teksten kan være for lille. Du kan gøre den større i Indstillinger → Skærm & lysstyrke → Tekststørrelse.',
+    checkLabel: 'Tekststørrelse',
+    helpData: {
+      title: 'Gør teksten større',
+      screenshot: 'settings',
+      steps: [
+        { instruction: 'Åbn "Indstillinger"', detail: 'Den grå app med tandhjul', icon: 'settings' },
+        { instruction: 'Tryk på "Skærm & lysstyrke"', detail: 'Rul lidt ned', icon: 'tap' },
+        { instruction: 'Tryk på "Tekststørrelse"', detail: 'Træk i skyderen for at gøre teksten større', icon: 'tap' }
+      ],
+      tip: 'Du kan også bruge "Fed tekst" for at gøre den nemmere at læse.'
     }
   }
 ];
