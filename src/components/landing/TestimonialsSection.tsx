@@ -56,7 +56,7 @@ export function TestimonialsSection() {
           {testimonials.map((testimonial, index) => (
             <article 
               key={index}
-              className="relative bg-card border border-border rounded-2xl p-6 md:p-8 hover:shadow-lg transition-shadow"
+              className="relative bg-card border border-border rounded-2xl p-6 md:p-8 transition-shadow"
               role="listitem"
             >
               {/* Quote Icon */}

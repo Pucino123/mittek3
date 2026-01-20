@@ -69,6 +69,16 @@ export function HeroSection() {
               <span>Dansk support</span>
             </li>
           </ul>
+
+          {/* Vores Hjælp link */}
+          <div className="mt-6 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+            <Link 
+              to="/vores-hjaelp" 
+              className="text-primary hover:underline font-medium"
+            >
+              Se hvordan vi hjælper →
+            </Link>
+          </div>
         </div>
       </div>
     </section>;
