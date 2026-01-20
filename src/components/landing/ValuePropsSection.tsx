@@ -48,7 +48,7 @@ export function ValuePropsSection() {
           {valueProps.map((prop, index) => (
             <div 
               key={prop.title}
-              className="card-interactive p-5 md:p-6 text-center"
+              className="card-elevated p-5 md:p-6 text-center"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl ${prop.bgColor} flex items-center justify-center mx-auto mb-4`}>

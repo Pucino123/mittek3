@@ -30,6 +30,11 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Produkt</h4>
             <ul className="space-y-3">
               <li>
+                <Link to="/vores-hjaelp" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Vores Hjælp
+                </Link>
+              </li>
+              <li>
                 <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
                   Priser
                 </Link>
