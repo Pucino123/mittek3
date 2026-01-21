@@ -589,6 +589,9 @@ export function BookingsManager() {
                   Annuller booking
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Bemærk: betalinger refunderes ikke ved annullering
+              </p>
             </div>
           )}
         </DialogContent>
