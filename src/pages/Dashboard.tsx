@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { MonthlyCheckinPrompt } from '@/components/dashboard/MonthlyCheckinPrompt';
 import { differenceInDays } from 'date-fns';
 import { CheckinRecommendations } from '@/components/dashboard/CheckinRecommendations';
-import { SecurityCheckWidget } from '@/components/dashboard/SecurityCheckWidget';
 import { AIChatTooltip } from '@/components/dashboard/AIChatTooltip';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
@@ -34,6 +33,7 @@ import { SubscriptionTrackerCard } from '@/components/dashboard/SubscriptionTrac
 import { SpeedtestCard } from '@/components/dashboard/SpeedtestCard';
 import { DigitalLegacyCard } from '@/components/dashboard/DigitalLegacyCard';
 import { PasswordHealthCard } from '@/components/dashboard/PasswordHealthCard';
+import { SecurityCheckCard } from '@/components/dashboard/SecurityCheckCard';
 import SmartSearchBar from '@/components/dashboard/SmartSearchBar';
 
 // Card definition type
@@ -265,6 +265,18 @@ const allCards: CardDefinition[] = [
   category: 'safety',
   isWidget: true,
   addedDate: '2025-01-14'
+},
+// Security Check - "Am I Hacked?" quiz
+{
+  id: 'security-check',
+  title: 'Er jeg hacket?',
+  description: '8 hurtige spørgsmål',
+  icon: ShieldAlert,
+  href: '',
+  color: 'bg-destructive/10 text-destructive',
+  minPlan: 'basic',
+  category: 'safety',
+  isWidget: true
 }];
 
 // Standard Suite: The 16 tools visible by default on the dashboard
@@ -273,7 +285,7 @@ export const STANDARD_TOOL_IDS = ['checkin', 'guides', 'help', 'dictionary',
 // Kom i gang
 'password-generator', 'battery-doctor', 'cleaning', 'hardware',
 // Værktøjer
-'scam-quiz', 'panic', 'safety', 'vault',
+'scam-quiz', 'panic', 'safety', 'vault', 'security-check',
 // Sikkerhed
 'wishlist', 'medical-id', 'guest-wifi', 'screenshot' // Ekstra
 ];
@@ -406,6 +418,8 @@ function renderWidgetCard(
       return <DigitalLegacyCard {...props} />;
     case 'password-health':
       return <PasswordHealthCard {...props} />;
+    case 'security-check':
+      return <SecurityCheckCard {...props} />;
     default:
       return <NoteWidgetCard {...props} />;
   }
@@ -1546,8 +1560,6 @@ const Dashboard = () => {
         <MonthlyCheckinPrompt onHasRecentCheckin={handleCheckinStatus} />
 
 
-        {/* Security Check Widget - Interactive "Am I Hacked?" */}
-        <SecurityCheckWidget />
 
         {/* AI Recommendations from last checkin */}
         {checkinData && <CheckinRecommendations checkinData={checkinData} />}
