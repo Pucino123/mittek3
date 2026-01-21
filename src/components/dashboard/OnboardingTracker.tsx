@@ -33,7 +33,23 @@ const onboardingSteps: OnboardingStep[] = [
     title: 'Vælg din enhed',
     description: 'iPhone, iPad eller Mac',
     href: '/settings',
-    checkComplete: (profile) => !!profile?.device_preference && profile.device_preference !== 'iphone',
+    // Complete when user has explicitly interacted with device settings
+    // We track this via localStorage flag set when user toggles any device
+    checkComplete: (profile, _, manualSteps) => {
+      // Check if user explicitly interacted with device settings (tracked via localStorage)
+      const hasInteracted = localStorage.getItem('device-settings-interacted') === 'true';
+      if (hasInteracted) return true;
+      
+      const ownedDevices = profile?.owned_devices;
+      // If user has multiple devices, they definitely interacted
+      if (Array.isArray(ownedDevices) && ownedDevices.length > 1) return true;
+      // If they have iPad or Mac (not just default iPhone), they interacted
+      if (Array.isArray(ownedDevices) && (ownedDevices.includes('ipad') || ownedDevices.includes('mac'))) return true;
+      
+      // Allow manual completion via checkbox
+      return manualSteps.includes('device');
+    },
+    isOptional: true, // Allow manual completion for users who only use iPhone
   },
   {
     id: 'emergency-contact',

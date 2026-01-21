@@ -4,17 +4,30 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const STORAGE_KEY = 'mittek_dashboard_settings';
 
-// Default hidden cards for new users (tools in Tool Library)
-// This is imported from Dashboard to stay in sync
-const DEFAULT_HIDDEN_TOOL_IDS = ['notes']; // Tool Library items
+// Standard Suite: The 16 tools visible by default on the dashboard
+// Tools NOT in this list start hidden in the Tool Library
+// MUST match STANDARD_TOOL_IDS in Dashboard.tsx
+const STANDARD_TOOL_IDS = [
+  'checkin', 'guides', 'help', 'dictionary',       // Kom i gang
+  'password-generator', 'battery-doctor', 'cleaning', 'hardware', // Værktøjer
+  'scam-quiz', 'panic', 'safety', 'vault',         // Sikkerhed
+  'wishlist', 'medical-id', 'guest-wifi', 'screenshot' // Ekstra
+];
 
-// All tool IDs in default order (must match allCards in Dashboard.tsx)
+// Tool Library items (hidden by default, accessible via "Tilføj værktøj")
+// New users will only see the Standard Suite - these tools must be explicitly added
+const DEFAULT_HIDDEN_TOOL_IDS = [
+  'notes',
+  'subscription-tracker',
+  'speedtest',
+  'digital-legacy',
+  'password-health'
+];
+
+// All tool IDs in default order (Standard Suite + Tool Library items)
 const DEFAULT_CARD_ORDER = [
-  'checkin', 'guides', 'help', 'dictionary',
-  'password-generator', 'battery-doctor', 'cleaning', 'hardware',
-  'scam-quiz', 'panic', 'safety', 'vault',
-  'wishlist', 'medical-id', 'guest-wifi', 'screenshot',
-  'notes'
+  ...STANDARD_TOOL_IDS,
+  ...DEFAULT_HIDDEN_TOOL_IDS
 ];
 
 interface CustomCategory {
