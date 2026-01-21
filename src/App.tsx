@@ -32,6 +32,8 @@ const KodeMappe = lazy(() => import("./pages/KodeMappe"));
 const ScreenshotAI = lazy(() => import("./pages/ScreenshotAI"));
 const Safety = lazy(() => import("./pages/Safety"));
 const Help = lazy(() => import("./pages/Help"));
+const SupportHub = lazy(() => import("./pages/SupportHub"));
+const RemoteSupport = lazy(() => import("./pages/RemoteSupport"));
 const Settings = lazy(() => import("./pages/Settings"));
 const SubscriptionManagement = lazy(() => import("./pages/SubscriptionManagement"));
 const Admin = lazy(() => import("./pages/Admin"));
@@ -122,6 +124,16 @@ const App = () => (
               <Route path="/help" element={
                 <ProtectedRoute>
                   <LazyRoute><Help /></LazyRoute>
+                </ProtectedRoute>
+              } />
+              <Route path="/support-hub" element={
+                <ProtectedRoute>
+                  <LazyRoute><SupportHub /></LazyRoute>
+                </ProtectedRoute>
+              } />
+              <Route path="/support-hub/remote" element={
+                <ProtectedRoute>
+                  <LazyRoute><RemoteSupport /></LazyRoute>
                 </ProtectedRoute>
               } />
               <Route path="/help/:ticketId" element={

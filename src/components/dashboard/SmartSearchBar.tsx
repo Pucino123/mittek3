@@ -479,24 +479,24 @@ const SmartSearchBar = ({ compact = false }: SmartSearchBarProps) => {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-2xl mx-auto">
       {/* Search Input */}
       <div className="relative">
         <div className="flex gap-2">
           <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Beskriv dit problem..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="pl-9 pr-8 h-11 text-sm rounded-xl border-2 border-border focus:border-primary transition-colors w-full"
+              className="pl-12 pr-10 h-12 md:h-14 text-base rounded-xl border-2 border-border focus:border-primary transition-colors w-full shadow-sm"
             />
             {query && (
               <button 
                 onClick={clearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
