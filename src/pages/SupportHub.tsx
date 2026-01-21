@@ -104,9 +104,9 @@ const SupportHub = () => {
                 ))}
               </ul>
 
-              <Link to="/support-hub/remote">
+              <Link to="/support-hub/booking">
                 <Button variant="hero" className="w-full">
-                  Start fjernsupport
+                  Book fjernsupport
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>

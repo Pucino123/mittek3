@@ -35,6 +35,8 @@ import { PasswordHealthCard } from '@/components/dashboard/PasswordHealthCard';
 import { SecurityCheckCard } from '@/components/dashboard/SecurityCheckCard';
 import { CheckinCard } from '@/components/dashboard/CheckinCard';
 import SmartSearchBar from '@/components/dashboard/SmartSearchBar';
+import { RemoteSupportBookingCard } from '@/components/dashboard/RemoteSupportBookingCard';
+import { useQuery } from '@tanstack/react-query';
 
 // Card definition type
 interface CardDefinition {
@@ -634,6 +636,40 @@ function DroppableCategorySection({
       {children}
     </section>;
 }
+
+// Component to show active remote support bookings
+function ActiveBookingSection({ userId }: { userId?: string }) {
+  const { data: booking, isLoading } = useQuery({
+    queryKey: ['active-booking', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data, error } = await supabase
+        .from('support_bookings')
+        .select('*')
+        .eq('user_id', userId)
+        .in('status', ['pending', 'confirmed', 'in_progress'])
+        .order('scheduled_date', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching booking:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!userId,
+  });
+
+  if (isLoading || !booking) return null;
+
+  return (
+    <div className="mb-6">
+      <RemoteSupportBookingCard booking={booking} />
+    </div>
+  );
+}
+
 const Dashboard = () => {
   // Enable scroll restoration for dashboard
   useScrollRestoration();
@@ -1584,6 +1620,9 @@ const Dashboard = () => {
         <OnboardingTracker />
 
 
+
+        {/* Active Remote Support Booking */}
+        <ActiveBookingSection userId={user?.id} />
 
         {/* AI Recommendations from last checkin */}
         {checkinData && <CheckinRecommendations checkinData={checkinData} />}

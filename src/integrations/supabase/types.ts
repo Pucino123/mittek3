@@ -712,6 +712,48 @@ export type Database = {
         }
         Relationships: []
       }
+      support_bookings: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          id: string
+          payment_status: string
+          price_dkk: number
+          scheduled_date: string
+          scheduled_time: string
+          status: string
+          stripe_payment_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          payment_status?: string
+          price_dkk?: number
+          scheduled_date: string
+          scheduled_time: string
+          status?: string
+          stripe_payment_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          payment_status?: string
+          price_dkk?: number
+          scheduled_date?: string
+          scheduled_time?: string
+          status?: string
+          stripe_payment_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       support_credits: {
         Row: {
           credits_remaining: number | null

@@ -34,6 +34,7 @@ const Safety = lazy(() => import("./pages/Safety"));
 const Help = lazy(() => import("./pages/Help"));
 const SupportHub = lazy(() => import("./pages/SupportHub"));
 const RemoteSupport = lazy(() => import("./pages/RemoteSupport"));
+const SupportBooking = lazy(() => import("./pages/SupportBooking"));
 const Settings = lazy(() => import("./pages/Settings"));
 const SubscriptionManagement = lazy(() => import("./pages/SubscriptionManagement"));
 const Admin = lazy(() => import("./pages/Admin"));
@@ -134,6 +135,11 @@ const App = () => (
               <Route path="/support-hub/remote" element={
                 <ProtectedRoute>
                   <LazyRoute><RemoteSupport /></LazyRoute>
+                </ProtectedRoute>
+              } />
+              <Route path="/support-hub/booking" element={
+                <ProtectedRoute>
+                  <LazyRoute><SupportBooking /></LazyRoute>
                 </ProtectedRoute>
               } />
               <Route path="/help/:ticketId" element={
