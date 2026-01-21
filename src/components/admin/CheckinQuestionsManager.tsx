@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Dialog, 
@@ -24,14 +24,16 @@ import {
   Plus, 
   Pencil, 
   Trash2, 
-  GripVertical, 
   Smartphone, 
   Tablet, 
   Monitor,
   Save,
   Loader2,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Upload,
+  Image,
+  X
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -39,7 +41,8 @@ import { toast } from 'sonner';
 interface HelpStep {
   instruction: string;
   detail: string;
-  [key: string]: string; // Allow JSON compatibility
+  image_url?: string;
+  [key: string]: string | undefined;
 }
 
 interface CheckinQuestion {
@@ -73,6 +76,9 @@ export function CheckinQuestionsManager() {
   const [activeTab, setActiveTab] = useState('iphone');
   const [editingQuestion, setEditingQuestion] = useState<CheckinQuestion | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const stepImageInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   useEffect(() => {
     fetchQuestions();
@@ -90,7 +96,6 @@ export function CheckinQuestionsManager() {
       toast.error('Kunne ikke hente spørgsmål');
       console.error(error);
     } else {
-      // Parse help_steps from JSON if needed and cast properly
       const parsed = (data || []).map(q => ({
         ...q,
         help_steps: (Array.isArray(q.help_steps) ? q.help_steps : []) as HelpStep[]
@@ -102,6 +107,82 @@ export function CheckinQuestionsManager() {
 
   const getQuestionsForDevice = (device: string) => {
     return questions.filter(q => q.device_type === device).sort((a, b) => a.sort_order - b.sort_order);
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `checkin-help/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('public-assets')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        toast.error('Kunne ikke uploade billede');
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('public-assets')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Fejl ved upload');
+      return null;
+    }
+  };
+
+  const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingQuestion) return;
+
+    setUploadingImage('main');
+    const url = await uploadImage(file);
+    if (url) {
+      setEditingQuestion({
+        ...editingQuestion,
+        help_screenshot: url
+      });
+    }
+    setUploadingImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleStepImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, stepIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingQuestion) return;
+
+    setUploadingImage(`step-${stepIndex}`);
+    const url = await uploadImage(file);
+    if (url) {
+      const newSteps = [...editingQuestion.help_steps];
+      newSteps[stepIndex] = { ...newSteps[stepIndex], image_url: url };
+      setEditingQuestion({
+        ...editingQuestion,
+        help_steps: newSteps
+      });
+    }
+    setUploadingImage(null);
+    const inputRef = stepImageInputRefs.current[stepIndex];
+    if (inputRef) {
+      inputRef.value = '';
+    }
+  };
+
+  const removeStepImage = (stepIndex: number) => {
+    if (!editingQuestion) return;
+    const newSteps = [...editingQuestion.help_steps];
+    newSteps[stepIndex] = { ...newSteps[stepIndex], image_url: undefined };
+    setEditingQuestion({
+      ...editingQuestion,
+      help_steps: newSteps
+    });
   };
 
   const handleSave = async () => {
@@ -126,7 +207,6 @@ export function CheckinQuestionsManager() {
     };
 
     if (editingQuestion.id && !editingQuestion.id.startsWith('new-')) {
-      // Update existing
       const { error } = await supabase
         .from('checkin_questions')
         .update(payload)
@@ -142,7 +222,6 @@ export function CheckinQuestionsManager() {
         setEditingQuestion(null);
       }
     } else {
-      // Insert new
       const { error } = await supabase
         .from('checkin_questions')
         .insert(payload);
@@ -353,6 +432,12 @@ export function CheckinQuestionsManager() {
                           <span className="text-xs text-muted-foreground">
                             Vægt: {question.weight} • Type: {question.question_type}
                           </span>
+                          {question.help_screenshot && (
+                            <span className="text-xs text-primary flex items-center gap-1">
+                              <Image className="h-3 w-3" />
+                              Billede
+                            </span>
+                          )}
                         </div>
                         <p className="font-medium text-sm">{question.text}</p>
                         <p className="text-xs text-muted-foreground mt-1">
@@ -539,16 +624,62 @@ export function CheckinQuestionsManager() {
                     />
                   </div>
 
+                  {/* Main help image upload */}
                   <div className="space-y-2">
-                    <Label>Screenshot-nøgle (bruges til at vise billede)</Label>
-                    <Input 
-                      value={editingQuestion.help_screenshot || ''}
-                      onChange={(e) => setEditingQuestion({
-                        ...editingQuestion,
-                        help_screenshot: e.target.value || null
-                      })}
-                      placeholder="f.eks. settings, battery, icloud"
-                    />
+                    <Label>Hjælp-billede</Label>
+                    <div className="flex items-center gap-4">
+                      {editingQuestion.help_screenshot ? (
+                        <div className="relative">
+                          <img 
+                            src={editingQuestion.help_screenshot} 
+                            alt="Hjælp-billede" 
+                            className="w-24 h-24 object-cover rounded-lg border"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-2 -right-2 h-6 w-6"
+                            onClick={() => setEditingQuestion({
+                              ...editingQuestion,
+                              help_screenshot: null
+                            })}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground">
+                          <Image className="h-8 w-8" />
+                        </div>
+                      )}
+                      <div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleMainImageUpload}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingImage === 'main'}
+                        >
+                          {uploadingImage === 'main' ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Upload className="h-4 w-4 mr-2" />
+                          )}
+                          Upload billede
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Vises øverst i hjælp-modal
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -573,29 +704,73 @@ export function CheckinQuestionsManager() {
                     </div>
                     
                     {editingQuestion.help_steps.map((step, idx) => (
-                      <div key={idx} className="flex gap-2 items-start">
-                        <span className="text-xs text-muted-foreground mt-2.5 w-4">{idx + 1}.</span>
-                        <div className="flex-1 space-y-1">
-                          <Input 
-                            value={step.instruction}
-                            onChange={(e) => updateHelpStep(idx, 'instruction', e.target.value)}
-                            placeholder="Instruktion"
-                          />
-                          <Input 
-                            value={step.detail}
-                            onChange={(e) => updateHelpStep(idx, 'detail', e.target.value)}
-                            placeholder="Detalje"
-                          />
+                      <div key={idx} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Trin {idx + 1}</span>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon"
+                            className="h-6 w-6 text-destructive"
+                            onClick={() => removeHelpStep(idx)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => removeHelpStep(idx)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Input 
+                          value={step.instruction}
+                          onChange={(e) => updateHelpStep(idx, 'instruction', e.target.value)}
+                          placeholder="Instruktion"
+                        />
+                        <Input 
+                          value={step.detail}
+                          onChange={(e) => updateHelpStep(idx, 'detail', e.target.value)}
+                          placeholder="Detalje"
+                        />
+                        {/* Step image upload */}
+                        <div className="flex items-center gap-2">
+                          {step.image_url ? (
+                            <div className="relative">
+                              <img 
+                                src={step.image_url} 
+                                alt={`Trin ${idx + 1}`} 
+                                className="w-16 h-16 object-cover rounded border"
+                              />
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                className="absolute -top-1 -right-1 h-5 w-5"
+                                onClick={() => removeStepImage(idx)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : null}
+                          <div>
+                            <input
+                              ref={(el) => { stepImageInputRefs.current[idx] = el; }}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleStepImageUpload(e, idx)}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => stepImageInputRefs.current[idx]?.click()}
+                              disabled={uploadingImage === `step-${idx}`}
+                            >
+                              {uploadingImage === `step-${idx}` ? (
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              ) : (
+                                <Image className="h-3 w-3 mr-1" />
+                              )}
+                              {step.image_url ? 'Skift' : 'Tilføj'} billede
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

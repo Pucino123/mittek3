@@ -30,14 +30,15 @@ import guideMacTrash from '@/assets/guide-mac-trash.png';
 export interface HelpStep {
   instruction: string;
   detail?: string;
-  icon?: 'settings' | 'battery' | 'cloud' | 'trash' | 'refresh' | 'apple' | 'tap' | 'scroll';
+  icon?: string;
+  image_url?: string;
 }
 
 export interface CheckinHelpData {
   title: string;
   steps: HelpStep[];
   tip?: string;
-  screenshot?: 'icloud' | 'battery' | 'settings' | 'backup' | 'mac-settings' | 'mac-trash';
+  screenshot?: string;
 }
 
 interface CheckinHelpModalProps {
