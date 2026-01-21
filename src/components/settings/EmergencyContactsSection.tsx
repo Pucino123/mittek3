@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export const EmergencyContactsSection = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refetchProfile } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [bankPhone, setBankPhone] = useState('');
   const [helperPhone, setHelperPhone] = useState('');
@@ -16,9 +16,9 @@ export const EmergencyContactsSection = () => {
 
   useEffect(() => {
     if (profile) {
-      setBankPhone((profile as any).emergency_bank_phone || '');
-      setHelperPhone((profile as any).emergency_helper_phone || '');
-      setHelperName((profile as any).emergency_helper_name || '');
+      setBankPhone(profile.emergency_bank_phone || '');
+      setHelperPhone(profile.emergency_helper_phone || '');
+      setHelperName(profile.emergency_helper_name || '');
     }
   }, [profile]);
 
@@ -37,6 +37,10 @@ export const EmergencyContactsSection = () => {
         .eq('user_id', user.id);
       
       if (error) throw error;
+      
+      // Refetch profile to update context with new values
+      await refetchProfile();
+      
       toast.success('Nødkontakter gemt!');
     } catch (error) {
       console.error('Error saving emergency contacts:', error);
