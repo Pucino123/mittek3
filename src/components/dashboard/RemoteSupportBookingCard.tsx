@@ -161,17 +161,23 @@ export function RemoteSupportBookingCard({ booking, onRefresh }: RemoteSupportBo
             className="min-h-[100px]"
           />
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
-              Fortryd
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleCancelBooking}
-              disabled={isCancelling || !cancelReason.trim()}
-            >
-              {isCancelling ? 'Annullerer...' : 'Bekræft annullering'}
-            </Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button variant="outline" onClick={() => setCancelDialogOpen(false)} className="flex-1 sm:flex-none">
+                Fortryd
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleCancelBooking}
+                disabled={isCancelling || !cancelReason.trim()}
+                className="flex-1 sm:flex-none"
+              >
+                {isCancelling ? 'Annullerer...' : 'Bekræft annullering'}
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center sm:text-left w-full order-first sm:order-last">
+              Bemærk: Betalinger refunderes ikke ved annullering.
+            </p>
           </DialogFooter>
         </DialogContent>
       </Dialog>

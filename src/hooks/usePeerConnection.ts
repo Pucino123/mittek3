@@ -69,27 +69,49 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
           });
       });
       
-      // Handle incoming calls (user side receives call from admin)
+  // Handle incoming calls (user side receives call from admin)
       peer.on('call', async (call) => {
         console.log('PeerJS: Incoming call');
         
         try {
-          // Get screen share stream for user
-          const stream = await navigator.mediaDevices.getDisplayMedia({
+          // Get screen share stream with audio for user
+          const displayStream = await navigator.mediaDevices.getDisplayMedia({
             video: true,
-            audio: false,
+            audio: true, // System audio if available
           });
           
-          setState(prev => ({ ...prev, localStream: stream }));
+          // Also get microphone audio for two-way voice
+          let micStream: MediaStream | null = null;
+          try {
+            micStream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: false,
+            });
+          } catch (micError) {
+            console.warn('Microphone access denied:', micError);
+            toast.warning('Mikrofon ikke tilgængelig - kun skærmdeling');
+          }
+          
+          // Combine screen + mic into one stream
+          const combinedStream = new MediaStream();
+          displayStream.getTracks().forEach(track => combinedStream.addTrack(track));
+          if (micStream) {
+            micStream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
+          }
+          
+          setState(prev => ({ ...prev, localStream: combinedStream }));
           
           // Handle stream end
-          stream.getVideoTracks()[0].onended = () => {
+          displayStream.getVideoTracks()[0].onended = () => {
             toast.info('Skærmdeling stoppet');
+            if (micStream) {
+              micStream.getTracks().forEach(track => track.stop());
+            }
             setState(prev => ({ ...prev, localStream: null }));
           };
           
-          // Answer the call with our screen
-          call.answer(stream);
+          // Answer the call with combined stream (screen + mic)
+          call.answer(combinedStream);
           callRef.current = call;
           
           call.on('stream', (remoteStream) => {
@@ -169,7 +191,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     });
   }, []);
 
-  // Start screen share and call (for admin or user)
+  // Start screen share and call with audio (for admin or user)
   const startScreenShareCall = useCallback(async () => {
     if (!state.remotePeerId) {
       toast.error('Venter på modpart...');
@@ -177,17 +199,40 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }
     
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
+      // Get screen share with system audio
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: false,
+        audio: true, // System audio if available
       });
       
-      stream.getVideoTracks()[0].onended = () => {
+      // Also get microphone for two-way voice
+      let micStream: MediaStream | null = null;
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: false,
+        });
+      } catch (micError) {
+        console.warn('Microphone access denied:', micError);
+        toast.warning('Mikrofon ikke tilgængelig - kun skærmdeling');
+      }
+      
+      // Combine screen + mic into one stream
+      const combinedStream = new MediaStream();
+      displayStream.getTracks().forEach(track => combinedStream.addTrack(track));
+      if (micStream) {
+        micStream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
+      }
+      
+      displayStream.getVideoTracks()[0].onended = () => {
         toast.info('Skærmdeling stoppet');
+        if (micStream) {
+          micStream.getTracks().forEach(track => track.stop());
+        }
         endCall();
       };
       
-      await callRemotePeer(state.remotePeerId, stream);
+      await callRemotePeer(state.remotePeerId, combinedStream);
     } catch (error) {
       console.error('Failed to get display media:', error);
       toast.error('Kunne ikke starte skærmdeling');
