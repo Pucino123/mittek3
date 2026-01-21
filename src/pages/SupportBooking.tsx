@@ -84,14 +84,14 @@ const SupportBooking = () => {
     // Simulate Stripe payment processing
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Create booking in database
+    // Create booking in database with pending confirmation status
     const { error } = await supabase
       .from('support_bookings')
       .insert({
         user_id: user.id,
         scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
         scheduled_time: selectedTime + ':00',
-        status: 'confirmed',
+        status: 'pending', // Waiting for admin confirmation
         payment_status: 'paid',
         price_dkk: PRICE_DKK,
         stripe_payment_id: 'mock_pi_' + Date.now(), // Mock payment ID
