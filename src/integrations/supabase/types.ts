@@ -146,6 +146,7 @@ export type Database = {
           help_steps: Json | null
           help_tip: string | null
           help_title: string | null
+          help_video: string | null
           id: string
           is_active: boolean
           question_id: string
@@ -165,6 +166,7 @@ export type Database = {
           help_steps?: Json | null
           help_tip?: string | null
           help_title?: string | null
+          help_video?: string | null
           id?: string
           is_active?: boolean
           question_id: string
@@ -184,6 +186,7 @@ export type Database = {
           help_steps?: Json | null
           help_tip?: string | null
           help_title?: string | null
+          help_video?: string | null
           id?: string
           is_active?: boolean
           question_id?: string

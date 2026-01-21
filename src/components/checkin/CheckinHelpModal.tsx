@@ -19,19 +19,13 @@ import {
   ChevronRight,
   Apple
 } from "lucide-react";
-import { parseTextWithIcons } from '@/utils/inlineIcons';
-
-// Import screenshots
-import guideIcloudSettings from '@/assets/guide-icloud-settings.png';
-import guideBatterySettings from '@/assets/guide-battery-settings.png';
-import guideMacSystemSettings from '@/assets/guide-mac-system-settings.png';
-import guideMacTrash from '@/assets/guide-mac-trash.png';
 
 export interface HelpStep {
   instruction: string;
   detail?: string;
   icon?: string;
   image_url?: string;
+  video_url?: string;
 }
 
 export interface CheckinHelpData {
@@ -39,6 +33,7 @@ export interface CheckinHelpData {
   steps: HelpStep[];
   tip?: string;
   screenshot?: string;
+  video?: string;
 }
 
 interface CheckinHelpModalProps {
@@ -70,25 +65,6 @@ const StepIcon = ({ icon }: { icon?: HelpStep['icon'] }) => {
   }
 };
 
-// Get screenshot based on type
-const getScreenshot = (type?: string): string | null => {
-  switch (type) {
-    case 'icloud':
-    case 'backup':
-      return guideIcloudSettings;
-    case 'battery':
-      return guideBatterySettings;
-    case 'settings':
-      return guideIcloudSettings;
-    case 'mac-settings':
-      return guideMacSystemSettings;
-    case 'mac-trash':
-      return guideMacTrash;
-    default:
-      return null;
-  }
-};
-
 const CheckinHelpModal: React.FC<CheckinHelpModalProps> = ({
   open,
   onOpenChange,
@@ -96,7 +72,9 @@ const CheckinHelpModal: React.FC<CheckinHelpModalProps> = ({
 }) => {
   if (!helpData) return null;
 
-  const screenshot = getScreenshot(helpData.screenshot);
+  // Check if there's a video or screenshot from database (URLs start with http)
+  const hasVideo = helpData.video && helpData.video.startsWith('http');
+  const hasScreenshot = helpData.screenshot && helpData.screenshot.startsWith('http');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,11 +89,26 @@ const CheckinHelpModal: React.FC<CheckinHelpModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Screenshot if available */}
-        {screenshot && (
+        {/* Video if available (priority over screenshot) */}
+        {hasVideo && (
+          <div className="mt-4 mb-2 rounded-xl overflow-hidden border border-border shadow-sm">
+            <video 
+              src={helpData.video}
+              controls
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-auto"
+            />
+          </div>
+        )}
+
+        {/* Screenshot if available and no video */}
+        {!hasVideo && hasScreenshot && (
           <div className="mt-4 mb-2 rounded-xl overflow-hidden border border-border shadow-sm">
             <img 
-              src={screenshot} 
+              src={helpData.screenshot} 
               alt={`Guide billede: ${helpData.title}`}
               className="w-full h-auto"
               loading="lazy"
@@ -127,22 +120,47 @@ const CheckinHelpModal: React.FC<CheckinHelpModalProps> = ({
           {helpData.steps.map((step, index) => (
             <div 
               key={index} 
-              className="flex gap-3 p-4 bg-muted/50 rounded-lg border border-border/50"
+              className="flex flex-col gap-2 p-4 bg-muted/50 rounded-lg border border-border/50"
             >
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
-                {index + 1}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground flex items-center gap-2 flex-wrap">
-                  {step.icon && <StepIcon icon={step.icon} />}
-                  {parseTextWithIcons(step.instruction)}
-                </p>
-                {step.detail && (
-                  <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                    {parseTextWithIcons(step.detail)}
+              <div className="flex gap-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
+                  {index + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground flex items-center gap-2 flex-wrap">
+                    {step.icon && <StepIcon icon={step.icon} />}
+                    {step.instruction}
                   </p>
-                )}
+                  {step.detail && (
+                    <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                      {step.detail}
+                    </p>
+                  )}
+                </div>
               </div>
+              
+              {/* Step video or image */}
+              {step.video_url && (
+                <div className="ml-11 rounded-lg overflow-hidden border">
+                  <video 
+                    src={step.video_url}
+                    controls
+                    muted
+                    playsInline
+                    className="w-full h-auto max-h-48"
+                  />
+                </div>
+              )}
+              {!step.video_url && step.image_url && (
+                <div className="ml-11 rounded-lg overflow-hidden border">
+                  <img 
+                    src={step.image_url}
+                    alt={`Trin ${index + 1}`}
+                    className="w-full h-auto max-h-48 object-contain"
+                    loading="lazy"
+                  />
+                </div>
+              )}
             </div>
           ))}
 
@@ -150,7 +168,7 @@ const CheckinHelpModal: React.FC<CheckinHelpModalProps> = ({
             <div className="flex gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
               <Lightbulb className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-amber-800 dark:text-amber-200">
-                <span className="font-medium">💡 Tip:</span> {parseTextWithIcons(helpData.tip)}
+                <span className="font-medium">💡 Tip:</span> {helpData.tip}
               </p>
             </div>
           )}

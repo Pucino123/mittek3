@@ -33,7 +33,9 @@ import {
   ChevronDown,
   Upload,
   Image,
-  X
+  X,
+  Video,
+  Play
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -42,6 +44,7 @@ interface HelpStep {
   instruction: string;
   detail: string;
   image_url?: string;
+  video_url?: string;
   [key: string]: string | undefined;
 }
 
@@ -57,6 +60,7 @@ interface CheckinQuestion {
   check_label: string;
   help_title: string | null;
   help_screenshot: string | null;
+  help_video: string | null;
   help_steps: HelpStep[];
   help_tip: string | null;
   sort_order: number;
@@ -78,7 +82,9 @@ export function CheckinQuestionsManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const stepImageInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const stepVideoInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   useEffect(() => {
     fetchQuestions();
@@ -98,7 +104,8 @@ export function CheckinQuestionsManager() {
     } else {
       const parsed = (data || []).map(q => ({
         ...q,
-        help_steps: (Array.isArray(q.help_steps) ? q.help_steps : []) as HelpStep[]
+        help_steps: (Array.isArray(q.help_steps) ? q.help_steps : []) as HelpStep[],
+        help_video: (q as any).help_video || null,
       })) as CheckinQuestion[];
       setQuestions(parsed);
     }
@@ -179,6 +186,56 @@ export function CheckinQuestionsManager() {
     if (!editingQuestion) return;
     const newSteps = [...editingQuestion.help_steps];
     newSteps[stepIndex] = { ...newSteps[stepIndex], image_url: undefined };
+    setEditingQuestion({
+      ...editingQuestion,
+      help_steps: newSteps
+    });
+  };
+
+  const handleMainVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingQuestion) return;
+
+    setUploadingImage('main-video');
+    const url = await uploadImage(file);
+    if (url) {
+      setEditingQuestion({
+        ...editingQuestion,
+        help_video: url,
+        help_screenshot: null // Clear image when video is added
+      });
+    }
+    setUploadingImage(null);
+    if (videoInputRef.current) {
+      videoInputRef.current.value = '';
+    }
+  };
+
+  const handleStepVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>, stepIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingQuestion) return;
+
+    setUploadingImage(`step-video-${stepIndex}`);
+    const url = await uploadImage(file);
+    if (url) {
+      const newSteps = [...editingQuestion.help_steps];
+      newSteps[stepIndex] = { ...newSteps[stepIndex], video_url: url, image_url: undefined };
+      setEditingQuestion({
+        ...editingQuestion,
+        help_steps: newSteps
+      });
+    }
+    setUploadingImage(null);
+    const inputRef = stepVideoInputRefs.current[stepIndex];
+    if (inputRef) {
+      inputRef.value = '';
+    }
+  };
+
+  const removeStepVideo = (stepIndex: number) => {
+    if (!editingQuestion) return;
+    const newSteps = [...editingQuestion.help_steps];
+    newSteps[stepIndex] = { ...newSteps[stepIndex], video_url: undefined };
     setEditingQuestion({
       ...editingQuestion,
       help_steps: newSteps
@@ -327,6 +384,7 @@ export function CheckinQuestionsManager() {
       check_label: '',
       help_title: null,
       help_screenshot: null,
+      help_video: null,
       help_steps: [],
       help_tip: null,
       sort_order: maxOrder + 1,
@@ -624,11 +682,35 @@ export function CheckinQuestionsManager() {
                     />
                   </div>
 
-                  {/* Main help image upload */}
+                  {/* Main help image OR video upload */}
                   <div className="space-y-2">
-                    <Label>Hjælp-billede</Label>
-                    <div className="flex items-center gap-4">
-                      {editingQuestion.help_screenshot ? (
+                    <Label>Hjælp-medie (billede eller video)</Label>
+                    <div className="flex items-start gap-4 flex-wrap">
+                      {/* Show current media */}
+                      {editingQuestion.help_video ? (
+                        <div className="relative">
+                          <video 
+                            src={editingQuestion.help_video}
+                            className="w-32 h-24 object-cover rounded-lg border"
+                            muted
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
+                            <Play className="h-8 w-8 text-white" />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-2 -right-2 h-6 w-6"
+                            onClick={() => setEditingQuestion({
+                              ...editingQuestion,
+                              help_video: null
+                            })}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : editingQuestion.help_screenshot ? (
                         <div className="relative">
                           <img 
                             src={editingQuestion.help_screenshot} 
@@ -653,7 +735,9 @@ export function CheckinQuestionsManager() {
                           <Image className="h-8 w-8" />
                         </div>
                       )}
-                      <div>
+                      
+                      {/* Upload buttons */}
+                      <div className="space-y-2">
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -661,22 +745,45 @@ export function CheckinQuestionsManager() {
                           className="hidden"
                           onChange={handleMainImageUpload}
                         />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploadingImage === 'main'}
-                        >
-                          {uploadingImage === 'main' ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          ) : (
-                            <Upload className="h-4 w-4 mr-2" />
-                          )}
-                          Upload billede
-                        </Button>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Vises øverst i hjælp-modal
+                        <input
+                          ref={videoInputRef}
+                          type="file"
+                          accept="video/*"
+                          className="hidden"
+                          onChange={handleMainVideoUpload}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadingImage === 'main' || uploadingImage === 'main-video'}
+                          >
+                            {uploadingImage === 'main' ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Image className="h-4 w-4 mr-2" />
+                            )}
+                            Billede
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => videoInputRef.current?.click()}
+                            disabled={uploadingImage === 'main' || uploadingImage === 'main-video'}
+                          >
+                            {uploadingImage === 'main-video' ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Video className="h-4 w-4 mr-2" />
+                            )}
+                            Video
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Vises øverst i hjælp-modal (vælg enten billede eller video)
                         </p>
                       </div>
                     </div>
