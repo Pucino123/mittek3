@@ -1749,7 +1749,25 @@ const Dashboard = () => {
       </main>
 
       {/* Add Tool Modal */}
-      <AppStoreToolModal open={showAddModal} onOpenChange={setShowAddModal} hiddenCards={hiddenCardDefinitions} onAddCard={handleAddCard} onResetAll={handleResetAll} onCreateCategory={handleCreateCategory} currentPlan={subscription?.plan_tier || 'basic'} />
+      <AppStoreToolModal 
+        open={showAddModal} 
+        onOpenChange={setShowAddModal} 
+        hiddenCards={hiddenCardDefinitions} 
+        onAddCard={handleAddCard} 
+        onResetAll={handleResetAll} 
+        onCreateCategory={handleCreateCategory} 
+        currentPlan={subscription?.plan_tier || 'basic'}
+        dashboardCategories={currentCategoryOrder.map(catId => ({
+          id: catId,
+          title: customCategoryTitles[catId] || defaultCategoryTitles[catId] || catId,
+          cardIds: (cardsByCategory[catId] || []).map(c => c.id)
+        }))}
+        onReorderCategories={(newCategories) => {
+          updateCategoryOrder(newCategories.map(c => c.id));
+        }}
+        onRemoveFromDashboard={handleRemoveCard}
+        allCardDefinitions={allCards as any}
+      />
 
       {/* Floating AI Chat Widget - Only show if subscription is active */}
       {isSubscriptionActive && <>

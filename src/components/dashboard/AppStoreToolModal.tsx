@@ -56,6 +56,7 @@ interface AppStoreToolModalProps {
   dashboardCategories?: CategoryItem[];
   onReorderCategories?: (categories: CategoryItem[]) => void;
   onRemoveFromDashboard?: (cardId: string) => void;
+  allCardDefinitions?: HiddenCard[];
 }
 
 const PLAN_TIERS = { basic: 0, plus: 1, pro: 2 } as const;
@@ -158,7 +159,8 @@ export function AppStoreToolModal({
   currentPlan = 'basic',
   dashboardCategories = [],
   onReorderCategories,
-  onRemoveFromDashboard
+  onRemoveFromDashboard,
+  allCardDefinitions = []
 }: AppStoreToolModalProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -256,13 +258,15 @@ export function AppStoreToolModal({
     }
   };
 
-  // All cards for lookup (both hidden and visible)
+  // All cards for lookup (both hidden and visible - using allCardDefinitions for full lookup)
   const allCardsLookup = useMemo(() => {
-    // Combine hidden cards with dashboard cards for full lookup
     const combined = new Map<string, HiddenCard>();
+    // First add all card definitions from dashboard (includes visible cards)
+    allCardDefinitions.forEach(c => combined.set(c.id, c));
+    // Then add hidden cards (may overlap, that's fine)
     hiddenCards.forEach(c => combined.set(c.id, c));
     return combined;
-  }, [hiddenCards]);
+  }, [hiddenCards, allCardDefinitions]);
 
   const renderToolCard = (card: HiddenCard) => {
     const isLocked = !hasAccess(card.minPlan);

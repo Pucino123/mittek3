@@ -6,6 +6,7 @@ import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useRemoteSupportSession } from '@/hooks/useRemoteSupportSession';
 import { SessionTimer } from '@/components/remote-support/SessionTimer';
 import { DrawingCanvas } from '@/components/remote-support/DrawingCanvas';
+import { SessionChat } from '@/components/remote-support/SessionChat';
 import { toast } from 'sonner';
 import { 
   Video, 
@@ -478,6 +479,9 @@ const RemoteSupport = () => {
           </div>
         </div>
       </div>
+      
+      {/* Session Chat */}
+      {bookingId && <SessionChat bookingId={bookingId} isAdmin={isAdmin} />}
     </div>
   );
 };
