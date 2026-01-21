@@ -135,6 +135,10 @@ export const CheckinRecommendations = forwardRef<HTMLDivElement, CheckinRecommen
   function CheckinRecommendationsComponent({ checkinData }, ref) {
   const { user } = useAuth();
   const [completedItems, setCompletedItems] = useState<string[]>([]);
+  const [isCollapsing, setIsCollapsing] = useState(false);
+
+  // Use the recommendations stored in the database from the checkin
+  const recommendations = checkinData?.recommendations || [];
 
   // Load completed items from localStorage
   useEffect(() => {
@@ -151,13 +155,20 @@ export const CheckinRecommendations = forwardRef<HTMLDivElement, CheckinRecommen
     }
   }, [user, checkinData]);
 
-  if (!checkinData) return null;
-  
-  // Don't show this section if score is 100/100 (perfect)
-  if (checkinData.score === 100) return null;
+  const completedCount = completedItems.length;
+  const totalCount = recommendations.length;
+  const allCompleted = completedCount === totalCount && totalCount > 0;
 
-  // Use the recommendations stored in the database from the checkin
-  const recommendations = checkinData.recommendations || [];
+  useEffect(() => {
+    if (allCompleted && !isCollapsing) {
+      // Start collapsing after 700ms (gives time for confetti)
+      const timer = setTimeout(() => setIsCollapsing(true), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [allCompleted, isCollapsing]);
+
+  // Don't show if no checkin data, no recommendations, or perfect score
+  if (!checkinData || recommendations.length === 0 || checkinData.score === 100) return null;
 
   const toggleItem = (rec: string, e: React.MouseEvent) => {
     // Don't toggle if clicking on a link
@@ -185,21 +196,6 @@ export const CheckinRecommendations = forwardRef<HTMLDivElement, CheckinRecommen
       });
     }
   };
-
-  const completedCount = completedItems.length;
-  const totalCount = recommendations.length;
-  const allCompleted = completedCount === totalCount && totalCount > 0;
-
-  // If all completed, show celebration briefly then collapse
-  const [isCollapsing, setIsCollapsing] = useState(false);
-
-  useEffect(() => {
-    if (allCompleted && !isCollapsing) {
-      // Start collapsing after 700ms (gives time for confetti)
-      const timer = setTimeout(() => setIsCollapsing(true), 700);
-      return () => clearTimeout(timer);
-    }
-  }, [allCompleted, isCollapsing]);
 
   if (isCollapsing) {
     return (
@@ -230,12 +226,7 @@ export const CheckinRecommendations = forwardRef<HTMLDivElement, CheckinRecommen
         )}
       </div>
 
-      {recommendations.length === 0 ? (
-        <div className="text-center py-4 text-muted-foreground">
-          <p className="text-sm">Ingen anbefalinger - din enhed ser fin ud! ✨</p>
-        </div>
-      ) : (
-        <ul className="space-y-3">
+      <ul className="space-y-3">
           {recommendations.map((rec, index) => {
             const isCompleted = completedItems.includes(rec);
             const guide = getGuideForRecommendation(rec);
@@ -281,7 +272,6 @@ export const CheckinRecommendations = forwardRef<HTMLDivElement, CheckinRecommen
             );
           })}
         </ul>
-      )}
     </div>
   );
 });
