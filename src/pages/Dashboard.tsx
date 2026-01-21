@@ -34,6 +34,7 @@ import { SubscriptionTrackerCard } from '@/components/dashboard/SubscriptionTrac
 import { SpeedtestCard } from '@/components/dashboard/SpeedtestCard';
 import { DigitalLegacyCard } from '@/components/dashboard/DigitalLegacyCard';
 import { PasswordHealthCard } from '@/components/dashboard/PasswordHealthCard';
+import SmartSearchBar from '@/components/dashboard/SmartSearchBar';
 
 // Card definition type
 interface CardDefinition {
@@ -1519,14 +1520,23 @@ const Dashboard = () => {
           <Breadcrumb />
         </div>
 
-        {/* Welcome Header */}
+        {/* Welcome Header with Search Bar */}
         <div className="mb-8 sm:mb-10">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">
-            Hej, {displayName} 👋
-          </h1>
-          <p className="text-muted-foreground text-base sm:text-lg mt-2">
-            Hvad vil du gerne have hjælp med i dag?
-          </p>
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            <div className="flex-shrink-0">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">
+                Hej, {displayName} 👋
+              </h1>
+              <p className="text-muted-foreground text-base sm:text-lg mt-2">
+                Hvad vil du gerne have hjælp med i dag?
+              </p>
+            </div>
+            
+            {/* Smart Search Bar for finding guides/help */}
+            <div className="lg:w-[400px] xl:w-[460px]">
+              <SmartSearchBar />
+            </div>
+          </div>
         </div>
 
         {/* Onboarding Progress Tracker - For new users */}
