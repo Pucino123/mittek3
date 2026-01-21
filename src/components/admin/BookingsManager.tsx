@@ -83,14 +83,38 @@ export function BookingsManager() {
   const confirmBooking = async (bookingId: string) => {
     setIsConfirming(bookingId);
     try {
+      // Get booking details for email
+      const booking = bookings.find(b => b.id === bookingId);
+      if (!booking) throw new Error('Booking not found');
+
       const { error } = await supabase
         .from('support_bookings')
         .update({ status: 'confirmed' })
         .eq('id', bookingId);
 
       if (error) throw error;
+
+      // Send confirmation email via edge function
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        await supabase.functions.invoke('send-booking-confirmation', {
+          body: {
+            bookingId,
+            userEmail: booking.user_email,
+            scheduledDate: booking.scheduled_date,
+            scheduledTime: booking.scheduled_time,
+          },
+        });
+        toast.success('Booking bekræftet!', {
+          description: 'Bekræftelsesmail sendt til brugeren.'
+        });
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+        toast.success('Booking bekræftet!', {
+          description: 'Kunne ikke sende bekræftelsesmail.'
+        });
+      }
       
-      toast.success('Booking bekræftet!');
       fetchBookings();
     } catch (error) {
       console.error('Error confirming booking:', error);
