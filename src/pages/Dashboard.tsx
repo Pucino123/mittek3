@@ -739,6 +739,7 @@ const Dashboard = () => {
     updateCategoryTitle,
     updateCategoryOrder,
     reorderCardsInCategory,
+    moveCardToCategory,
     addCustomCategory,
     deleteCategory,
     resetToDefault
@@ -1773,6 +1774,7 @@ const Dashboard = () => {
           showCard(cardId, categoryId);
         }}
         onReorderCardsInCategory={reorderCardsInCategory}
+        onMoveCardToCategory={moveCardToCategory}
         onSaveLayout={() => {
           // The layout is already auto-saved, this is just for the toast feedback
         }}

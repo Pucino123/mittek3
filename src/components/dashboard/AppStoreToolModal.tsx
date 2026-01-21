@@ -1,14 +1,15 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable, DragOverlay, DragStartEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
   X, 
@@ -26,6 +27,7 @@ import {
   GripVertical,
   Layers,
   Save,
+  Undo2,
   LucideIcon
 } from 'lucide-react';
 
@@ -63,6 +65,7 @@ interface AppStoreToolModalProps {
   onAddToCategory?: (cardId: string, categoryId: string) => void;
   onReorderCardsInCategory?: (categoryId: string, cardIds: string[]) => void;
   onSaveLayout?: () => void;
+  onMoveCardToCategory?: (cardId: string, fromCategoryId: string, toCategoryId: string) => void;
 }
 
 const PLAN_TIERS = { basic: 0, plus: 1, pro: 2 } as const;
@@ -82,7 +85,7 @@ const CATEGORIES = [
   { id: 'ny', label: 'Nye', icon: Sparkles },
 ];
 
-// Sortable mini card within a category
+// Animated mini card within a category
 function SortableMiniCard({
   card,
   onRemove,
@@ -105,15 +108,19 @@ function SortableMiniCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
+      layout
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: isDragging ? 0.5 : 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      transition={{ duration: 0.2 }}
       onClick={(e) => {
         e.stopPropagation();
         if (onRemove) onRemove(card.id);
@@ -124,7 +131,7 @@ function SortableMiniCard({
       title={`${card.title} - Klik for at fjerne`}
     >
       <card.icon className="h-4 w-4" />
-    </div>
+    </motion.div>
   );
 }
 
@@ -244,17 +251,19 @@ function DroppableCategoryItem({
         <span className="text-[10px] text-muted-foreground shrink-0">{categoryCards.length}</span>
       </div>
       
-      {/* Sortable grid of tool cards - LARGER icons */}
+      {/* Sortable grid of tool cards with AnimatePresence */}
       {categoryCards.length > 0 && (
         <div className="flex flex-row flex-wrap gap-1 mt-1 pl-4">
           <SortableContext items={cardSortableIds} strategy={rectSortingStrategy}>
-            {categoryCards.map((card) => (
-              <SortableMiniCard
-                key={card.id}
-                card={card}
-                onRemove={onRemoveCard}
-              />
-            ))}
+            <AnimatePresence mode="popLayout">
+              {categoryCards.map((card) => (
+                <SortableMiniCard
+                  key={card.id}
+                  card={card}
+                  onRemove={onRemoveCard}
+                />
+              ))}
+            </AnimatePresence>
           </SortableContext>
         </div>
       )}
@@ -419,13 +428,42 @@ export function AppStoreToolModal({
   onRenameCategory,
   onAddToCategory,
   onReorderCardsInCategory,
-  onSaveLayout
+  onSaveLayout,
+  onMoveCardToCategory
 }: AppStoreToolModalProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  
+  // Undo history stack
+  const historyRef = useRef<CategoryItem[][]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+
+  // Save current state to history before making changes
+  const saveToHistory = useCallback(() => {
+    if (dashboardCategories.length > 0) {
+      historyRef.current.push(JSON.parse(JSON.stringify(dashboardCategories)));
+      // Keep max 20 history states
+      if (historyRef.current.length > 20) {
+        historyRef.current.shift();
+      }
+      setCanUndo(true);
+    }
+  }, [dashboardCategories]);
+
+  // Undo to previous state
+  const handleUndo = useCallback(() => {
+    if (historyRef.current.length > 0 && onReorderCategories) {
+      const previousState = historyRef.current.pop();
+      if (previousState) {
+        onReorderCategories(previousState);
+        toast.info('Handling fortrudt');
+      }
+      setCanUndo(historyRef.current.length > 0);
+    }
+  }, [onReorderCategories]);
 
   // DnD sensors for dashboard builder
   const sensors = useSensors(
@@ -493,6 +531,9 @@ export function AppStoreToolModal({
     const activeId = active.id.toString();
     const overId = over.id.toString();
 
+    // Save to history before any change
+    saveToHistory();
+
     // Mini-card reordering within same category
     if (activeData?.type === 'mini-card' && overData?.type === 'mini-card') {
       const activeCardId = activeData.cardId;
@@ -514,17 +555,24 @@ export function AppStoreToolModal({
       return;
     }
 
-    // Mini-card dropped on category (move between categories)
+    // Mini-card dropped on a different category (cross-category move)
     if (activeData?.type === 'mini-card' && overId.startsWith('category-drop-')) {
-      const categoryId = overId.replace('category-drop-', '');
+      const targetCategoryId = overId.replace('category-drop-', '');
       const cardId = activeData.cardId;
       
-      if (onAddToCategory) {
-        // First remove from current category, then add to new one
-        if (onRemoveFromDashboard) {
+      // Find source category
+      const sourceCat = dashboardCategories.find(c => c.cardIds.includes(cardId));
+      if (sourceCat && sourceCat.id !== targetCategoryId) {
+        // Use onMoveCardToCategory if available, otherwise fallback
+        if (onMoveCardToCategory) {
+          onMoveCardToCategory(cardId, sourceCat.id, targetCategoryId);
+        } else if (onRemoveFromDashboard && onAddToCategory) {
           onRemoveFromDashboard(cardId);
+          onAddToCategory(cardId, targetCategoryId);
         }
-        onAddToCategory(cardId, categoryId);
+      } else if (!sourceCat && onAddToCategory) {
+        // Card from toolbox dropped on category
+        onAddToCategory(cardId, targetCategoryId);
       }
       return;
     }
@@ -553,7 +601,7 @@ export function AppStoreToolModal({
         onReorderCategories(reordered);
       }
     }
-  }, [dashboardCategories, onReorderCategories, onAddToCategory, onAddCard, onReorderCardsInCategory, onRemoveFromDashboard]);
+  }, [dashboardCategories, onReorderCategories, onAddToCategory, onAddCard, onReorderCardsInCategory, onRemoveFromDashboard, onMoveCardToCategory, saveToHistory]);
 
   const handleSaveLayout = () => {
     if (onSaveLayout) {
@@ -672,6 +720,18 @@ export function AppStoreToolModal({
 
                 {/* Footer actions */}
                 <div className="p-2 border-t border-border space-y-1.5 mt-auto">
+                  {/* Undo Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-center gap-2 h-8 text-xs"
+                    onClick={handleUndo}
+                    disabled={!canUndo}
+                  >
+                    <Undo2 className="h-3.5 w-3.5" />
+                    Fortryd
+                  </Button>
+                  
                   {/* Save Layout Button */}
                   <Button
                     variant="default"

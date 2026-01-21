@@ -360,6 +360,13 @@ export function useDashboardSettings() {
     });
   }, [settings.card_categories, settings.card_order, saveSettings]);
 
+  // Move a card from one category to another
+  const moveCardToCategory = useCallback((cardId: string, fromCategoryId: string, toCategoryId: string) => {
+    // Simply update the card's category mapping
+    const newCardCategories = { ...settings.card_categories, [cardId]: toCategoryId };
+    saveSettings({ card_categories: newCardCategories });
+  }, [settings.card_categories, saveSettings]);
+
   // Add a custom category
   const addCustomCategory = useCallback((categoryName: string) => {
     const newCategory: CustomCategory = {
@@ -435,6 +442,7 @@ export function useDashboardSettings() {
     updateCategoryTitle,
     updateCategoryOrder,
     reorderCardsInCategory,
+    moveCardToCategory,
     addCustomCategory,
     deleteCategory,
     resetToDefault,
