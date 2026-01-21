@@ -377,51 +377,9 @@ export function AppStoreToolModal({
       <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
         <TooltipProvider delayDuration={300}>
           <div className="flex h-full">
-            {/* Left Sidebar - Dashboard Builder */}
-            {dashboardCategories.length > 0 && onReorderCategories && (
-              <div className="w-44 border-r border-border bg-muted/20 flex flex-col">
-                <div className="p-3 border-b border-border">
-                  <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5" />
-                    Dashboard Layout
-                  </h3>
-                </div>
-                
-                <ScrollArea className="flex-1 p-2">
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={dashboardCategories.map(c => c.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {dashboardCategories.map((category) => (
-                        <SortableCategoryItem
-                          key={category.id}
-                          category={category}
-                          allCards={Array.from(allCardsLookup.values())}
-                          onRemoveCard={onRemoveFromDashboard}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                  
-                  {dashboardCategories.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">
-                      Tilføj værktøjer for at se dit layout
-                    </p>
-                  )}
-                </ScrollArea>
+            {/* Left Sidebar removed - Dashboard Builder now in middle sidebar below categories */}
 
-                <div className="p-2 border-t border-border text-[10px] text-muted-foreground text-center">
-                  Træk for at omarrangere
-                </div>
-              </div>
-            )}
-
-            {/* Middle Sidebar - Categories */}
+            {/* Middle Sidebar - Categories + Dashboard Layout */}
             <div className="w-48 md:w-56 border-r border-border bg-muted/30 flex flex-col">
               {/* Header */}
               <div className="p-4 border-b border-border">
@@ -450,6 +408,44 @@ export function AppStoreToolModal({
                   ))}
                 </div>
               </ScrollArea>
+
+              {/* Dashboard Layout Mini-Map - MOVED HERE (below categories) */}
+              {dashboardCategories.length > 0 && onReorderCategories && (
+                <div className="border-t border-border">
+                  <div className="p-2 pb-1">
+                    <h4 className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1 px-1 mb-1">
+                      <Layers className="h-3 w-3" />
+                      Dashboard Layout
+                    </h4>
+                  </div>
+                  <ScrollArea className="max-h-36">
+                    <div className="px-2 pb-2">
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <SortableContext
+                          items={dashboardCategories.map(c => c.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {dashboardCategories.map((category) => (
+                            <SortableCategoryItem
+                              key={category.id}
+                              category={category}
+                              allCards={Array.from(allCardsLookup.values())}
+                              onRemoveCard={onRemoveFromDashboard}
+                            />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    </div>
+                  </ScrollArea>
+                  <div className="px-2 pb-1 text-[9px] text-muted-foreground text-center">
+                    Træk for at omarrangere
+                  </div>
+                </div>
+              )}
 
               {/* Footer actions */}
               <div className="p-3 border-t border-border space-y-2">
