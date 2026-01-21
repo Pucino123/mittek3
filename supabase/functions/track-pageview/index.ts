@@ -107,6 +107,7 @@ serve(async (req) => {
     }
 
     // Insert page view with sanitized and validated data
+    // Note: user_id is set to null to avoid FK constraint issues - analytics don't require user linking
     const { error } = await supabaseClient
       .from('page_views')
       .insert({
@@ -114,7 +115,7 @@ serve(async (req) => {
         referrer: sanitizedReferrer,
         user_agent: sanitizedUserAgent,
         session_id: sanitizedSessionId,
-        user_id: sanitizedUserId,
+        user_id: null, // Avoid FK constraint violations
         country,
         city,
       });
