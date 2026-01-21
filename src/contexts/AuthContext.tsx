@@ -57,16 +57,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const fetchProfile = async (userId: string) => {
+  const deriveDisplayName = (u: User) => {
+    const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
+    const fromMeta = typeof meta.display_name === 'string' ? meta.display_name : null;
+    return fromMeta || u.email?.split('@')[0] || 'Bruger';
+  };
+
+  const fetchProfile = async (u: User) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', u.id)
       .maybeSingle();
-    
-    if (data && !error) {
-      setProfile(data as Profile);
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return;
     }
+
+    // If profile is missing (common for older/new users when no DB trigger exists),
+    // create it lazily so profile-linked settings can persist.
+    if (!data) {
+      const { data: created, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: u.id,
+          email: u.email ?? null,
+          display_name: deriveDisplayName(u),
+          owned_devices: ['iphone'],
+          device_preference: 'iphone',
+        })
+        .select('*')
+        .single();
+
+      if (createError) {
+        console.error('Error creating missing profile:', createError);
+        return;
+      }
+
+      setProfile(created as Profile);
+      return;
+    }
+
+    setProfile(data as Profile);
   };
 
   const fetchSubscription = async (userId: string) => {
@@ -161,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Defer Supabase calls with setTimeout to avoid deadlock
         if (session?.user) {
           setTimeout(() => {
-            fetchProfile(session.user.id);
+            fetchProfile(session.user);
             fetchSubscription(session.user.id);
             fetchIsAdmin(session.user.id);
           }, 0);
@@ -184,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user);
         fetchSubscription(session.user.id);
         fetchIsAdmin(session.user.id);
         
@@ -241,17 +274,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     });
-    
-    // Update the profile with the display name after signup
-    // The trigger creates the profile, but we need to update it with the correct name
-    if (!error && data.user && displayName) {
-      // Small delay to ensure the profile is created by the trigger
-      setTimeout(async () => {
-        await supabase
-          .from('profiles')
-          .update({ display_name: displayName })
-          .eq('user_id', data.user!.id);
-      }, 500);
+
+    // If a session is created immediately, ensure a profile row exists right away.
+    // If email confirmation is required (no session), profile will be created on first login.
+    if (!error && data.session?.user) {
+      await fetchProfile(data.session.user);
     }
     
     return { error };
@@ -297,7 +324,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refetchProfile = async () => {
     if (user) {
-      await fetchProfile(user.id);
+      await fetchProfile(user);
       await fetchIsAdmin(user.id);
     }
   };
