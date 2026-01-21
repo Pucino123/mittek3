@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardCheck, ArrowRight, Sparkles, CheckCircle, Smartphone, Tablet, Monitor } from 'lucide-react';
+import { ClipboardCheck, ArrowRight, Sparkles, CheckCircle, Smartphone, Tablet, Monitor, LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,10 +9,15 @@ interface MonthlyCheckinPromptProps {
   onHasRecentCheckin?: (hasRecent: boolean, checkinData?: any) => void;
 }
 
-const deviceLabels: Record<string, { label: string; icon: React.ElementType; emoji: string }> = {
-  iphone: { label: 'iPhone', icon: Smartphone, emoji: '📱' },
-  ipad: { label: 'iPad', icon: Tablet, emoji: '📱' },
-  mac: { label: 'Mac', icon: Monitor, emoji: '💻' },
+interface DeviceConfig {
+  label: string;
+  Icon: LucideIcon;
+}
+
+const deviceConfig: Record<string, DeviceConfig> = {
+  iphone: { label: 'iPhone', Icon: Smartphone },
+  ipad: { label: 'iPad', Icon: Tablet },
+  mac: { label: 'Mac', Icon: Monitor },
 };
 
 export function MonthlyCheckinPrompt({ onHasRecentCheckin }: MonthlyCheckinPromptProps) {
@@ -20,32 +25,34 @@ export function MonthlyCheckinPrompt({ onHasRecentCheckin }: MonthlyCheckinPromp
   const [hasRecentCheckin, setHasRecentCheckin] = useState<boolean | null>(null);
   const [lastScore, setLastScore] = useState<number | null>(null);
   const [daysUntilNext, setDaysUntilNext] = useState<number>(30);
+  const [checkedDevices, setCheckedDevices] = useState<string[]>([]);
   const ownedDevices = (profile?.owned_devices as string[]) || ['iphone'];
 
   useEffect(() => {
     const checkLastCheckin = async () => {
       if (!user) return;
 
-      // Check if user has a checkin in the last 30 days
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const { data } = await supabase
-        .from('checkins')
+      // Query check_history which has device_types
+      const { data: historyData } = await supabase
+        .from('check_history')
         .select('*')
         .eq('user_id', user.id)
-        .gte('completed_at', thirtyDaysAgo.toISOString())
-        .order('completed_at', { ascending: false })
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
         .limit(1);
 
-      const hasRecent = !!data && data.length > 0;
+      const hasRecent = !!historyData && historyData.length > 0;
       setHasRecentCheckin(hasRecent);
       
-      if (hasRecent && data[0]) {
-        setLastScore(data[0].score);
+      if (hasRecent && historyData[0]) {
+        setLastScore(historyData[0].score);
+        setCheckedDevices(historyData[0].device_types || []);
         
-        // Calculate days until next checkin (30 days from completed_at)
-        const completedDate = new Date(data[0].completed_at);
+        // Calculate days until next checkin (30 days from created_at)
+        const completedDate = new Date(historyData[0].created_at);
         const nextCheckinDate = new Date(completedDate);
         nextCheckinDate.setDate(nextCheckinDate.getDate() + 30);
         const today = new Date();
@@ -53,7 +60,7 @@ export function MonthlyCheckinPrompt({ onHasRecentCheckin }: MonthlyCheckinPromp
         const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
         setDaysUntilNext(diffDays);
         
-        onHasRecentCheckin?.(true, data[0]);
+        onHasRecentCheckin?.(true, historyData[0]);
       } else {
         onHasRecentCheckin?.(false);
       }
@@ -80,10 +87,25 @@ export function MonthlyCheckinPrompt({ onHasRecentCheckin }: MonthlyCheckinPromp
             <p className="text-xs sm:text-sm text-muted-foreground">
               Din score: {lastScore}/100 • Næste tjek om {daysUntilNext} {daysUntilNext === 1 ? 'dag' : 'dage'}
             </p>
-            {ownedDevices.length > 1 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Tjekket: {ownedDevices.map(d => deviceLabels[d]?.emoji || '📱').join(' ')} {ownedDevices.map(d => deviceLabels[d]?.label).join(', ')}
-              </p>
+            {checkedDevices.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <span className="text-xs text-muted-foreground">Tjekket:</span>
+                {checkedDevices.map((device, index) => {
+                  const config = deviceConfig[device];
+                  if (!config) return null;
+                  const IconComponent = config.Icon;
+                  return (
+                    <span 
+                      key={`${device}-${index}`} 
+                      className="inline-flex items-center gap-1 text-xs bg-success/10 text-success px-2 py-0.5 rounded-full"
+                      title={config.label}
+                    >
+                      <IconComponent className="h-3 w-3" />
+                      {config.label}
+                    </span>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
@@ -113,14 +135,17 @@ export function MonthlyCheckinPrompt({ onHasRecentCheckin }: MonthlyCheckinPromp
           </p>
           {ownedDevices.length > 1 && (
             <div className="flex items-center gap-2 mt-2">
-              {ownedDevices.map((device) => {
-                const info = deviceLabels[device];
-                if (!info) return null;
-                const Icon = info.icon;
+              {ownedDevices.map((device, index) => {
+                const config = deviceConfig[device];
+                if (!config) return null;
+                const IconComponent = config.Icon;
                 return (
-                  <span key={device} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                    <Icon className="h-3 w-3" />
-                    {info.label}
+                  <span 
+                    key={`${device}-${index}`} 
+                    className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full"
+                  >
+                    <IconComponent className="h-3 w-3" />
+                    {config.label}
                   </span>
                 );
               })}
