@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { 
@@ -57,6 +57,8 @@ interface AppStoreToolModalProps {
   onReorderCategories?: (categories: CategoryItem[]) => void;
   onRemoveFromDashboard?: (cardId: string) => void;
   allCardDefinitions?: HiddenCard[];
+  onRenameCategory?: (categoryId: string, newTitle: string) => void;
+  onAddToCategory?: (cardId: string, categoryId: string) => void;
 }
 
 const PLAN_TIERS = { basic: 0, plus: 1, pro: 2 } as const;
@@ -76,20 +78,37 @@ const CATEGORIES = [
   { id: 'ny', label: 'Nye', icon: Sparkles },
 ];
 
-// Sortable category item for the dashboard builder sidebar
-function SortableCategoryItem({ category, allCards, onRemoveCard }: { 
+// Droppable category item with inline editing
+function DroppableCategoryItem({ 
+  category, 
+  allCards, 
+  onRemoveCard,
+  onRename,
+  isOver 
+}: { 
   category: CategoryItem; 
   allCards: HiddenCard[];
   onRemoveCard?: (cardId: string) => void;
+  onRename?: (categoryId: string, newTitle: string) => void;
+  isOver?: boolean;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(category.title);
+
   const {
     attributes,
     listeners,
-    setNodeRef,
+    setNodeRef: setSortableRef,
     transform,
     transition,
     isDragging,
   } = useSortable({ id: category.id });
+
+  // Droppable for receiving tools
+  const { setNodeRef: setDroppableRef, isOver: isOverDrop } = useDroppable({
+    id: `category-drop-${category.id}`,
+    data: { type: 'category', categoryId: category.id }
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -102,54 +121,246 @@ function SortableCategoryItem({ category, allCards, onRemoveCard }: {
     .map(id => allCards.find(c => c.id === id))
     .filter(Boolean) as HiddenCard[];
 
+  const handleTitleClick = () => {
+    if (onRename) {
+      setEditValue(category.title);
+      setIsEditing(true);
+    }
+  };
+
+  const handleSave = () => {
+    if (onRename && editValue.trim()) {
+      onRename(category.id, editValue.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setEditValue(category.title);
+      setIsEditing(false);
+    }
+  };
+
+  // Combine refs
+  const setRefs = (node: HTMLDivElement | null) => {
+    setSortableRef(node);
+    setDroppableRef(node);
+  };
+
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
       style={style}
-      className="bg-card border border-border rounded-lg p-2 mb-2"
+      className={`bg-card border rounded-lg p-1.5 mb-1.5 transition-colors ${
+        isOver || isOverDrop ? 'border-primary bg-primary/5' : 'border-border'
+      }`}
     >
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-1.5 mb-0.5">
         <div 
           {...attributes} 
           {...listeners}
-          className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded"
+          className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded shrink-0"
         >
-          <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+          <GripVertical className="h-3 w-3 text-muted-foreground" />
         </div>
-        <span className="text-xs font-medium truncate flex-1">{category.title}</span>
-        <span className="text-[10px] text-muted-foreground">{categoryCards.length}</span>
+        
+        {isEditing ? (
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            className="flex-1 text-[11px] font-medium bg-transparent border-b border-primary outline-none px-0.5"
+          />
+        ) : (
+          <span 
+            className="text-[11px] font-medium truncate flex-1 cursor-pointer hover:text-primary transition-colors"
+            onClick={handleTitleClick}
+            title="Klik for at omdøbe"
+          >
+            {category.title}
+          </span>
+        )}
+        <span className="text-[9px] text-muted-foreground shrink-0">{categoryCards.length}</span>
       </div>
       
       {/* Horizontal row of tool icons */}
       {categoryCards.length > 0 && (
-        <div className="flex flex-row flex-wrap gap-1 mt-1">
-          {categoryCards.slice(0, 4).map((card) => (
+        <div className="flex flex-row flex-wrap gap-0.5 mt-0.5 pl-4">
+          {categoryCards.slice(0, 5).map((card) => (
             <div 
               key={card.id}
-              className="group relative w-5 h-5 rounded flex items-center justify-center bg-muted/60"
+              className="group relative w-4 h-4 aspect-square rounded flex items-center justify-center bg-muted/60"
               title={card.title}
             >
-              <card.icon className="h-2.5 w-2.5 text-muted-foreground" />
+              <card.icon className="h-2 w-2 text-muted-foreground" />
               {onRemoveCard && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onRemoveCard(card.id);
                   }}
-                  className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-muted hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground hidden group-hover:flex items-center justify-center transition-colors"
+                  className="absolute -top-1 -right-1 w-3 h-3 aspect-square rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive hidden group-hover:flex items-center justify-center transition-colors"
                 >
-                  <X className="h-2 w-2" />
+                  <X className="h-1.5 w-1.5" />
                 </button>
               )}
             </div>
           ))}
-          {categoryCards.length > 4 && (
-            <span className="text-[10px] text-muted-foreground self-center">+{categoryCards.length - 4}</span>
+          {categoryCards.length > 5 && (
+            <span className="text-[9px] text-muted-foreground self-center">+{categoryCards.length - 5}</span>
           )}
+        </div>
+      )}
+
+      {/* Drop hint when empty */}
+      {categoryCards.length === 0 && (
+        <div className="pl-4 py-1">
+          <span className="text-[9px] text-muted-foreground italic">Træk værktøjer hertil</span>
         </div>
       )}
     </div>
   );
+}
+
+// Draggable tool card for the main grid
+function DraggableToolCard({ 
+  card, 
+  isLocked,
+  requiredPlan,
+  isNew,
+  onAddCard,
+  onUpgrade,
+  planDescription
+}: {
+  card: HiddenCard;
+  isLocked: boolean;
+  requiredPlan: string | null;
+  isNew: boolean;
+  onAddCard: () => void;
+  onUpgrade: () => void;
+  planDescription: string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useSortable({ 
+    id: `tool-${card.id}`,
+    data: { type: 'tool', cardId: card.id },
+    disabled: isLocked
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  const cardContent = (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={() => {
+        if (!isLocked) {
+          onAddCard();
+        }
+      }}
+      className={`group relative bg-card border border-border rounded-2xl p-4 transition-all duration-200 ${
+        isLocked 
+          ? 'opacity-60 cursor-default' 
+          : isDragging
+            ? 'cursor-grabbing shadow-xl scale-105'
+            : 'hover:border-primary/50 hover:shadow-lg hover:scale-[1.02] cursor-grab'
+      }`}
+    >
+      {/* New badge */}
+      {isNew && !isLocked && (
+        <div className="absolute -top-2 -right-2 z-10">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-success text-success-foreground font-medium animate-pulse">
+            Ny!
+          </span>
+        </div>
+      )}
+
+      {/* Lock badge */}
+      {isLocked && (
+        <div className="absolute -top-2 -right-2 z-10">
+          <div className="w-6 h-6 bg-muted-foreground rounded-full flex items-center justify-center">
+            <Lock className="h-3 w-3 text-background" />
+          </div>
+        </div>
+      )}
+
+      {/* Icon */}
+      <div className={`w-14 h-14 rounded-2xl ${card.color} flex items-center justify-center mb-3 transition-transform group-hover:scale-110`}>
+        <card.icon className="h-7 w-7" />
+      </div>
+
+      {/* Content */}
+      <h3 className={`font-semibold text-sm mb-1 ${isLocked ? 'text-muted-foreground' : ''}`}>
+        {card.title}
+      </h3>
+      <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+        {card.description}
+      </p>
+
+      {/* Action */}
+      <div className="flex items-center justify-between">
+        {requiredPlan ? (
+          <span className={`text-xs px-2 py-0.5 rounded-full ${isLocked ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
+            {requiredPlan}
+          </span>
+        ) : (
+          <span />
+        )}
+        <Button 
+          variant={isLocked ? "ghost" : "default"} 
+          size="sm" 
+          className={`h-7 px-3 text-xs ${isLocked ? 'pointer-events-none' : ''}`}
+          disabled={isLocked}
+        >
+          {isLocked ? 'Låst' : 'Tilføj'}
+        </Button>
+      </div>
+    </div>
+  );
+
+  if (isLocked && planDescription) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {cardContent}
+        </TooltipTrigger>
+        <TooltipContent side="top" align="center" className="max-w-[280px] p-3">
+          <p className="text-sm mb-2">{planDescription}</p>
+          <Button 
+            size="sm" 
+            variant="default" 
+            className="w-full gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpgrade();
+            }}
+          >
+            Opgrader nu
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return cardContent;
 }
 
 export function AppStoreToolModal({ 
@@ -163,7 +374,9 @@ export function AppStoreToolModal({
   dashboardCategories = [],
   onReorderCategories,
   onRemoveFromDashboard,
-  allCardDefinitions = []
+  allCardDefinitions = [],
+  onRenameCategory,
+  onAddToCategory
 }: AppStoreToolModalProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -173,7 +386,7 @@ export function AppStoreToolModal({
 
   // DnD sensors for dashboard builder
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -227,18 +440,39 @@ export function AppStoreToolModal({
     });
   }, [hiddenCards, searchQuery, selectedCategory, currentPlan]);
 
-  // Handle category drag end for live reorder
+  // Handle drag end for both category reorder and tool dropping
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
+    if (!over) return;
 
-    if (over && active.id !== over.id && onReorderCategories) {
+    const activeData = active.data.current;
+    const overId = over.id.toString();
+
+    // Tool dropped on category
+    if (activeData?.type === 'tool' && overId.startsWith('category-drop-')) {
+      const categoryId = overId.replace('category-drop-', '');
+      const cardId = activeData.cardId;
+      
+      if (onAddToCategory) {
+        onAddToCategory(cardId, categoryId);
+      } else {
+        // Fallback: just add the card
+        onAddCard(cardId);
+      }
+      return;
+    }
+
+    // Category reorder
+    if (active.id !== over.id && onReorderCategories) {
       const oldIndex = dashboardCategories.findIndex((c) => c.id === active.id);
       const newIndex = dashboardCategories.findIndex((c) => c.id === over.id);
       
-      const reordered = arrayMove(dashboardCategories, oldIndex, newIndex);
-      onReorderCategories(reordered);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reordered = arrayMove(dashboardCategories, oldIndex, newIndex);
+        onReorderCategories(reordered);
+      }
     }
-  }, [dashboardCategories, onReorderCategories]);
+  }, [dashboardCategories, onReorderCategories, onAddToCategory, onAddCard]);
 
   const handleClose = () => {
     setSearchQuery('');
@@ -271,132 +505,38 @@ export function AppStoreToolModal({
     return combined;
   }, [hiddenCards, allCardDefinitions]);
 
-  const renderToolCard = (card: HiddenCard) => {
-    const isLocked = !hasAccess(card.minPlan);
-    const requiredPlan = card.minPlan && card.minPlan !== 'basic' ? getPlanLabel(card.minPlan) : null;
-    const planDescription = card.minPlan ? PLAN_DESCRIPTIONS[card.minPlan] : '';
-    const isNew = isNewTool(card.addedDate);
-
-    const cardContent = (
-      <div
-        key={card.id}
-        onClick={() => {
-          if (!isLocked) {
-            onAddCard(card.id);
-            if (hiddenCards.length === 1) handleClose();
-          }
-        }}
-        className={`group relative bg-card border border-border rounded-2xl p-4 transition-all duration-200 ${
-          isLocked 
-            ? 'opacity-60 cursor-default' 
-            : 'hover:border-primary/50 hover:shadow-lg hover:scale-[1.02] cursor-pointer'
-        }`}
-      >
-        {/* New badge */}
-        {isNew && !isLocked && (
-          <div className="absolute -top-2 -right-2 z-10">
-            <span className="text-xs px-2 py-0.5 rounded-full bg-success text-success-foreground font-medium animate-pulse">
-              Ny!
-            </span>
-          </div>
-        )}
-
-        {/* Lock badge */}
-        {isLocked && (
-          <div className="absolute -top-2 -right-2 z-10">
-            <div className="w-6 h-6 bg-muted-foreground rounded-full flex items-center justify-center">
-              <Lock className="h-3 w-3 text-background" />
-            </div>
-          </div>
-        )}
-
-        {/* Icon */}
-        <div className={`w-14 h-14 rounded-2xl ${card.color} flex items-center justify-center mb-3 transition-transform group-hover:scale-110`}>
-          <card.icon className="h-7 w-7" />
-        </div>
-
-        {/* Content */}
-        <h3 className={`font-semibold text-sm mb-1 ${isLocked ? 'text-muted-foreground' : ''}`}>
-          {card.title}
-        </h3>
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
-          {card.description}
-        </p>
-
-        {/* Action */}
-        <div className="flex items-center justify-between">
-          {requiredPlan ? (
-            <span className={`text-xs px-2 py-0.5 rounded-full ${isLocked ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'}`}>
-              {requiredPlan}
-            </span>
-          ) : (
-            <span />
-          )}
-          <Button 
-            variant={isLocked ? "ghost" : "default"} 
-            size="sm" 
-            className={`h-7 px-3 text-xs ${isLocked ? 'pointer-events-none' : ''}`}
-            disabled={isLocked}
-          >
-            {isLocked ? 'Låst' : 'Tilføj'}
-          </Button>
-        </div>
-      </div>
-    );
-
-    if (isLocked && planDescription) {
-      return (
-        <Tooltip key={card.id}>
-          <TooltipTrigger asChild>
-            {cardContent}
-          </TooltipTrigger>
-          <TooltipContent side="top" align="center" className="max-w-[280px] p-3">
-            <p className="text-sm mb-2">{planDescription}</p>
-            <Button 
-              size="sm" 
-              variant="default" 
-              className="w-full gap-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleUpgrade();
-              }}
-            >
-              Opgrader nu
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return cardContent;
-  };
+  // Create sortable items for tools
+  const toolSortableIds = useMemo(() => 
+    filteredCards.map(card => `tool-${card.id}`),
+  [filteredCards]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
         <TooltipProvider delayDuration={300}>
-          <div className="flex h-full">
-            {/* Left Sidebar removed - Dashboard Builder now in middle sidebar below categories */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex h-full">
+              {/* Sidebar - Categories + Dashboard Layout */}
+              <div className="w-52 md:w-60 border-r border-border bg-muted/30 flex flex-col">
+                {/* Header */}
+                <div className="p-3 border-b border-border">
+                  <h2 className="font-bold text-base flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Værktøjer
+                  </h2>
+                </div>
 
-            {/* Middle Sidebar - Categories + Dashboard Layout */}
-            <div className="w-48 md:w-56 border-r border-border bg-muted/30 flex flex-col">
-              {/* Header */}
-              <div className="p-4 border-b border-border">
-                <h2 className="font-bold text-lg flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  Værktøjer
-                </h2>
-              </div>
-
-              {/* Category list */}
-              <ScrollArea className="flex-1">
-                <div className="p-2 space-y-1">
+                {/* Category list */}
+                <div className="p-2 space-y-0.5 border-b border-border">
                   {CATEGORIES.map((cat) => (
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors ${
                         selectedCategory === cat.id
                           ? 'bg-primary text-primary-foreground font-medium'
                           : 'hover:bg-muted text-muted-foreground hover:text-foreground'
@@ -407,163 +547,179 @@ export function AppStoreToolModal({
                     </button>
                   ))}
                 </div>
-              </ScrollArea>
 
-              {/* Dashboard Layout Mini-Map - MOVED HERE (below categories) */}
-              {dashboardCategories.length > 0 && onReorderCategories && (
-                <div className="border-t border-border">
-                  <div className="p-2 pb-1">
-                    <h4 className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1 px-1 mb-1">
-                      <Layers className="h-3 w-3" />
-                      Dashboard Layout
-                    </h4>
-                  </div>
-                  <ScrollArea className="max-h-36">
-                    <div className="px-2 pb-2">
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <SortableContext
-                          items={dashboardCategories.map(c => c.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {dashboardCategories.map((category) => (
-                            <SortableCategoryItem
-                              key={category.id}
-                              category={category}
-                              allCards={Array.from(allCardsLookup.values())}
-                              onRemoveCard={onRemoveFromDashboard}
-                            />
-                          ))}
-                        </SortableContext>
-                      </DndContext>
+                {/* Dashboard Layout Mini-Map - HIGHER UP, immediately after categories */}
+                {dashboardCategories.length > 0 && onReorderCategories && (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="px-2 pt-2 pb-1">
+                      <h4 className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1 px-1">
+                        <Layers className="h-3 w-3" />
+                        Dashboard Layout
+                      </h4>
                     </div>
-                  </ScrollArea>
-                  <div className="px-2 pb-1 text-[9px] text-muted-foreground text-center">
-                    Træk for at omarrangere
+                    <ScrollArea className="flex-1 px-2">
+                      <SortableContext
+                        items={dashboardCategories.map(c => c.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {dashboardCategories.map((category) => (
+                          <DroppableCategoryItem
+                            key={category.id}
+                            category={category}
+                            allCards={Array.from(allCardsLookup.values())}
+                            onRemoveCard={onRemoveFromDashboard}
+                            onRename={onRenameCategory}
+                          />
+                        ))}
+                      </SortableContext>
+                    </ScrollArea>
+                    <div className="px-2 py-1 text-[9px] text-muted-foreground text-center">
+                      Træk værktøjer til kategorier
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Footer actions */}
-              <div className="p-3 border-t border-border space-y-2">
-                {onCreateCategory && (
-                  <>
-                    {showNewCategoryInput ? (
-                      <div className="space-y-2">
-                        <Input
-                          value={newCategoryName}
-                          onChange={(e) => setNewCategoryName(e.target.value)}
-                          placeholder="Navn..."
-                          className="h-8 text-sm"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleCreateCategory();
-                            if (e.key === 'Escape') {
-                              setShowNewCategoryInput(false);
-                              setNewCategoryName('');
-                            }
-                          }}
-                        />
-                        <div className="flex gap-1">
-                          <Button size="sm" className="flex-1 h-7 text-xs" onClick={handleCreateCategory}>
-                            Opret
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-7 px-2"
-                            onClick={() => {
-                              setShowNewCategoryInput(false);
-                              setNewCategoryName('');
+                {/* Footer actions */}
+                <div className="p-2 border-t border-border space-y-1.5 mt-auto">
+                  {onCreateCategory && (
+                    <>
+                      {showNewCategoryInput ? (
+                        <div className="space-y-1.5">
+                          <Input
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            placeholder="Navn..."
+                            className="h-7 text-xs"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleCreateCategory();
+                              if (e.key === 'Escape') {
+                                setShowNewCategoryInput(false);
+                                setNewCategoryName('');
+                              }
                             }}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
+                          />
+                          <div className="flex gap-1">
+                            <Button size="sm" className="flex-1 h-6 text-xs" onClick={handleCreateCategory}>
+                              Opret
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-6 px-2"
+                              onClick={() => {
+                                setShowNewCategoryInput(false);
+                                setNewCategoryName('');
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start gap-2 h-7 text-xs"
+                          onClick={() => setShowNewCategoryInput(true)}
+                        >
+                          <FolderPlus className="h-3.5 w-3.5" />
+                          Ny kategori
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start gap-2 h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      onResetAll();
+                      handleClose();
+                    }}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Nulstil layout
+                  </Button>
+                </div>
+              </div>
+
+              {/* Main content */}
+              <div className="flex-1 flex flex-col min-w-0">
+                {/* Top bar with search */}
+                <div className="p-4 border-b border-border flex items-center gap-4">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Søg i værktøjer..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 h-10"
+                    />
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={handleClose}>
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                {/* Tools grid */}
+                <ScrollArea className="flex-1">
+                  <div className="p-4">
+                    {filteredCards.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                          <Search className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="font-semibold mb-2">Ingen værktøjer fundet</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {searchQuery 
+                            ? `Ingen resultater for "${searchQuery}"`
+                            : 'Alle værktøjer er allerede på dit dashboard'
+                          }
+                        </p>
                       </div>
                     ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start gap-2 h-8 text-xs"
-                        onClick={() => setShowNewCategoryInput(true)}
-                      >
-                        <FolderPlus className="h-3.5 w-3.5" />
-                        Ny kategori
-                      </Button>
+                      <SortableContext items={toolSortableIds}>
+                        <div className="grid grid-cols-3 gap-4">
+                          {filteredCards.map(card => {
+                            const isLocked = !hasAccess(card.minPlan);
+                            const requiredPlan = card.minPlan && card.minPlan !== 'basic' ? getPlanLabel(card.minPlan) : null;
+                            const planDescription = card.minPlan ? PLAN_DESCRIPTIONS[card.minPlan] : '';
+                            const isNew = isNewTool(card.addedDate);
+
+                            return (
+                              <DraggableToolCard
+                                key={card.id}
+                                card={card}
+                                isLocked={isLocked}
+                                requiredPlan={requiredPlan}
+                                isNew={isNew}
+                                onAddCard={() => {
+                                  onAddCard(card.id);
+                                  if (hiddenCards.length === 1) handleClose();
+                                }}
+                                onUpgrade={handleUpgrade}
+                                planDescription={planDescription}
+                              />
+                            );
+                          })}
+                        </div>
+                      </SortableContext>
                     )}
-                  </>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start gap-2 h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => {
-                    onResetAll();
-                    handleClose();
-                  }}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Nulstil layout
-                </Button>
+                  </div>
+                </ScrollArea>
               </div>
             </div>
-
-            {/* Main content */}
-            <div className="flex-1 flex flex-col min-w-0">
-              {/* Top bar with search */}
-              <div className="p-4 border-b border-border flex items-center gap-4">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Søg i værktøjer..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-10"
-                  />
-                  {searchQuery && (
-                    <button 
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                <Button variant="ghost" size="icon" onClick={handleClose}>
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-
-              {/* Tools grid */}
-              <ScrollArea className="flex-1">
-                <div className="p-4">
-                  {filteredCards.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                        <Search className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                      <h3 className="font-semibold mb-2">Ingen værktøjer fundet</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {searchQuery 
-                          ? `Ingen resultater for "${searchQuery}"`
-                          : 'Alle værktøjer er allerede på dit dashboard'
-                        }
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-4">
-                      {filteredCards.map(renderToolCard)}
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          </div>
+          </DndContext>
         </TooltipProvider>
       </DialogContent>
     </Dialog>
