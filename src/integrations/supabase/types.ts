@@ -136,6 +136,66 @@ export type Database = {
         }
         Relationships: []
       }
+      checkin_questions: {
+        Row: {
+          check_label: string
+          created_at: string
+          device_type: string
+          good_answer: boolean
+          help_screenshot: string | null
+          help_steps: Json | null
+          help_tip: string | null
+          help_title: string | null
+          id: string
+          is_active: boolean
+          question_id: string
+          question_type: string
+          recommendation: string
+          sort_order: number
+          text: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          check_label: string
+          created_at?: string
+          device_type: string
+          good_answer?: boolean
+          help_screenshot?: string | null
+          help_steps?: Json | null
+          help_tip?: string | null
+          help_title?: string | null
+          id?: string
+          is_active?: boolean
+          question_id: string
+          question_type?: string
+          recommendation: string
+          sort_order?: number
+          text: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          check_label?: string
+          created_at?: string
+          device_type?: string
+          good_answer?: boolean
+          help_screenshot?: string | null
+          help_steps?: Json | null
+          help_tip?: string | null
+          help_title?: string | null
+          id?: string
+          is_active?: boolean
+          question_id?: string
+          question_type?: string
+          recommendation?: string
+          sort_order?: number
+          text?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: []
+      }
       checkins: {
         Row: {
           completed_at: string
