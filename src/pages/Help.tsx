@@ -10,7 +10,9 @@ import {
   MessageSquare,
   CheckCircle,
   ChevronRight,
-  Loader2
+  Loader2,
+  Headphones,
+  ArrowRight
 } from 'lucide-react';
 import { BackButton } from '@/components/layout/BackButton';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
@@ -272,6 +274,27 @@ const Help = () => {
                   </Button>
                 </div>
               )}
+
+              {/* Support Hub CTA */}
+              <div className="card-elevated p-6 bg-gradient-to-r from-primary/5 to-info/5 border-primary/20">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Headphones className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold mb-1">Brug for live hjælp?</h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Book fjernsupport og få hjælp i realtid via skærmdeling
+                    </p>
+                    <Link to="/support-hub">
+                      <Button variant="hero" size="sm">
+                        Gå til Support Hub
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
 
               {/* Quick help */}
               <div className="card-elevated p-6">
