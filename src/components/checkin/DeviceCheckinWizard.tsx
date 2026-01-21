@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 import { trackToolUsage } from '@/utils/analytics';
 import { jsPDF } from 'jspdf';
 import CheckinHelpModal, { CheckinHelpData } from './CheckinHelpModal';
-import { parseTextWithIcons } from '@/utils/inlineIcons';
 import { useCheckinQuestions, DeviceQuestion } from '@/hooks/useCheckinQuestions';
 
 const getDeviceInfo = (device: string) => {
@@ -576,8 +575,8 @@ export function DeviceCheckinWizard() {
                       {i + 1}
                     </span>
                     <div>
-                      <p className="font-medium mb-1">{parseTextWithIcons(rec.title)}</p>
-                      <p className="text-sm text-muted-foreground">{parseTextWithIcons(rec.description)}</p>
+                      <p className="font-medium mb-1">{rec.title}</p>
+                      <p className="text-sm text-muted-foreground">{rec.description}</p>
                       {rec.link && (
                         <a href={rec.link} className="text-sm text-primary hover:underline mt-2 inline-block">
                           Læs guiden →
@@ -709,7 +708,7 @@ export function DeviceCheckinWizard() {
         </div>
         
         <h2 className="text-lg font-semibold mb-4">
-          {parseTextWithIcons(currentQuestion.text)}
+          {currentQuestion.text}
         </h2>
         
         {/* Help button - only show if help data exists */}
