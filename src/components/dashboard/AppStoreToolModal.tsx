@@ -120,20 +120,23 @@ function SortableCategoryItem({ category, allCards, onRemoveCard }: {
         <span className="text-[10px] text-muted-foreground">{categoryCards.length}</span>
       </div>
       
+      {/* Horizontal row of tool icons */}
       {categoryCards.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1">
+        <div className="flex flex-row flex-wrap gap-1 mt-1">
           {categoryCards.slice(0, 4).map((card) => (
             <div 
               key={card.id}
-              className="group relative w-6 h-6 rounded-md flex items-center justify-center"
-              style={{ backgroundColor: 'hsl(var(--muted))' }}
+              className="group relative w-5 h-5 rounded flex items-center justify-center bg-muted/60"
               title={card.title}
             >
-              <card.icon className="h-3 w-3 text-muted-foreground" />
+              <card.icon className="h-2.5 w-2.5 text-muted-foreground" />
               {onRemoveCard && (
                 <button
-                  onClick={() => onRemoveCard(card.id)}
-                  className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-destructive text-destructive-foreground hidden group-hover:flex items-center justify-center"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveCard(card.id);
+                  }}
+                  className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-muted hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground hidden group-hover:flex items-center justify-center transition-colors"
                 >
                   <X className="h-2 w-2" />
                 </button>
@@ -141,7 +144,7 @@ function SortableCategoryItem({ category, allCards, onRemoveCard }: {
             </div>
           ))}
           {categoryCards.length > 4 && (
-            <span className="text-[10px] text-muted-foreground ml-1">+{categoryCards.length - 4}</span>
+            <span className="text-[10px] text-muted-foreground self-center">+{categoryCards.length - 4}</span>
           )}
         </div>
       )}

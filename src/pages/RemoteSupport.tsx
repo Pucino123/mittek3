@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { BackButton } from '@/components/layout/BackButton';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useRemoteSupportSession } from '@/hooks/useRemoteSupportSession';
+import { usePeerConnection } from '@/hooks/usePeerConnection';
 import { SessionTimer } from '@/components/remote-support/SessionTimer';
 import { DrawingCanvas } from '@/components/remote-support/DrawingCanvas';
 import { SessionChat } from '@/components/remote-support/SessionChat';
@@ -22,7 +23,9 @@ import {
   Loader2,
   Users,
   X,
-  ScreenShare
+  ScreenShare,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 type DrawingTool = 'pencil' | 'circle' | 'arrow' | 'eraser';
@@ -48,43 +51,28 @@ const RemoteSupport = () => {
     subscribeToDrawingEvents,
   } = useRemoteSupportSession(bookingId || undefined);
   
+  // PeerJS connection
+  const {
+    peerId,
+    remotePeerId,
+    isConnected: peerConnected,
+    isConnecting: peerConnecting,
+    remoteStream,
+    initializePeer,
+    startScreenShareCall,
+    endCall,
+    cleanup: cleanupPeer,
+  } = usePeerConnection(bookingId, isAdmin);
+  
   // Media state
   const [webcamEnabled, setWebcamEnabled] = useState(true);
   const [micEnabled, setMicEnabled] = useState(true);
-  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   
   // Drawing state
   const [selectedTool, setSelectedTool] = useState<DrawingTool>('pencil');
   const [drawingColor, setDrawingColor] = useState('#ef4444');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-
-  // Start screen sharing (user side)
-  const startScreenShare = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ 
-        video: true,
-        audio: false
-      });
-      
-      setScreenStream(stream);
-      
-      // Handle when user stops sharing via browser UI
-      stream.getVideoTracks()[0].onended = () => {
-        setScreenStream(null);
-        toast.info('Skærmdeling stoppet');
-      };
-      
-      toast.success('Skærmdeling startet', {
-        description: 'Teknikeren kan nu se din skærm.'
-      });
-    } catch (error) {
-      console.error('Failed to start screen share:', error);
-      toast.error('Kunne ikke starte skærmdeling', {
-        description: 'Tjek at du har givet tilladelse.'
-      });
-    }
-  }, []);
 
   // Start user camera
   const startCamera = useCallback(async () => {
@@ -117,7 +105,10 @@ const RemoteSupport = () => {
       await joinSession(bookingId);
       await startCamera();
     }
-  }, [bookingId, isAdmin, startSession, joinSession, startCamera]);
+    
+    // Initialize PeerJS connection
+    await initializePeer();
+  }, [bookingId, isAdmin, startSession, joinSession, startCamera, initializePeer]);
 
   // Handle ending session
   const handleEndSession = useCallback(async () => {
@@ -125,13 +116,10 @@ const RemoteSupport = () => {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    if (screenStream) {
-      screenStream.getTracks().forEach(track => track.stop());
-      setScreenStream(null);
-    }
+    endCall();
     await endSession();
     toast.info('Session afsluttet');
-  }, [endSession, screenStream]);
+  }, [endSession, endCall]);
 
   const toggleWebcam = () => {
     if (streamRef.current) {
@@ -166,11 +154,9 @@ const RemoteSupport = () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
-      if (screenStream) {
-        screenStream.getTracks().forEach(track => track.stop());
-      }
+      cleanupPeer();
     };
-  }, [screenStream]);
+  }, [cleanupPeer]);
 
   // Waiting screen
   if (session.status === 'idle' || session.status === 'waiting') {
@@ -286,10 +272,34 @@ const RemoteSupport = () => {
       {/* Header with Timer */}
       <header className="h-14 border-b border-border flex items-center justify-between px-4 shrink-0 bg-background">
         <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-success animate-pulse" />
+          <div className={`w-3 h-3 rounded-full ${peerConnected ? 'bg-success' : 'bg-warning'} animate-pulse`} />
           <span className="text-sm font-medium">
             {isAdmin ? 'Fjernsupport aktiv' : 'Forbundet med tekniker'}
           </span>
+          {/* Peer connection status */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {peerConnected ? (
+              <>
+                <Wifi className="h-3.5 w-3.5 text-success" />
+                <span>P2P forbundet</span>
+              </>
+            ) : peerConnecting ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Opretter...</span>
+              </>
+            ) : remotePeerId ? (
+              <>
+                <WifiOff className="h-3.5 w-3.5 text-warning" />
+                <span>Klar til forbindelse</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>Venter på modpart</span>
+              </>
+            )}
+          </div>
         </div>
         
         {/* Session Timer */}
@@ -312,16 +322,16 @@ const RemoteSupport = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* Screen share view */}
         <div className="flex-1 relative bg-muted/50">
-          {/* Screen share video or placeholder */}
-          {screenStream ? (
+          {/* Remote stream from PeerJS or placeholder */}
+          {remoteStream ? (
             <video
               autoPlay
               playsInline
-              muted
+              muted={false}
               className="absolute inset-0 w-full h-full object-contain bg-black"
               ref={(el) => {
-                if (el && screenStream) {
-                  el.srcObject = screenStream;
+                if (el && remoteStream) {
+                  el.srcObject = remoteStream;
                 }
               }}
             />
@@ -330,12 +340,18 @@ const RemoteSupport = () => {
               <div className="text-center">
                 <Monitor className="h-20 w-20 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground mb-4">
-                  {isAdmin ? 'Venter på brugerens skærmdeling...' : 'Del din skærm for at få hjælp'}
+                  {isAdmin 
+                    ? remotePeerId 
+                      ? 'Bruger klar - klik for at oprette forbindelse'
+                      : 'Venter på brugerens forbindelse...' 
+                    : remotePeerId
+                      ? 'Tekniker klar - del din skærm for at få hjælp'
+                      : 'Venter på tekniker...'}
                 </p>
-                {!isAdmin && (
-                  <Button variant="hero" onClick={startScreenShare}>
+                {remotePeerId && (
+                  <Button variant="hero" onClick={startScreenShareCall}>
                     <ScreenShare className="mr-2 h-4 w-4" />
-                    Del skærm
+                    {isAdmin ? 'Opret forbindelse' : 'Del skærm'}
                   </Button>
                 )}
               </div>
@@ -478,10 +494,15 @@ const RemoteSupport = () => {
             </button>
           </div>
         </div>
+        
+        {/* Session Chat */}
+        {bookingId && (
+          <SessionChat 
+            bookingId={bookingId} 
+            isAdmin={isAdmin}
+          />
+        )}
       </div>
-      
-      {/* Session Chat */}
-      {bookingId && <SessionChat bookingId={bookingId} isAdmin={isAdmin} />}
     </div>
   );
 };
