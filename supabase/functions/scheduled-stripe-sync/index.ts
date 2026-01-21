@@ -7,6 +7,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Product ID to plan tier mapping (consistent with stripe-webhook and claim-subscription)
+const PRODUCT_TIER_MAP: Record<string, string> = {
+  "prod_Tl6ynRCM8KbUL6": "basic",
+  "prod_Tl6zZq8UNBdnPN": "plus",
+  "prod_Tl6zLUM9nEq1TX": "pro",
+};
+
 // This function is designed to be called by a cron job
 // It syncs all Stripe customers to the database automatically
 serve(async (req) => {
@@ -164,14 +171,11 @@ serve(async (req) => {
               .eq("user_id", userId)
               .single();
 
+            // Use product ID mapping (consistent with stripe-webhook and claim-subscription)
             let planTier: "basic" | "plus" | "pro" = "basic";
-            const priceId = sub.items.data[0]?.price?.id;
-            if (priceId) {
-              if (priceId.includes("pro") || priceId.includes("price_1RUqGR")) {
-                planTier = "pro";
-              } else if (priceId.includes("plus") || priceId.includes("price_1RUqFe")) {
-                planTier = "plus";
-              }
+            const productId = sub.items.data[0]?.price?.product as string;
+            if (productId && PRODUCT_TIER_MAP[productId]) {
+              planTier = PRODUCT_TIER_MAP[productId] as "basic" | "plus" | "pro";
             }
 
             const subscriptionData = {
