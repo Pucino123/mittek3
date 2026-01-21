@@ -9,7 +9,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { MonthlyCheckinPrompt } from '@/components/dashboard/MonthlyCheckinPrompt';
 import { differenceInDays } from 'date-fns';
 import { CheckinRecommendations } from '@/components/dashboard/CheckinRecommendations';
 import { AIChatTooltip } from '@/components/dashboard/AIChatTooltip';
@@ -34,6 +33,7 @@ import { SpeedtestCard } from '@/components/dashboard/SpeedtestCard';
 import { DigitalLegacyCard } from '@/components/dashboard/DigitalLegacyCard';
 import { PasswordHealthCard } from '@/components/dashboard/PasswordHealthCard';
 import { SecurityCheckCard } from '@/components/dashboard/SecurityCheckCard';
+import { CheckinCard } from '@/components/dashboard/CheckinCard';
 import SmartSearchBar from '@/components/dashboard/SmartSearchBar';
 
 // Card definition type
@@ -61,7 +61,8 @@ const allCards: CardDefinition[] = [
   href: '/checkin',
   color: 'bg-primary/10 text-primary',
   minPlan: 'basic',
-  category: 'start'
+  category: 'start',
+  isWidget: true  // Now uses CheckinCard widget
 }, {
   id: 'guides',
   title: 'Mini-guides',
@@ -408,6 +409,8 @@ function renderWidgetCard(
   }
 ) {
   switch (card.id) {
+    case 'checkin':
+      return <CheckinCard {...props} />;
     case 'notes':
       return <NoteWidgetCard {...props} />;
     case 'subscription-tracker':
@@ -989,11 +992,35 @@ const Dashboard = () => {
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, [isEditMode, requestExitEditMode]);
-  const handleCheckinStatus = useCallback((hasRecent: boolean, data?: any) => {
-    if (hasRecent && data) {
-      setCheckinData(data);
-    }
-  }, []);
+
+  // Fetch latest checkin data for recommendations
+  useEffect(() => {
+    const fetchCheckinData = async () => {
+      if (!user) return;
+      
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: checkinHistory } = await supabase
+        .from('checkins')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('completed_at', thirtyDaysAgo.toISOString())
+        .order('completed_at', { ascending: false })
+        .limit(1);
+      
+      if (checkinHistory && checkinHistory.length > 0) {
+        setCheckinData({
+          id: checkinHistory[0].id,
+          score: checkinHistory[0].score,
+          recommendations: checkinHistory[0].recommendations || [],
+          completed_at: checkinHistory[0].completed_at,
+        });
+      }
+    };
+    
+    fetchCheckinData();
+  }, [user]);
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
@@ -1555,9 +1582,6 @@ const Dashboard = () => {
 
         {/* Onboarding Progress Tracker - For new users */}
         <OnboardingTracker />
-
-        {/* Monthly Checkin Prompt - Prominent for new users */}
-        <MonthlyCheckinPrompt onHasRecentCheckin={handleCheckinStatus} />
 
 
 
