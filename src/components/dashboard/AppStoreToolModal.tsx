@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, useDroppable } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable, DragOverlay, DragStartEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { toast } from 'sonner';
 import { 
   Search, 
   X, 
@@ -24,6 +25,7 @@ import {
   RotateCcw,
   GripVertical,
   Layers,
+  Save,
   LucideIcon
 } from 'lucide-react';
 
@@ -59,6 +61,8 @@ interface AppStoreToolModalProps {
   allCardDefinitions?: HiddenCard[];
   onRenameCategory?: (categoryId: string, newTitle: string) => void;
   onAddToCategory?: (cardId: string, categoryId: string) => void;
+  onReorderCardsInCategory?: (categoryId: string, cardIds: string[]) => void;
+  onSaveLayout?: () => void;
 }
 
 const PLAN_TIERS = { basic: 0, plus: 1, pro: 2 } as const;
@@ -78,18 +82,66 @@ const CATEGORIES = [
   { id: 'ny', label: 'Nye', icon: Sparkles },
 ];
 
-// Droppable category item with inline editing
+// Sortable mini card within a category
+function SortableMiniCard({
+  card,
+  onRemove,
+}: {
+  card: HiddenCard;
+  onRemove?: (cardId: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ 
+    id: `mini-${card.id}`,
+    data: { type: 'mini-card', cardId: card.id }
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (onRemove) onRemove(card.id);
+      }}
+      className={`w-8 h-8 aspect-square rounded-lg flex items-center justify-center bg-muted/60 border border-border cursor-pointer hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors ${
+        isDragging ? 'shadow-lg ring-2 ring-primary z-50' : ''
+      }`}
+      title={`${card.title} - Klik for at fjerne`}
+    >
+      <card.icon className="h-4 w-4" />
+    </div>
+  );
+}
+
+// Droppable category item with inline editing and sortable cards
 function DroppableCategoryItem({ 
   category, 
   allCards, 
   onRemoveCard,
   onRename,
+  onReorderCards,
   isOver 
 }: { 
   category: CategoryItem; 
   allCards: HiddenCard[];
   onRemoveCard?: (cardId: string) => void;
   onRename?: (categoryId: string, newTitle: string) => void;
+  onReorderCards?: (categoryId: string, cardIds: string[]) => void;
   isOver?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -150,15 +202,18 @@ function DroppableCategoryItem({
     setDroppableRef(node);
   };
 
+  // Sortable IDs for cards in this category
+  const cardSortableIds = categoryCards.map(c => `mini-${c.id}`);
+
   return (
     <div
       ref={setRefs}
       style={style}
-      className={`bg-card border rounded-lg p-1.5 mb-1.5 transition-colors ${
+      className={`bg-card border rounded-lg p-2 mb-2 transition-colors ${
         isOver || isOverDrop ? 'border-primary bg-primary/5' : 'border-border'
       }`}
     >
-      <div className="flex items-center gap-1.5 mb-0.5">
+      <div className="flex items-center gap-1.5 mb-1">
         <div 
           {...attributes} 
           {...listeners}
@@ -175,53 +230,39 @@ function DroppableCategoryItem({
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
             autoFocus
-            className="flex-1 text-[11px] font-medium bg-transparent border-b border-primary outline-none px-0.5"
+            className="flex-1 text-xs font-medium bg-transparent border-b border-primary outline-none px-0.5"
           />
         ) : (
           <span 
-            className="text-[11px] font-medium truncate flex-1 cursor-pointer hover:text-primary transition-colors"
+            className="text-xs font-medium truncate flex-1 cursor-pointer hover:text-primary transition-colors"
             onClick={handleTitleClick}
             title="Klik for at omdøbe"
           >
             {category.title}
           </span>
         )}
-        <span className="text-[9px] text-muted-foreground shrink-0">{categoryCards.length}</span>
+        <span className="text-[10px] text-muted-foreground shrink-0">{categoryCards.length}</span>
       </div>
       
-      {/* Horizontal row of tool icons */}
+      {/* Sortable grid of tool cards - LARGER icons */}
       {categoryCards.length > 0 && (
-        <div className="flex flex-row flex-wrap gap-0.5 mt-0.5 pl-4">
-          {categoryCards.slice(0, 5).map((card) => (
-            <div 
-              key={card.id}
-              className="group relative w-4 h-4 aspect-square rounded flex items-center justify-center bg-muted/60"
-              title={card.title}
-            >
-              <card.icon className="h-2 w-2 text-muted-foreground" />
-              {onRemoveCard && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveCard(card.id);
-                  }}
-                  className="absolute -top-1 -right-1 w-3 h-3 aspect-square rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive hidden group-hover:flex items-center justify-center transition-colors"
-                >
-                  <X className="h-1.5 w-1.5" />
-                </button>
-              )}
-            </div>
-          ))}
-          {categoryCards.length > 5 && (
-            <span className="text-[9px] text-muted-foreground self-center">+{categoryCards.length - 5}</span>
-          )}
+        <div className="flex flex-row flex-wrap gap-1 mt-1 pl-4">
+          <SortableContext items={cardSortableIds} strategy={rectSortingStrategy}>
+            {categoryCards.map((card) => (
+              <SortableMiniCard
+                key={card.id}
+                card={card}
+                onRemove={onRemoveCard}
+              />
+            ))}
+          </SortableContext>
         </div>
       )}
 
       {/* Drop hint when empty */}
       {categoryCards.length === 0 && (
-        <div className="pl-4 py-1">
-          <span className="text-[9px] text-muted-foreground italic">Træk værktøjer hertil</span>
+        <div className="pl-4 py-2">
+          <span className="text-[10px] text-muted-foreground italic">Træk værktøjer hertil</span>
         </div>
       )}
     </div>
@@ -376,7 +417,9 @@ export function AppStoreToolModal({
   onRemoveFromDashboard,
   allCardDefinitions = [],
   onRenameCategory,
-  onAddToCategory
+  onAddToCategory,
+  onReorderCardsInCategory,
+  onSaveLayout
 }: AppStoreToolModalProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -440,13 +483,51 @@ export function AppStoreToolModal({
     });
   }, [hiddenCards, searchQuery, selectedCategory, currentPlan]);
 
-  // Handle drag end for both category reorder and tool dropping
+  // Handle drag end for category reorder, tool dropping, and card reordering within categories
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
 
     const activeData = active.data.current;
+    const overData = over.data.current;
+    const activeId = active.id.toString();
     const overId = over.id.toString();
+
+    // Mini-card reordering within same category
+    if (activeData?.type === 'mini-card' && overData?.type === 'mini-card') {
+      const activeCardId = activeData.cardId;
+      const overCardId = overData.cardId;
+      
+      // Find which category contains these cards
+      for (const cat of dashboardCategories) {
+        const activeIdx = cat.cardIds.indexOf(activeCardId);
+        const overIdx = cat.cardIds.indexOf(overCardId);
+        
+        if (activeIdx !== -1 && overIdx !== -1 && activeIdx !== overIdx) {
+          const newCardIds = arrayMove(cat.cardIds, activeIdx, overIdx);
+          if (onReorderCardsInCategory) {
+            onReorderCardsInCategory(cat.id, newCardIds);
+          }
+          return;
+        }
+      }
+      return;
+    }
+
+    // Mini-card dropped on category (move between categories)
+    if (activeData?.type === 'mini-card' && overId.startsWith('category-drop-')) {
+      const categoryId = overId.replace('category-drop-', '');
+      const cardId = activeData.cardId;
+      
+      if (onAddToCategory) {
+        // First remove from current category, then add to new one
+        if (onRemoveFromDashboard) {
+          onRemoveFromDashboard(cardId);
+        }
+        onAddToCategory(cardId, categoryId);
+      }
+      return;
+    }
 
     // Tool dropped on category
     if (activeData?.type === 'tool' && overId.startsWith('category-drop-')) {
@@ -463,7 +544,7 @@ export function AppStoreToolModal({
     }
 
     // Category reorder
-    if (active.id !== over.id && onReorderCategories) {
+    if (active.id !== over.id && onReorderCategories && !activeId.startsWith('mini-') && !activeId.startsWith('tool-')) {
       const oldIndex = dashboardCategories.findIndex((c) => c.id === active.id);
       const newIndex = dashboardCategories.findIndex((c) => c.id === over.id);
       
@@ -472,7 +553,16 @@ export function AppStoreToolModal({
         onReorderCategories(reordered);
       }
     }
-  }, [dashboardCategories, onReorderCategories, onAddToCategory, onAddCard]);
+  }, [dashboardCategories, onReorderCategories, onAddToCategory, onAddCard, onReorderCardsInCategory, onRemoveFromDashboard]);
+
+  const handleSaveLayout = () => {
+    if (onSaveLayout) {
+      onSaveLayout();
+    }
+    toast.success('Layout gemt', {
+      description: 'Dit dashboard layout er blevet gemt.',
+    });
+  };
 
   const handleClose = () => {
     setSearchQuery('');
@@ -569,6 +659,7 @@ export function AppStoreToolModal({
                             allCards={Array.from(allCardsLookup.values())}
                             onRemoveCard={onRemoveFromDashboard}
                             onRename={onRenameCategory}
+                            onReorderCards={onReorderCardsInCategory}
                           />
                         ))}
                       </SortableContext>
@@ -581,6 +672,17 @@ export function AppStoreToolModal({
 
                 {/* Footer actions */}
                 <div className="p-2 border-t border-border space-y-1.5 mt-auto">
+                  {/* Save Layout Button */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full justify-center gap-2 h-8 text-xs"
+                    onClick={handleSaveLayout}
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    Gem layout
+                  </Button>
+
                   {onCreateCategory && (
                     <>
                       {showNewCategoryInput ? (
