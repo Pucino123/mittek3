@@ -13,6 +13,10 @@ interface Profile {
   onboarding_completed: boolean;
   device_preference: 'iphone' | 'ipad' | 'mac' | null;
   owned_devices: string[];
+  avatar_url: string | null;
+  emergency_bank_phone: string | null;
+  emergency_helper_phone: string | null;
+  emergency_helper_name: string | null;
 }
 
 interface Subscription {
