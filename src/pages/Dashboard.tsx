@@ -738,6 +738,7 @@ const Dashboard = () => {
     restoreSnapshot,
     updateCategoryTitle,
     updateCategoryOrder,
+    reorderCardsInCategory,
     addCustomCategory,
     deleteCategory,
     resetToDefault
@@ -1769,7 +1770,11 @@ const Dashboard = () => {
         allCardDefinitions={allCards as any}
         onRenameCategory={updateCategoryTitle}
         onAddToCategory={(cardId, categoryId) => {
-          showCard(cardId);
+          showCard(cardId, categoryId);
+        }}
+        onReorderCardsInCategory={reorderCardsInCategory}
+        onSaveLayout={() => {
+          // The layout is already auto-saved, this is just for the toast feedback
         }}
       />
 

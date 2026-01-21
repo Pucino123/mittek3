@@ -123,15 +123,17 @@ const SupportHub = () => {
               </div>
             </div>
 
-            {/* Personal Help Option */}
+            {/* Personal Help Option - DISABLED */}
             <div 
-              className={`relative card-elevated p-6 cursor-pointer transition-all ${
-                selectedOption === 'personal' 
-                  ? 'ring-2 ring-primary border-primary' 
-                  : 'hover:border-primary/50'
-              }`}
-              onClick={() => setSelectedOption('personal')}
+              className="relative card-elevated p-6 cursor-not-allowed opacity-60 grayscale transition-all"
             >
+              {/* Coming Soon Badge */}
+              <div className="absolute -top-3 left-4">
+                <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                  Kommer snart
+                </span>
+              </div>
+
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-14 h-14 rounded-2xl bg-warning/10 flex items-center justify-center shrink-0">
                   <Users className="h-7 w-7 text-warning" />
@@ -151,16 +153,15 @@ const SupportHub = () => {
 
               <ul className="space-y-2 mb-6">
                 {personalFeatures.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-success shrink-0" />
+                  <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Check className="h-4 w-4 text-muted-foreground shrink-0" />
                     {feature}
                   </li>
                 ))}
               </ul>
 
-              <Button variant="outline" className="w-full">
-                Book personlig hjælp
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <Button variant="outline" className="w-full" disabled>
+                Kommer snart
               </Button>
 
               <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">

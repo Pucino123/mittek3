@@ -334,6 +334,32 @@ export function useDashboardSettings() {
     saveSettings({ category_order: newOrder });
   }, [saveSettings]);
 
+  // Reorder cards within a specific category (update the card_order to reflect new positions)
+  const reorderCardsInCategory = useCallback((categoryId: string, newCardIds: string[]) => {
+    // Update card_categories to ensure all cards are mapped to this category
+    const newCardCategories = { ...settings.card_categories };
+    newCardIds.forEach(cardId => {
+      newCardCategories[cardId] = categoryId;
+    });
+    
+    // Update card_order to reflect the new order within this category
+    const currentOrder = settings.card_order || DEFAULT_CARD_ORDER;
+    
+    // Remove the old positions of these cards from the order
+    const otherCards = currentOrder.filter(id => !newCardIds.includes(id));
+    
+    // Insert the new order at the appropriate position (find where cards in this category should go)
+    // For now, just append them but maintain relative positions with other categories
+    const newOrder = [...otherCards];
+    
+    // Find the right insertion point based on existing category structure
+    // Simple approach: just update and let the category-based grouping handle display
+    saveSettings({ 
+      card_categories: newCardCategories,
+      card_order: [...newOrder, ...newCardIds],
+    });
+  }, [settings.card_categories, settings.card_order, saveSettings]);
+
   // Add a custom category
   const addCustomCategory = useCallback((categoryName: string) => {
     const newCategory: CustomCategory = {
@@ -408,6 +434,7 @@ export function useDashboardSettings() {
     restoreSnapshot,
     updateCategoryTitle,
     updateCategoryOrder,
+    reorderCardsInCategory,
     addCustomCategory,
     deleteCategory,
     resetToDefault,
