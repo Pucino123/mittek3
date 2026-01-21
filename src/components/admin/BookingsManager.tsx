@@ -564,34 +564,36 @@ export function BookingsManager() {
                 />
               </div>
 
-              <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => {
-                    setCancelBookingTarget(null);
-                    setCancellationReason('');
-                  }}
-                >
-                  Fortryd
-                </Button>
-                <Button 
-                  variant="destructive"
-                  className="flex-1"
-                  onClick={handleCancelBooking}
-                  disabled={!cancellationReason.trim() || isCancelling}
-                >
-                  {isCancelling ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <X className="mr-2 h-4 w-4" />
-                  )}
-                  Annuller booking
-                </Button>
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex gap-3 w-full">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => {
+                      setCancelBookingTarget(null);
+                      setCancellationReason('');
+                    }}
+                  >
+                    Fortryd
+                  </Button>
+                  <Button 
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={handleCancelBooking}
+                    disabled={!cancellationReason.trim() || isCancelling}
+                  >
+                    {isCancelling ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <X className="mr-2 h-4 w-4" />
+                    )}
+                    Annuller booking
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Bemærk: betalinger refunderes ikke ved annullering
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Bemærk: betalinger refunderes ikke ved annullering
-              </p>
             </div>
           )}
         </DialogContent>

@@ -1,11 +1,11 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable, DragOverlay, DragStartEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
@@ -437,21 +437,33 @@ export function AppStoreToolModal({
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   
+  // Active drag item for DragOverlay
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeDragType, setActiveDragType] = useState<'tool' | 'mini-card' | null>(null);
+  
   // Undo history stack
   const historyRef = useRef<CategoryItem[][]>([]);
   const [canUndo, setCanUndo] = useState(false);
 
-  // Save current state to history before making changes
-  const saveToHistory = useCallback(() => {
-    if (dashboardCategories.length > 0) {
-      historyRef.current.push(JSON.parse(JSON.stringify(dashboardCategories)));
-      // Keep max 20 history states
-      if (historyRef.current.length > 20) {
-        historyRef.current.shift();
-      }
-      setCanUndo(true);
+  // Define handleClose and handleSaveLayout before useEffect
+  const handleClose = useCallback(() => {
+    setSearchQuery('');
+    setSelectedCategory('all');
+    setShowNewCategoryInput(false);
+    setNewCategoryName('');
+    setActiveDragId(null);
+    setActiveDragType(null);
+    onOpenChange(false);
+  }, [onOpenChange]);
+
+  const handleSaveLayout = useCallback(() => {
+    if (onSaveLayout) {
+      onSaveLayout();
     }
-  }, [dashboardCategories]);
+    toast.success('Layout gemt', {
+      description: 'Dit dashboard layout er blevet gemt.',
+    });
+  }, [onSaveLayout]);
 
   // Undo to previous state
   const handleUndo = useCallback(() => {
@@ -465,6 +477,48 @@ export function AppStoreToolModal({
     }
   }, [onReorderCategories]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!open) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape - close modal
+      if (e.key === 'Escape') {
+        handleClose();
+        return;
+      }
+      
+      // Ctrl+Z / Cmd+Z - Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+      
+      // Enter - Save layout (only when not in input)
+      if (e.key === 'Enter' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        handleSaveLayout();
+        return;
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, handleClose, handleUndo, handleSaveLayout]);
+
+  // Save current state to history before making changes
+  const saveToHistory = useCallback(() => {
+    if (dashboardCategories.length > 0) {
+      historyRef.current.push(JSON.parse(JSON.stringify(dashboardCategories)));
+      // Keep max 20 history states
+      if (historyRef.current.length > 20) {
+        historyRef.current.shift();
+      }
+      setCanUndo(true);
+    }
+  }, [dashboardCategories]);
+
   // DnD sensors for dashboard builder
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -472,6 +526,20 @@ export function AppStoreToolModal({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Handle drag start - store active item for overlay
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+    const activeData = active.data.current;
+    setActiveDragId(activeData?.cardId || active.id.toString());
+    setActiveDragType(activeData?.type || null);
+  }, []);
+
+  // Handle drag end - clear overlay
+  const handleDragCancel = useCallback(() => {
+    setActiveDragId(null);
+    setActiveDragType(null);
+  }, []);
 
   const hasAccess = (minPlan?: 'basic' | 'plus' | 'pro') => {
     if (!minPlan) return true;
@@ -601,24 +669,11 @@ export function AppStoreToolModal({
         onReorderCategories(reordered);
       }
     }
+    
+    // Clear drag overlay state
+    setActiveDragId(null);
+    setActiveDragType(null);
   }, [dashboardCategories, onReorderCategories, onAddToCategory, onAddCard, onReorderCardsInCategory, onRemoveFromDashboard, onMoveCardToCategory, saveToHistory]);
-
-  const handleSaveLayout = () => {
-    if (onSaveLayout) {
-      onSaveLayout();
-    }
-    toast.success('Layout gemt', {
-      description: 'Dit dashboard layout er blevet gemt.',
-    });
-  };
-
-  const handleClose = () => {
-    setSearchQuery('');
-    setSelectedCategory('all');
-    setShowNewCategoryInput(false);
-    setNewCategoryName('');
-    onOpenChange(false);
-  };
 
   const handleUpgrade = () => {
     handleClose();
@@ -655,7 +710,9 @@ export function AppStoreToolModal({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <div className="flex h-full">
               {/* Sidebar - Categories + Dashboard Layout */}
@@ -881,6 +938,26 @@ export function AppStoreToolModal({
                 </ScrollArea>
               </div>
             </div>
+            
+            {/* Drag Overlay - Shows ghost of dragged item */}
+            <DragOverlay dropAnimation={{ duration: 150 }}>
+              {activeDragId && activeDragType ? (
+                <div className="bg-card border-2 border-primary shadow-2xl rounded-xl p-3 flex items-center gap-2 opacity-90">
+                  {(() => {
+                    const card = allCardsLookup.get(activeDragId);
+                    if (!card) return <span className="text-sm">Træk...</span>;
+                    return (
+                      <>
+                        <div className={`w-8 h-8 rounded-lg ${card.color} flex items-center justify-center shrink-0`}>
+                          <card.icon className="h-4 w-4" />
+                        </div>
+                        <span className="font-medium text-sm truncate max-w-[120px]">{card.title}</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         </TooltipProvider>
       </DialogContent>

@@ -538,7 +538,7 @@ export const AIChatWidget = forwardRef<HTMLDivElement, object>(function AIChatWi
                           />
                         )}
                         <div
-                          className={`max-w-[80%] p-3 rounded-2xl text-sm leading-relaxed ${
+                          className={`max-w-[80%] p-3 rounded-2xl text-sm leading-relaxed text-left whitespace-pre-wrap ${
                             msg.role === 'user'
                               ? 'bg-primary text-primary-foreground rounded-tr-sm'
                               : 'bg-muted rounded-tl-sm'
