@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { TrustedHelperSection } from '@/components/settings/TrustedHelperSection';
 import { EmergencyContactsSection } from '@/components/settings/EmergencyContactsSection';
+import { AccountSection } from '@/components/settings/AccountSection';
 import { BackButton } from '@/components/layout/BackButton';
 import { getCookieConsent, resetCookieConsent } from '@/components/ui/CookieConsent';
 import { Breadcrumb } from '@/components/seo/Breadcrumb';
@@ -257,45 +258,14 @@ const Settings = () => {
           <h1 className="text-xl md:text-2xl font-bold mb-6 md:mb-8">Indstillinger</h1>
 
           {/* Account Section */}
-          <div className="card-elevated p-6 mb-6">
-            <div className="flex items-center gap-4">
-              <div className="relative group">
-                {(profile as any)?.avatar_url ? (
-                  <img 
-                    src={(profile as any).avatar_url} 
-                    alt="Profilbillede" 
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-8 w-8 text-primary" />
-                  </div>
-                )}
-                <button
-                  onClick={() => avatarInputRef.current?.click()}
-                  disabled={isUploadingAvatar}
-                  className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  {isUploadingAvatar ? (
-                    <Loader2 className="h-5 w-5 text-white animate-spin" />
-                  ) : (
-                    <Camera className="h-5 w-5 text-white" />
-                  )}
-                </button>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarUpload}
-                  className="hidden"
-                />
-              </div>
-              <div className="flex-1">
-                <h2 className="font-semibold text-lg">{profile?.display_name || 'Bruger'}</h2>
-                <p className="text-muted-foreground">{profile?.email}</p>
-              </div>
-            </div>
-          </div>
+          <AccountSection 
+            profile={profile}
+            user={user}
+            avatarInputRef={avatarInputRef}
+            isUploadingAvatar={isUploadingAvatar}
+            handleAvatarUpload={handleAvatarUpload}
+            refetchProfile={refetchProfile}
+          />
 
           {/* Subscription Section */}
           <div className="card-elevated p-6 mb-6">
