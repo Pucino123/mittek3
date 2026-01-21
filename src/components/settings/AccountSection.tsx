@@ -52,10 +52,17 @@ export function AccountSection({
 
     setIsSavingName(true);
     try {
+      // Use upsert to handle cases where profile might not exist yet
       const { error } = await supabase
         .from('profiles')
-        .update({ display_name: editedName.trim() })
-        .eq('user_id', user.id);
+        .upsert({ 
+          user_id: user.id,
+          display_name: editedName.trim(),
+          email: user.email,
+        }, { 
+          onConflict: 'user_id',
+          ignoreDuplicates: false 
+        });
 
       if (error) throw error;
 
