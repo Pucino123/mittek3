@@ -40,21 +40,26 @@ const Settings = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isUpgradeLoading, setIsUpgradeLoading] = useState(false);
-  const [devicePreference, setDevicePreference] = useState<DeviceType>(
-    (profile?.device_preference as DeviceType) || 'iphone'
-  );
-  const [ownedDevices, setOwnedDevices] = useState<DeviceType[]>(
-    (profile?.owned_devices as DeviceType[]) || ['iphone']
-  );
+  // Only initialize local state AFTER profile has loaded (avoid overwriting with defaults)
+  const [devicePreference, setDevicePreference] = useState<DeviceType | null>(null);
+  const [ownedDevices, setOwnedDevices] = useState<DeviceType[] | null>(null);
   const [isSavingDevice, setIsSavingDevice] = useState(false);
   const [cookieConsent, setCookieConsent] = useState(getCookieConsent());
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   // Force refetch subscription on mount to clear stale cache
   useEffect(() => {
     refetchSubscription();
   }, [refetchSubscription]);
+
+  // Ensure profile exists on mount (for users missing profile row)
+  useEffect(() => {
+    if (user && !profile) {
+      refetchProfile();
+    }
+  }, [user, profile, refetchProfile]);
 
   // Handle scroll-to-section from URL params
   useEffect(() => {
@@ -83,19 +88,18 @@ const Settings = () => {
 
   const isBasicPlan = !subscription || subscription.plan_tier === 'basic';
 
-  // Update device preference when profile loads
+  // Update device preference when profile loads - ONLY set state once profile is available
   useEffect(() => {
-    if (profile?.device_preference) {
-      setDevicePreference(profile.device_preference as DeviceType);
+    if (profile) {
+      setDevicePreference((profile.device_preference as DeviceType) || 'iphone');
+      setOwnedDevices((profile.owned_devices as DeviceType[]) || ['iphone']);
+      setProfileLoaded(true);
     }
-    if (profile?.owned_devices && profile.owned_devices.length > 0) {
-      setOwnedDevices(profile.owned_devices as DeviceType[]);
-    }
-  }, [profile?.device_preference, profile?.owned_devices]);
+  }, [profile]);
 
   // Toggle a device in owned_devices array
   const handleDeviceToggle = async (device: DeviceType) => {
-    if (!user) return;
+    if (!user || !profileLoaded || !ownedDevices) return;
     
     setIsSavingDevice(true);
     
@@ -449,67 +453,74 @@ const Settings = () => {
             </p>
             
             {/* Multi-Select Device Cards - responsive grid */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <button
-                onClick={() => handleDeviceToggle('iphone')}
-                disabled={isSavingDevice}
-                className={`relative flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 transition-all min-h-[80px] sm:min-h-[100px] ${
-                  ownedDevices.includes('iphone')
-                    ? 'border-primary bg-primary/5 shadow-md'
-                    : 'border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-muted/50'
-                }`}
-              >
-                {ownedDevices.includes('iphone') && (
-                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
-                  </div>
-                )}
-                <Smartphone className={`h-6 w-6 sm:h-8 sm:w-8 ${ownedDevices.includes('iphone') ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`font-medium text-xs sm:text-base ${ownedDevices.includes('iphone') ? 'text-primary' : ''}`}>
-                  iPhone
-                </span>
-              </button>
-              
-              <button
-                onClick={() => handleDeviceToggle('ipad')}
-                disabled={isSavingDevice}
-                className={`relative flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 transition-all min-h-[80px] sm:min-h-[100px] ${
-                  ownedDevices.includes('ipad')
-                    ? 'border-primary bg-primary/5 shadow-md'
-                    : 'border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-muted/50'
-                }`}
-              >
-                {ownedDevices.includes('ipad') && (
-                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
-                  </div>
-                )}
-                <Tablet className={`h-6 w-6 sm:h-8 sm:w-8 ${ownedDevices.includes('ipad') ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`font-medium text-xs sm:text-base ${ownedDevices.includes('ipad') ? 'text-primary' : ''}`}>
-                  iPad
-                </span>
-              </button>
-              
-              <button
-                onClick={() => handleDeviceToggle('mac')}
-                disabled={isSavingDevice}
-                className={`relative flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 transition-all min-h-[80px] sm:min-h-[100px] ${
-                  ownedDevices.includes('mac')
-                    ? 'border-primary bg-primary/5 shadow-md'
-                    : 'border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-muted/50'
-                }`}
-              >
-                {ownedDevices.includes('mac') && (
-                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
-                  </div>
-                )}
-                <Monitor className={`h-6 w-6 sm:h-8 sm:w-8 ${ownedDevices.includes('mac') ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className={`font-medium text-xs sm:text-base ${ownedDevices.includes('mac') ? 'text-primary' : ''}`}>
-                  Mac
-                </span>
-              </button>
-            </div>
+            {!profileLoaded || !ownedDevices ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                Indlæser enheder...
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <button
+                  onClick={() => handleDeviceToggle('iphone')}
+                  disabled={isSavingDevice}
+                  className={`relative flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 transition-all min-h-[80px] sm:min-h-[100px] ${
+                    ownedDevices.includes('iphone')
+                      ? 'border-primary bg-primary/5 shadow-md'
+                      : 'border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-muted/50'
+                  }`}
+                >
+                  {ownedDevices.includes('iphone') && (
+                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary flex items-center justify-center">
+                      <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
+                    </div>
+                  )}
+                  <Smartphone className={`h-6 w-6 sm:h-8 sm:w-8 ${ownedDevices.includes('iphone') ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className={`font-medium text-xs sm:text-base ${ownedDevices.includes('iphone') ? 'text-primary' : ''}`}>
+                    iPhone
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => handleDeviceToggle('ipad')}
+                  disabled={isSavingDevice}
+                  className={`relative flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 transition-all min-h-[80px] sm:min-h-[100px] ${
+                    ownedDevices.includes('ipad')
+                      ? 'border-primary bg-primary/5 shadow-md'
+                      : 'border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-muted/50'
+                  }`}
+                >
+                  {ownedDevices.includes('ipad') && (
+                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary flex items-center justify-center">
+                      <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
+                    </div>
+                  )}
+                  <Tablet className={`h-6 w-6 sm:h-8 sm:w-8 ${ownedDevices.includes('ipad') ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className={`font-medium text-xs sm:text-base ${ownedDevices.includes('ipad') ? 'text-primary' : ''}`}>
+                    iPad
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => handleDeviceToggle('mac')}
+                  disabled={isSavingDevice}
+                  className={`relative flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 transition-all min-h-[80px] sm:min-h-[100px] ${
+                    ownedDevices.includes('mac')
+                      ? 'border-primary bg-primary/5 shadow-md'
+                      : 'border-border [@media(hover:hover)]:hover:border-primary/50 [@media(hover:hover)]:hover:bg-muted/50'
+                  }`}
+                >
+                  {ownedDevices.includes('mac') && (
+                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary flex items-center justify-center">
+                      <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
+                    </div>
+                  )}
+                  <Monitor className={`h-6 w-6 sm:h-8 sm:w-8 ${ownedDevices.includes('mac') ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className={`font-medium text-xs sm:text-base ${ownedDevices.includes('mac') ? 'text-primary' : ''}`}>
+                    Mac
+                  </span>
+                </button>
+              </div>
+            )}
             
             {isSavingDevice && (
               <p className="text-sm text-muted-foreground mt-3 text-center flex items-center justify-center gap-2">
