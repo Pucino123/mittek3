@@ -295,8 +295,8 @@ const FinishSignup = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* CRITICAL WARNING about matching email */}
-              {(sessionId || foundSessionId) && (
+              {/* Warning only when email is NOT auto-filled/locked */}
+              {(sessionId || foundSessionId) && !isEmailLocked && (
                 <Alert className="mb-6 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
                   <AlertTriangle className="h-5 w-5 text-amber-600" />
                   <AlertDescription className="text-amber-800 dark:text-amber-200 font-medium">
@@ -356,13 +356,6 @@ const FinishSignup = () => {
                   {isEmailLocked && (
                     <p className="text-xs text-muted-foreground">
                       Denne email stammer fra din betaling og kan ikke ændres.
-                    </p>
-                  )}
-                  {/* Visual confirmation of auto-filled email - positioned ABOVE password field */}
-                  {(sessionId || foundSessionId) && email && !isLoadingEmail && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
-                      <CheckCircle className="h-4 w-4 text-success" />
-                      <span>Brug denne email: <strong className="text-foreground">{email}</strong></span>
                     </p>
                   )}
                 </div>
