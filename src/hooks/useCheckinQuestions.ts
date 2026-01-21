@@ -6,11 +6,13 @@ interface HelpStep {
   detail: string;
   icon?: string;
   image_url?: string;
+  video_url?: string;
 }
 
 export interface CheckinHelpData {
   title: string;
   screenshot?: string;
+  video?: string;
   steps: HelpStep[];
   tip?: string;
 }
@@ -39,7 +41,8 @@ interface RawQuestion {
   check_label: string;
   help_title: string | null;
   help_screenshot: string | null;
-  help_steps: { instruction: string; detail: string; icon?: string; image_url?: string }[];
+  help_video: string | null;
+  help_steps: { instruction: string; detail: string; icon?: string; image_url?: string; video_url?: string }[];
   help_tip: string | null;
   sort_order: number;
   is_active: boolean;
@@ -83,6 +86,7 @@ export function useCheckinQuestions() {
             detail: step.detail || '',
             icon: step.icon,
             image_url: step.image_url,
+            video_url: step.video_url,
           }));
         }
         
@@ -98,6 +102,7 @@ export function useCheckinQuestions() {
           helpData: {
             title: raw.help_title || raw.text,
             screenshot: raw.help_screenshot || undefined,
+            video: raw.help_video || undefined,
             steps: helpSteps,
             tip: raw.help_tip || undefined,
           },
