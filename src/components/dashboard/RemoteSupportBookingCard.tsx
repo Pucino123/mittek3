@@ -161,7 +161,7 @@ export function RemoteSupportBookingCard({ booking, onRefresh }: RemoteSupportBo
             className="min-h-[100px]"
           />
           
-          <DialogFooter className="flex-col gap-2">
+          <DialogFooter className="flex flex-col items-center gap-3 sm:flex-col">
             <div className="flex gap-2 w-full">
               <Button variant="outline" onClick={() => setCancelDialogOpen(false)} className="flex-1">
                 Fortryd
@@ -175,7 +175,7 @@ export function RemoteSupportBookingCard({ booking, onRefresh }: RemoteSupportBo
                 {isCancelling ? 'Annullerer...' : 'Bekræft annullering'}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground text-center w-full">
+            <p className="text-xs text-muted-foreground text-center w-full mt-1">
               Bemærk: betalinger refunderes ikke ved annullering
             </p>
           </DialogFooter>
