@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye, FileText, Shield, TrendingUp, Clock, AlertTriangle, DollarSign, BarChart3 } from 'lucide-react';
+import { Users, CreditCard, BookOpen, Loader2, Plus, Edit, Trash2, Search, RefreshCw, MessageSquare, Send, Gift, ChevronLeft, Upload, Image as ImageIcon, X, Eye, FileText, Shield, TrendingUp, Clock, AlertTriangle, DollarSign, BarChart3, ClipboardCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +27,7 @@ import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 import { CreateUserDialog } from '@/components/admin/CreateUserDialog';
 import { UserActionsMenu } from '@/components/admin/UserActionsMenu';
 import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
+import { CheckinQuestionsManager } from '@/components/admin/CheckinQuestionsManager';
 
 
 interface Subscription {
@@ -1179,6 +1180,10 @@ const Admin = () => {
               <BarChart3 className="mr-2 h-5 w-5" />
               <span className="hidden sm:inline">Analyse</span>
             </TabsTrigger>
+            <TabsTrigger value="checkin" className="h-12 px-4 md:px-6">
+              <ClipboardCheck className="mr-2 h-5 w-5" />
+              <span className="hidden sm:inline">Månedligt Tjek</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -1797,6 +1802,19 @@ const Admin = () => {
           {/* Analytics Tab */}
           <TabsContent value="analytics">
             <AdminAnalytics />
+          </TabsContent>
+
+          {/* Checkin Questions Tab */}
+          <TabsContent value="checkin">
+            <Card>
+              <CardHeader>
+                <CardTitle>Månedligt Tjek - Indhold</CardTitle>
+                <CardDescription>Administrer spørgsmål og tekster for det månedlige sundhedstjek</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CheckinQuestionsManager />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardCheck, ChevronRight, CheckCircle, X, Smartphone, Tablet, Monitor, LucideIcon } from 'lucide-react';
+import { ClipboardCheck, ChevronRight, CheckCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,17 +13,6 @@ interface CheckinCardProps {
   onExitEditMode?: () => void;
 }
 
-interface DeviceConfig {
-  label: string;
-  Icon: LucideIcon;
-}
-
-const deviceConfig: Record<string, DeviceConfig> = {
-  iphone: { label: 'iPhone', Icon: Smartphone },
-  ipad: { label: 'iPad', Icon: Tablet },
-  mac: { label: 'Mac', Icon: Monitor },
-};
-
 export function CheckinCard({ 
   isEditMode, 
   onRemove, 
@@ -35,7 +24,6 @@ export function CheckinCard({
   const [hasRecentCheckin, setHasRecentCheckin] = useState<boolean | null>(null);
   const [lastScore, setLastScore] = useState<number | null>(null);
   const [daysUntilNext, setDaysUntilNext] = useState<number>(30);
-  const [checkedDevices, setCheckedDevices] = useState<string[]>([]);
 
   useEffect(() => {
     const checkLastCheckin = async () => {
@@ -57,7 +45,6 @@ export function CheckinCard({
       
       if (hasRecent && historyData[0]) {
         setLastScore(historyData[0].score);
-        setCheckedDevices(historyData[0].device_types || []);
         
         const completedDate = new Date(historyData[0].created_at);
         const nextCheckinDate = new Date(completedDate);
@@ -114,30 +101,11 @@ export function CheckinCard({
         Månedligt Tjek
       </h3>
       
-      {/* Dynamic description based on status - all inline */}
+      {/* Dynamic description based on status - no automatic device icons */}
       {hasRecentCheckin ? (
-        <div className="flex items-center gap-2 text-muted-foreground text-[13px] sm:text-sm flex-wrap">
-          <span>Om {daysUntilNext} {daysUntilNext === 1 ? 'dag' : 'dage'}</span>
-          {/* Compact device icons inline */}
-          {checkedDevices.length > 0 && (
-            <div className="flex items-center gap-1">
-              {checkedDevices.slice(0, 3).map((device, index) => {
-                const config = deviceConfig[device];
-                if (!config) return null;
-                const IconComponent = config.Icon;
-                return (
-                  <span 
-                    key={`${device}-${index}`} 
-                    className="inline-flex items-center justify-center w-5 h-5 bg-muted rounded text-muted-foreground"
-                    title={config.label}
-                  >
-                    <IconComponent className="h-3 w-3" />
-                  </span>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <p className="text-muted-foreground text-[13px] sm:text-sm">
+          Om {daysUntilNext} {daysUntilNext === 1 ? 'dag' : 'dage'}
+        </p>
       ) : (
         <p className="text-muted-foreground text-[13px] sm:text-sm line-clamp-2">
           Tjek din enheds sundhed
