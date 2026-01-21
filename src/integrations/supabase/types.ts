@@ -715,6 +715,8 @@ export type Database = {
       support_bookings: {
         Row: {
           admin_notes: string | null
+          cancellation_message: string | null
+          cancelled_by: string | null
           created_at: string
           id: string
           payment_status: string
@@ -728,6 +730,8 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          cancellation_message?: string | null
+          cancelled_by?: string | null
           created_at?: string
           id?: string
           payment_status?: string
@@ -741,6 +745,8 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          cancellation_message?: string | null
+          cancelled_by?: string | null
           created_at?: string
           id?: string
           payment_status?: string

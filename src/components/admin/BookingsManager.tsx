@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -17,7 +20,9 @@ import {
   Clock,
   Calendar,
   User,
-  Monitor
+  Monitor,
+  AlertTriangle,
+  MessageSquare
 } from 'lucide-react';
 
 interface Booking {
@@ -31,13 +36,19 @@ interface Booking {
   created_at: string;
   admin_notes: string | null;
   user_email?: string;
+  cancellation_message?: string | null;
+  cancelled_by?: string | null;
 }
 
 export function BookingsManager() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [cancelBookingTarget, setCancelBookingTarget] = useState<Booking | null>(null);
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     fetchBookings();
@@ -124,21 +135,38 @@ export function BookingsManager() {
     }
   };
 
-  const cancelBooking = async (bookingId: string) => {
+  const handleCancelBooking = async () => {
+    if (!cancelBookingTarget || !cancellationReason.trim()) return;
+    
+    setIsCancelling(true);
     try {
       const { error } = await supabase
         .from('support_bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId);
+        .update({ 
+          status: 'cancelled',
+          cancellation_message: cancellationReason.trim(),
+          cancelled_by: 'admin'
+        })
+        .eq('id', cancelBookingTarget.id);
 
       if (error) throw error;
       
-      toast.success('Booking annulleret');
+      toast.success('Booking annulleret', {
+        description: 'Brugeren vil se din besked på deres dashboard.'
+      });
+      setCancelBookingTarget(null);
+      setCancellationReason('');
       fetchBookings();
     } catch (error) {
       console.error('Error cancelling booking:', error);
       toast.error('Kunne ikke annullere booking');
+    } finally {
+      setIsCancelling(false);
     }
+  };
+
+  const openRemoteSession = (bookingId: string) => {
+    navigate(`/support-hub/remote?booking=${bookingId}&admin=true`);
   };
 
   const startSession = async (bookingId: string) => {
@@ -285,7 +313,7 @@ export function BookingsManager() {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => cancelBooking(booking.id)}
+                      onClick={() => setCancelBookingTarget(booking)}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -346,38 +374,88 @@ export function BookingsManager() {
               </TableHeader>
               <TableBody>
                 {bookings.map((booking) => (
-                  <TableRow key={booking.id}>
-                    <TableCell className="font-medium">{booking.user_email}</TableCell>
+                  <TableRow key={booking.id} className={booking.status === 'cancelled' && booking.cancelled_by === 'user' ? 'bg-destructive/5' : ''}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{booking.user_email}</p>
+                        {booking.status === 'cancelled' && booking.cancellation_message && (
+                          <div className="mt-1 flex items-start gap-1.5 text-xs text-muted-foreground">
+                            <MessageSquare className="h-3 w-3 mt-0.5 shrink-0" />
+                            <span className="italic">
+                              {booking.cancelled_by === 'user' ? 'Bruger: ' : 'Admin: '}
+                              "{booking.cancellation_message}"
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {format(new Date(booking.scheduled_date), 'd. MMM yyyy', { locale: da })}
                     </TableCell>
                     <TableCell>{booking.scheduled_time.slice(0, 5)}</TableCell>
-                    <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(booking.status)}
+                        {booking.cancelled_by === 'user' && (
+                          <span className="text-[10px] text-destructive font-medium">Af bruger</span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{booking.price_dkk} DKK</TableCell>
                     <TableCell className="text-right">
-                      {booking.status === 'confirmed' && isSessionTime(booking) && (
-                        <Button 
-                          size="sm" 
-                          variant="hero"
-                          onClick={() => setSelectedBooking(booking)}
-                        >
-                          <Video className="mr-2 h-4 w-4" />
-                          Start
-                        </Button>
-                      )}
-                      {booking.status === 'pending' && (
-                        <Button 
-                          size="sm"
-                          onClick={() => confirmBooking(booking.id)}
-                          disabled={isConfirming === booking.id}
-                        >
-                          {isConfirming === booking.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            'Bekræft'
-                          )}
-                        </Button>
-                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        {booking.status === 'in_progress' && (
+                          <Button 
+                            size="sm" 
+                            variant="hero"
+                            onClick={() => openRemoteSession(booking.id)}
+                          >
+                            <Video className="mr-2 h-4 w-4" />
+                            Åbn session
+                          </Button>
+                        )}
+                        {booking.status === 'confirmed' && isSessionTime(booking) && (
+                          <Button 
+                            size="sm" 
+                            variant="hero"
+                            onClick={() => setSelectedBooking(booking)}
+                          >
+                            <Video className="mr-2 h-4 w-4" />
+                            Start
+                          </Button>
+                        )}
+                        {booking.status === 'confirmed' && !isSessionTime(booking) && (
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setCancelBookingTarget(booking)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {booking.status === 'pending' && (
+                          <>
+                            <Button 
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setCancelBookingTarget(booking)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => confirmBooking(booking.id)}
+                              disabled={isConfirming === booking.id}
+                            >
+                              {isConfirming === booking.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Bekræft'
+                              )}
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -429,6 +507,71 @@ export function BookingsManager() {
                 >
                   <Video className="mr-2 h-4 w-4" />
                   Start session
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel booking dialog */}
+      <Dialog open={!!cancelBookingTarget} onOpenChange={() => {
+        setCancelBookingTarget(null);
+        setCancellationReason('');
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Annuller booking
+            </DialogTitle>
+            <DialogDescription>
+              Skriv en kort besked til brugeren om hvorfor sessionen annulleres.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelBookingTarget && (
+            <div className="space-y-4 pt-2">
+              <div className="card-elevated p-3">
+                <p className="text-sm font-medium">{cancelBookingTarget.user_email}</p>
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(cancelBookingTarget.scheduled_date), 'd. MMM yyyy', { locale: da })} kl. {cancelBookingTarget.scheduled_time.slice(0, 5)}
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cancel-reason">Årsag til annullering</Label>
+                <Textarea
+                  id="cancel-reason"
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  placeholder="F.eks. 'Tekniker er desværre syg' eller 'Tidspunktet kolliderer med en anden session'"
+                  className="min-h-[100px]"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    setCancelBookingTarget(null);
+                    setCancellationReason('');
+                  }}
+                >
+                  Fortryd
+                </Button>
+                <Button 
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={handleCancelBooking}
+                  disabled={!cancellationReason.trim() || isCancelling}
+                >
+                  {isCancelling ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="mr-2 h-4 w-4" />
+                  )}
+                  Annuller booking
                 </Button>
               </div>
             </div>
