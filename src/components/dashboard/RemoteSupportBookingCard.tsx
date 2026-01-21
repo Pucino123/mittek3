@@ -34,10 +34,11 @@ export function RemoteSupportBookingCard({ booking, onRefresh }: RemoteSupportBo
     confirmed: { label: 'Bekræftet', color: 'bg-info/10 text-info' },
     in_progress: { label: 'I gang', color: 'bg-success/10 text-success animate-pulse' },
     completed: { label: 'Afsluttet', color: 'bg-muted text-muted-foreground' },
-    cancelled: { label: 'Annulleret', color: 'bg-destructive/10 text-destructive' },
+    cancelled: { label: 'ANNULLERET', color: 'bg-destructive text-destructive-foreground font-bold' },
   };
 
   const status = statusLabels[booking.status] || statusLabels.pending;
+  const isCancelled = booking.status === 'cancelled';
 
   const handleCancelBooking = async () => {
     if (!cancelReason.trim()) {
@@ -77,21 +78,33 @@ export function RemoteSupportBookingCard({ booking, onRefresh }: RemoteSupportBo
 
   return (
     <>
-      <div className="card-elevated p-4 sm:p-5 bg-gradient-to-r from-info/5 to-primary/5 border-info/30">
+      <div className={`card-elevated p-4 sm:p-5 ${
+        isCancelled 
+          ? 'bg-gradient-to-r from-destructive/5 to-destructive/10 border-destructive/30' 
+          : 'bg-gradient-to-r from-info/5 to-primary/5 border-info/30'
+      }`}>
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-info/10 flex items-center justify-center shrink-0">
-            <Monitor className="h-6 w-6 text-info" />
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+            isCancelled ? 'bg-destructive/10' : 'bg-info/10'
+          }`}>
+            {isCancelled ? (
+              <X className="h-6 w-6 text-destructive" />
+            ) : (
+              <Monitor className="h-6 w-6 text-info" />
+            )}
           </div>
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-base">Fjernsupport booket</h3>
-              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${status.color}`}>
+              <h3 className={`font-semibold text-base ${isCancelled ? 'text-muted-foreground' : ''}`}>
+                {isCancelled ? 'Fjernsupport annulleret' : 'Fjernsupport booket'}
+              </h3>
+              <span className={`px-2 py-0.5 text-xs rounded-full ${status.color}`}>
                 {status.label}
               </span>
             </div>
             
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+            <div className={`flex items-center gap-4 text-sm mb-3 ${isCancelled ? 'text-muted-foreground/70' : 'text-muted-foreground'}`}>
               <span className="flex items-center gap-1.5">
                 <Clock className="h-4 w-4" />
                 {booking.status === 'pending' 
@@ -101,45 +114,50 @@ export function RemoteSupportBookingCard({ booking, onRefresh }: RemoteSupportBo
               </span>
             </div>
 
-            {/* Show admin cancellation reason */}
-            {wasCancelledByAdmin && booking.cancellation_message && (
+            {/* Show cancellation reason for cancelled bookings */}
+            {isCancelled && booking.cancellation_message && (
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mb-3">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-destructive">Annulleret af tekniker</p>
+                    <p className="text-sm font-medium text-destructive">
+                      {wasCancelledByAdmin ? 'Annulleret af tekniker' : 'Du annullerede denne session'}
+                    </p>
                     <p className="text-sm text-muted-foreground mt-1">"{booking.cancellation_message}"</p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="flex items-center gap-2">
-              {booking.status === 'confirmed' || booking.status === 'in_progress' ? (
-                <Link to={`/support-hub/remote?booking=${booking.id}`}>
-                  <Button variant="hero" size="sm">
-                    <Video className="mr-2 h-4 w-4" />
-                    Start session
+            {/* Only show action buttons if NOT cancelled */}
+            {!isCancelled && (
+              <div className="flex items-center gap-2">
+                {booking.status === 'confirmed' || booking.status === 'in_progress' ? (
+                  <Link to={`/support-hub/remote?booking=${booking.id}`}>
+                    <Button variant="hero" size="sm">
+                      <Video className="mr-2 h-4 w-4" />
+                      Start session
+                    </Button>
+                  </Link>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Vi kontakter dig inden sessionen starter
+                  </p>
+                )}
+                
+                {canCancel && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setCancelDialogOpen(true)}
+                  >
+                    <X className="mr-1 h-4 w-4" />
+                    Annuller
                   </Button>
-                </Link>
-              ) : booking.status !== 'cancelled' ? (
-                <p className="text-xs text-muted-foreground">
-                  Vi kontakter dig inden sessionen starter
-                </p>
-              ) : null}
-              
-              {canCancel && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setCancelDialogOpen(true)}
-                >
-                  <X className="mr-1 h-4 w-4" />
-                  Annuller
-                </Button>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

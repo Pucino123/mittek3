@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -85,6 +86,28 @@ const CATEGORIES = [
   { id: 'ny', label: 'Nye', icon: Sparkles },
 ];
 
+// Smart categorization helper - maps keywords to categories
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  sikkerhed: ['health', 'sundhed', 'defender', 'lock', 'lås', 'sikker', 'shield', 'skjold', 'kode', 'password', 'hacket', 'scam', 'svindel', 'tryghed', 'panic'],
+  værktøjer: ['generator', 'batteri', 'battery', 'oprydning', 'cleaning', 'hardware', 'ordbog', 'dictionary', 'noter', 'notes', 'speedtest', 'hastighed', 'wifi'],
+  sundhed: ['medical', 'nød', 'id', 'heart', 'hjerte'],
+  produktivitet: ['abonnement', 'subscription', 'tracker', 'overblik', 'arv', 'legacy'],
+};
+
+// Get category for a tool based on name/title keywords
+function getCategoryForTool(tool: { title: string; category?: string }): string {
+  const titleLower = tool.title.toLowerCase();
+  
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some(kw => titleLower.includes(kw))) {
+      return category;
+    }
+  }
+  
+  // Fallback to the tool's original category or 'all'
+  return tool.category?.toLowerCase() || 'all';
+}
+
 // Animated mini card within a category
 function SortableMiniCard({
   card,
@@ -118,19 +141,21 @@ function SortableMiniCard({
       {...listeners}
       layout
       initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: isDragging ? 0.5 : 1, scale: 1 }}
+      animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
       transition={{ duration: 0.2 }}
       onClick={(e) => {
         e.stopPropagation();
         if (onRemove) onRemove(card.id);
       }}
-      className={`w-8 h-8 aspect-square rounded-lg flex items-center justify-center bg-muted/60 border border-border cursor-pointer hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors ${
-        isDragging ? 'shadow-lg ring-2 ring-primary z-50' : ''
+      className={`w-8 h-8 aspect-square rounded-lg flex items-center justify-center border cursor-pointer transition-all ${
+        isDragging 
+          ? 'opacity-30 border-dashed border-primary/50 bg-primary/5' 
+          : 'bg-muted/60 border-border hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive'
       }`}
       title={`${card.title} - Klik for at fjerne`}
     >
-      <card.icon className="h-4 w-4" />
+      <card.icon className={`h-4 w-4 ${isDragging ? 'opacity-50' : ''}`} />
     </motion.div>
   );
 }
@@ -558,7 +583,7 @@ export function AppStoreToolModal({
     return diffDays <= 30;
   };
 
-  // Filter and sort cards
+  // Filter and sort cards using smart categorization
   const filteredCards = useMemo(() => {
     let cards = [...hiddenCards];
 
@@ -571,13 +596,14 @@ export function AppStoreToolModal({
       );
     }
 
-    // Filter by category
+    // Filter by category using smart keyword matching
     if (selectedCategory === 'ny') {
       cards = cards.filter(card => isNewTool(card.addedDate));
     } else if (selectedCategory !== 'all') {
-      cards = cards.filter(card => 
-        card.category?.toLowerCase() === selectedCategory.toLowerCase()
-      );
+      cards = cards.filter(card => {
+        const smartCategory = getCategoryForTool(card);
+        return smartCategory === selectedCategory.toLowerCase();
+      });
     }
 
     // Sort: unlocked first, then locked
@@ -939,25 +965,32 @@ export function AppStoreToolModal({
               </div>
             </div>
             
-            {/* Drag Overlay - Shows ghost of dragged item */}
-            <DragOverlay dropAnimation={{ duration: 150 }}>
-              {activeDragId && activeDragType ? (
-                <div className="bg-card border-2 border-primary shadow-2xl rounded-xl p-3 flex items-center gap-2 opacity-90">
-                  {(() => {
-                    const card = allCardsLookup.get(activeDragId);
-                    if (!card) return <span className="text-sm">Træk...</span>;
-                    return (
-                      <>
-                        <div className={`w-8 h-8 rounded-lg ${card.color} flex items-center justify-center shrink-0`}>
-                          <card.icon className="h-4 w-4" />
-                        </div>
-                        <span className="font-medium text-sm truncate max-w-[120px]">{card.title}</span>
-                      </>
-                    );
-                  })()}
-                </div>
-              ) : null}
-            </DragOverlay>
+            {/* Drag Overlay - Portal rendered ghost that follows cursor */}
+            {typeof document !== 'undefined' && ReactDOM.createPortal(
+              <DragOverlay 
+                dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' }}
+                modifiers={[]}
+                zIndex={99999}
+              >
+                {activeDragId && activeDragType ? (
+                  <div className="bg-card border-2 border-primary shadow-2xl rounded-xl p-3 flex items-center gap-3 opacity-95 pointer-events-none" style={{ minWidth: '160px' }}>
+                    {(() => {
+                      const card = allCardsLookup.get(activeDragId);
+                      if (!card) return <span className="text-sm">Træk...</span>;
+                      return (
+                        <>
+                          <div className={`w-10 h-10 rounded-lg ${card.color} flex items-center justify-center shrink-0`}>
+                            <card.icon className="h-5 w-5" />
+                          </div>
+                          <span className="font-semibold text-sm truncate max-w-[140px]">{card.title}</span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : null}
+              </DragOverlay>,
+              document.body
+            )}
           </DndContext>
         </TooltipProvider>
       </DialogContent>

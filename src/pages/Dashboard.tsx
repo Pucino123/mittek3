@@ -637,35 +637,51 @@ function DroppableCategorySection({
     </section>;
 }
 
-// Component to show active remote support bookings
+// Component to show active remote support bookings (including recently cancelled)
 function ActiveBookingSection({ userId }: { userId?: string }) {
-  const { data: booking, isLoading } = useQuery({
-    queryKey: ['active-booking', userId],
+  const { data: bookings, isLoading, refetch } = useQuery({
+    queryKey: ['active-bookings', userId],
     queryFn: async () => {
-      if (!userId) return null;
+      if (!userId) return [];
+      
+      // Fetch all recent bookings including cancelled
       const { data, error } = await supabase
         .from('support_bookings')
         .select('*')
         .eq('user_id', userId)
-        .in('status', ['pending', 'confirmed', 'in_progress'])
-        .order('scheduled_date', { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        .in('status', ['pending', 'confirmed', 'in_progress', 'cancelled'])
+        .order('scheduled_date', { ascending: true });
 
       if (error) {
-        console.error('Error fetching booking:', error);
-        return null;
+        console.error('Error fetching bookings:', error);
+        return [];
       }
-      return data;
+      
+      // Filter out cancelled bookings that have passed their scheduled time
+      const now = new Date();
+      return (data || []).filter(booking => {
+        if (booking.status !== 'cancelled') return true;
+        
+        // For cancelled bookings, only show until their original appointment time passes
+        const bookingDateTime = new Date(`${booking.scheduled_date}T${booking.scheduled_time}`);
+        return bookingDateTime > now;
+      });
     },
     enabled: !!userId,
+    refetchInterval: 60000, // Refetch every minute to auto-hide expired cancelled bookings
   });
 
-  if (isLoading || !booking) return null;
+  if (isLoading || !bookings || bookings.length === 0) return null;
 
   return (
-    <div className="mb-6">
-      <RemoteSupportBookingCard booking={booking} />
+    <div className="space-y-4 mb-6">
+      {bookings.map(booking => (
+        <RemoteSupportBookingCard 
+          key={booking.id} 
+          booking={booking} 
+          onRefresh={refetch}
+        />
+      ))}
     </div>
   );
 }
