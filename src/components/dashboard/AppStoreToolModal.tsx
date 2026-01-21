@@ -1,10 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { 
   Search, 
   X, 
@@ -19,6 +22,8 @@ import {
   Zap,
   Grid3X3,
   RotateCcw,
+  GripVertical,
+  Layers,
   LucideIcon
 } from 'lucide-react';
 
@@ -33,6 +38,12 @@ interface HiddenCard {
   category?: string;
 }
 
+interface CategoryItem {
+  id: string;
+  title: string;
+  cardIds: string[];
+}
+
 interface AppStoreToolModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,6 +52,10 @@ interface AppStoreToolModalProps {
   onResetAll: () => void;
   onCreateCategory?: (categoryName: string) => void;
   currentPlan?: 'basic' | 'plus' | 'pro';
+  // Live dashboard builder props
+  dashboardCategories?: CategoryItem[];
+  onReorderCategories?: (categories: CategoryItem[]) => void;
+  onRemoveFromDashboard?: (cardId: string) => void;
 }
 
 const PLAN_TIERS = { basic: 0, plus: 1, pro: 2 } as const;
@@ -60,6 +75,79 @@ const CATEGORIES = [
   { id: 'ny', label: 'Nye', icon: Sparkles },
 ];
 
+// Sortable category item for the dashboard builder sidebar
+function SortableCategoryItem({ category, allCards, onRemoveCard }: { 
+  category: CategoryItem; 
+  allCards: HiddenCard[];
+  onRemoveCard?: (cardId: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  // Get card info for display
+  const categoryCards = category.cardIds
+    .map(id => allCards.find(c => c.id === id))
+    .filter(Boolean) as HiddenCard[];
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="bg-card border border-border rounded-lg p-2 mb-2"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded"
+        >
+          <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+        <span className="text-xs font-medium truncate flex-1">{category.title}</span>
+        <span className="text-[10px] text-muted-foreground">{categoryCards.length}</span>
+      </div>
+      
+      {categoryCards.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1">
+          {categoryCards.slice(0, 4).map((card) => (
+            <div 
+              key={card.id}
+              className="group relative w-6 h-6 rounded-md flex items-center justify-center"
+              style={{ backgroundColor: 'hsl(var(--muted))' }}
+              title={card.title}
+            >
+              <card.icon className="h-3 w-3 text-muted-foreground" />
+              {onRemoveCard && (
+                <button
+                  onClick={() => onRemoveCard(card.id)}
+                  className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-destructive text-destructive-foreground hidden group-hover:flex items-center justify-center"
+                >
+                  <X className="h-2 w-2" />
+                </button>
+              )}
+            </div>
+          ))}
+          {categoryCards.length > 4 && (
+            <span className="text-[10px] text-muted-foreground ml-1">+{categoryCards.length - 4}</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppStoreToolModal({ 
   open, 
   onOpenChange, 
@@ -67,13 +155,24 @@ export function AppStoreToolModal({
   onAddCard,
   onResetAll,
   onCreateCategory,
-  currentPlan = 'basic'
+  currentPlan = 'basic',
+  dashboardCategories = [],
+  onReorderCategories,
+  onRemoveFromDashboard
 }: AppStoreToolModalProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  // DnD sensors for dashboard builder
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const hasAccess = (minPlan?: 'basic' | 'plus' | 'pro') => {
     if (!minPlan) return true;
@@ -123,6 +222,19 @@ export function AppStoreToolModal({
     });
   }, [hiddenCards, searchQuery, selectedCategory, currentPlan]);
 
+  // Handle category drag end for live reorder
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id && onReorderCategories) {
+      const oldIndex = dashboardCategories.findIndex((c) => c.id === active.id);
+      const newIndex = dashboardCategories.findIndex((c) => c.id === over.id);
+      
+      const reordered = arrayMove(dashboardCategories, oldIndex, newIndex);
+      onReorderCategories(reordered);
+    }
+  }, [dashboardCategories, onReorderCategories]);
+
   const handleClose = () => {
     setSearchQuery('');
     setSelectedCategory('all');
@@ -143,6 +255,14 @@ export function AppStoreToolModal({
       setShowNewCategoryInput(false);
     }
   };
+
+  // All cards for lookup (both hidden and visible)
+  const allCardsLookup = useMemo(() => {
+    // Combine hidden cards with dashboard cards for full lookup
+    const combined = new Map<string, HiddenCard>();
+    hiddenCards.forEach(c => combined.set(c.id, c));
+    return combined;
+  }, [hiddenCards]);
 
   const renderToolCard = (card: HiddenCard) => {
     const isLocked = !hasAccess(card.minPlan);
@@ -247,10 +367,54 @@ export function AppStoreToolModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl h-[85vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
         <TooltipProvider delayDuration={300}>
           <div className="flex h-full">
-            {/* Sidebar - Categories */}
+            {/* Left Sidebar - Dashboard Builder */}
+            {dashboardCategories.length > 0 && onReorderCategories && (
+              <div className="w-44 border-r border-border bg-muted/20 flex flex-col">
+                <div className="p-3 border-b border-border">
+                  <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5" />
+                    Dashboard Layout
+                  </h3>
+                </div>
+                
+                <ScrollArea className="flex-1 p-2">
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={dashboardCategories.map(c => c.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {dashboardCategories.map((category) => (
+                        <SortableCategoryItem
+                          key={category.id}
+                          category={category}
+                          allCards={Array.from(allCardsLookup.values())}
+                          onRemoveCard={onRemoveFromDashboard}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                  
+                  {dashboardCategories.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">
+                      Tilføj værktøjer for at se dit layout
+                    </p>
+                  )}
+                </ScrollArea>
+
+                <div className="p-2 border-t border-border text-[10px] text-muted-foreground text-center">
+                  Træk for at omarrangere
+                </div>
+              </div>
+            )}
+
+            {/* Middle Sidebar - Categories */}
             <div className="w-48 md:w-56 border-r border-border bg-muted/30 flex flex-col">
               {/* Header */}
               <div className="p-4 border-b border-border">

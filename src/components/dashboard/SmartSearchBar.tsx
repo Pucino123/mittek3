@@ -479,7 +479,7 @@ const SmartSearchBar = ({ compact = false }: SmartSearchBarProps) => {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto" style={{ width: '80%', minWidth: '300px' }}>
+    <div className="w-full max-w-5xl mx-auto" style={{ width: '90%', minWidth: '320px' }}>
       {/* Search Input */}
       <div className="relative">
         <div className="flex gap-2">

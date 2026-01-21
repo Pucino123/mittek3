@@ -18,7 +18,7 @@ export function RemoteSupportBookingCard({ booking }: RemoteSupportBookingCardPr
   const formattedTime = booking.scheduled_time.slice(0, 5); // HH:MM
 
   const statusLabels: Record<string, { label: string; color: string }> = {
-    pending: { label: 'Afventer', color: 'bg-warning/10 text-warning' },
+    pending: { label: 'Afventer bekræftelse', color: 'bg-warning/10 text-warning' },
     confirmed: { label: 'Bekræftet', color: 'bg-info/10 text-info' },
     in_progress: { label: 'I gang', color: 'bg-success/10 text-success animate-pulse' },
     completed: { label: 'Afsluttet', color: 'bg-muted text-muted-foreground' },
@@ -45,7 +45,10 @@ export function RemoteSupportBookingCard({ booking }: RemoteSupportBookingCardPr
           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
             <span className="flex items-center gap-1.5">
               <Clock className="h-4 w-4" />
-              {formattedDate} kl. {formattedTime}
+              {booking.status === 'pending' 
+                ? 'Tidspunkt vises efter bekræftelse'
+                : `${formattedDate} kl. ${formattedTime}`
+              }
             </span>
           </div>
 
