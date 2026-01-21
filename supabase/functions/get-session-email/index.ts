@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,7 +9,14 @@ const corsHeaders = {
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per minute per IP
+const RATE_LIMIT_MAX_REQUESTS = 10; // 10 requests per minute per IP
+
+// Product ID to plan tier mapping (same as in stripe-webhook)
+const PRODUCT_TIER_MAP: Record<string, string> = {
+  "prod_Tl6ynRCM8KbUL6": "basic",
+  "prod_Tl6zZq8UNBdnPN": "plus",
+  "prod_Tl6zLUM9nEq1TX": "pro",
+};
 
 const logStep = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
@@ -99,7 +107,7 @@ serve(async (req) => {
 
     logStep("Looking up session", { sessionId: sessionId.substring(0, 20) + "..." });
 
-    // Find the pending subscription for this session
+    // First, check if pending subscription exists in database
     const { data: pending, error: pendingError } = await supabaseAdmin
       .from("pending_subscriptions")
       .select("purchaser_email, plan_tier, claimed")
@@ -108,31 +116,94 @@ serve(async (req) => {
 
     if (pendingError) {
       logStep("ERROR finding pending subscription", pendingError);
-      throw pendingError;
     }
 
-    if (!pending) {
-      logStep("No pending subscription found for session");
+    if (pending) {
+      logStep("Found pending subscription in DB", { 
+        planTier: pending.plan_tier,
+        claimed: pending.claimed 
+      });
+
+      return new Response(JSON.stringify({ 
+        found: true, 
+        email: pending.purchaser_email,
+        planTier: pending.plan_tier,
+        alreadyClaimed: pending.claimed,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // If not in database yet (webhook hasn't arrived), fetch directly from Stripe
+    logStep("No pending subscription in DB, fetching from Stripe API");
+    
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) {
+      logStep("ERROR: STRIPE_SECRET_KEY not configured");
       return new Response(JSON.stringify({ found: false }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    logStep("Found pending subscription", { 
-      planTier: pending.plan_tier,
-      claimed: pending.claimed 
-    });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    
+    try {
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      
+      if (!session) {
+        logStep("Stripe session not found");
+        return new Response(JSON.stringify({ found: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
 
-    return new Response(JSON.stringify({ 
-      found: true, 
-      email: pending.purchaser_email,
-      planTier: pending.plan_tier,
-      alreadyClaimed: pending.claimed,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+      const customerEmail = session.customer_email || session.customer_details?.email;
+      
+      if (!customerEmail) {
+        logStep("No email found in Stripe session");
+        return new Response(JSON.stringify({ found: false }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      // Try to get plan tier from subscription
+      let planTier = "basic";
+      if (session.subscription) {
+        try {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+          const productId = subscription.items.data[0]?.price?.product as string;
+          planTier = PRODUCT_TIER_MAP[productId] || "basic";
+        } catch (subErr) {
+          logStep("Could not fetch subscription details", { error: subErr instanceof Error ? subErr.message : String(subErr) });
+        }
+      }
+
+      logStep("Found session in Stripe API", { 
+        email: customerEmail,
+        planTier,
+        status: session.status
+      });
+
+      return new Response(JSON.stringify({ 
+        found: true, 
+        email: customerEmail,
+        planTier: planTier,
+        alreadyClaimed: false,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } catch (stripeErr) {
+      logStep("Stripe API error", { error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr) });
+      return new Response(JSON.stringify({ found: false }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
