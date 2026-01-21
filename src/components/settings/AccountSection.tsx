@@ -52,19 +52,20 @@ export function AccountSection({
 
     setIsSavingName(true);
     try {
-      // Use upsert to handle cases where profile might not exist yet
-      const { error } = await supabase
+      // First try to update existing profile
+      const { error: updateError } = await supabase
         .from('profiles')
-        .upsert({ 
-          user_id: user.id,
-          display_name: editedName.trim(),
-          email: user.email,
-        }, { 
-          onConflict: 'user_id',
-          ignoreDuplicates: false 
-        });
+        .update({ display_name: editedName.trim() })
+        .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (updateError) {
+        // Check if it's a foreign key error (orphan session)
+        if (updateError.code === '23503') {
+          toast.error('Din session er udløbet. Log venligst ud og ind igen.');
+          return;
+        }
+        throw updateError;
+      }
 
       await refetchProfile();
       setIsEditingName(false);
