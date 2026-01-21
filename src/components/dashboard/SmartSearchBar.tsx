@@ -172,6 +172,59 @@ const staticToolMappings: SearchResult[] = [
   },
 ];
 
+// Primary action verbs - these are CRITICAL for intent matching
+const primaryActionVerbs: Record<string, string[]> = {
+  'opdater': ['opdatere', 'opdatering', 'update', 'opgrader', 'opgradere', 'installere', 'installer'],
+  'slet': ['slette', 'fjern', 'fjerne', 'ryd', 'rydde', 'delete', 'remove'],
+  'find': ['finde', 'finder', 'søg', 'søge', 'locate', 'track', 'spore'],
+  'genstart': ['genstarte', 'restart', 'reboot', 'tænde', 'slukke'],
+  'sikr': ['sikre', 'beskyt', 'beskytte', 'sikkerhed', 'secure'],
+  'forbind': ['forbinde', 'tilslut', 'tilslutte', 'connect', 'koble'],
+  'backup': ['sikkerhedskopi', 'sikkerhedskopiere', 'gem', 'gemme'],
+  'del': ['dele', 'share', 'send', 'sende'],
+  'blokér': ['blokere', 'bloker', 'block', 'stop', 'stoppe'],
+  'ret': ['rette', 'fix', 'fiks', 'fikse', 'løs', 'løse', 'repair'],
+};
+
+// Negative keywords - if query contains these, EXCLUDE certain results
+const exclusionRules: Record<string, string[]> = {
+  'find min': ['opdater', 'update', 'slow', 'langsom', 'battery', 'batteri', 'slet'],
+  'find my': ['opdater', 'update', 'slow', 'langsom', 'battery', 'batteri', 'slet'],
+};
+
+// Extract primary action verb from query
+function extractActionVerb(query: string): string | null {
+  const normalizedQuery = query.toLowerCase();
+  for (const [verb, variants] of Object.entries(primaryActionVerbs)) {
+    if (normalizedQuery.includes(verb) || variants.some(v => normalizedQuery.includes(v))) {
+      return verb;
+    }
+  }
+  return null;
+}
+
+// Check if a result should be excluded based on query context
+function shouldExcludeResult(query: string, resultTitle: string): boolean {
+  const normalizedQuery = query.toLowerCase();
+  const normalizedTitle = resultTitle.toLowerCase();
+  
+  // If query contains action verb "opdater" and result is "Find min iPhone" - exclude it
+  if ((normalizedQuery.includes('opdater') || normalizedQuery.includes('update')) && 
+      normalizedTitle.includes('find')) {
+    return true;
+  }
+  
+  // If query is about "find min" something, only match location-related results
+  if (normalizedQuery.includes('find min') || normalizedQuery.includes('find my')) {
+    const actionVerb = extractActionVerb(normalizedQuery.replace('find min', '').replace('find my', ''));
+    if (actionVerb && actionVerb !== 'find') {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 // Generate keywords from guide title and description
 function generateKeywordsFromGuide(title: string, description: string | null, category: string | null): string[] {
   const keywords: string[] = [];
@@ -191,17 +244,27 @@ function generateKeywordsFromGuide(title: string, description: string | null, ca
     keywords.push(category.toLowerCase());
   }
   
+  // Add action verbs based on title content
+  for (const [verb, variants] of Object.entries(primaryActionVerbs)) {
+    for (const word of titleWords) {
+      if (word.includes(verb) || variants.some(v => word.includes(v))) {
+        keywords.push(verb);
+        keywords.push(...variants);
+        break;
+      }
+    }
+  }
+  
   // Add common Danish synonyms/related words based on common patterns
   const synonymMap: Record<string, string[]> = {
-    'opdater': ['update', 'opdatering', 'ny', 'version'],
+    'opdater': ['update', 'opdatering', 'ny', 'version', 'software'],
     'sikker': ['sikkerhed', 'beskyt', 'beskyttelse', 'privat'],
-    'iphone': ['telefon', 'mobil', 'ios'],
-    'ipad': ['tablet'],
-    'mac': ['computer', 'laptop', 'macbook'],
     'wifi': ['internet', 'net', 'netværk', 'forbindelse'],
     'kode': ['password', 'adgangskode', 'pin'],
     'slet': ['fjern', 'ryd', 'rydde'],
-    'langsom': ['hurtig', 'speed', 'hastighed', 'langsomt'],
+    'langsom': ['hurtig', 'speed', 'hastighed', 'langsomt', 'slow'],
+    'batteri': ['strøm', 'power', 'oplade', 'oplader'],
+    'plads': ['lager', 'storage', 'fuld', 'fyldt'],
   };
   
   for (const word of titleWords) {
@@ -296,16 +359,45 @@ const SmartSearchBar = ({ compact = false }: SmartSearchBarProps) => {
     if (!searchQuery.trim()) return null;
 
     const normalizedQuery = searchQuery.toLowerCase().trim();
-    const queryWords = normalizedQuery.split(/\s+/);
+    const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length >= 2);
+    
+    // Extract the primary action from the query
+    const queryAction = extractActionVerb(normalizedQuery);
 
     let bestMatch: SearchResult | null = null;
     let highestScore = 0;
 
     for (const tool of allMappings) {
+      // Skip results that should be excluded based on query context
+      if (shouldExcludeResult(normalizedQuery, tool.title)) {
+        continue;
+      }
+      
       let score = 0;
       
+      // CRITICAL: If query has an action verb, strongly prioritize results with matching action
+      if (queryAction) {
+        const resultHasMatchingAction = tool.keywords.some(k => 
+          k.includes(queryAction) || 
+          primaryActionVerbs[queryAction]?.some(v => k.includes(v))
+        ) || tool.title.toLowerCase().includes(queryAction);
+        
+        if (resultHasMatchingAction) {
+          score += 25; // Strong boost for matching action verb
+        } else {
+          // Penalize results that don't match the action
+          score -= 10;
+        }
+      }
+      
+      // Check keywords
       for (const queryWord of queryWords) {
         if (queryWord.length < 3) continue;
+        
+        // Skip device names for primary matching (they're too generic)
+        if (['iphone', 'ipad', 'mac', 'telefon', 'computer', 'min', 'mit', 'jeg', 'har'].includes(queryWord)) {
+          continue;
+        }
         
         for (const keyword of tool.keywords) {
           if (keyword === queryWord) {
@@ -319,6 +411,12 @@ const SmartSearchBar = ({ compact = false }: SmartSearchBarProps) => {
             score += 2;
           }
         }
+      }
+      
+      // Title match bonus (but exclude generic device names)
+      for (const queryWord of queryWords) {
+        if (queryWord.length < 3) continue;
+        if (['iphone', 'ipad', 'mac', 'min', 'mit', 'jeg', 'har'].includes(queryWord)) continue;
         
         if (tool.title.toLowerCase().includes(queryWord)) {
           score += 4;
@@ -335,7 +433,8 @@ const SmartSearchBar = ({ compact = false }: SmartSearchBarProps) => {
       }
     }
 
-    return highestScore >= 3 ? bestMatch : null;
+    // Require higher threshold for confident match
+    return highestScore >= 5 ? bestMatch : null;
   }, [allMappings]);
 
   const handleSearch = useCallback(() => {
