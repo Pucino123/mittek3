@@ -5,6 +5,7 @@ interface HelpStep {
   instruction: string;
   detail: string;
   icon?: string;
+  image_url?: string;
 }
 
 export interface CheckinHelpData {
@@ -38,7 +39,7 @@ interface RawQuestion {
   check_label: string;
   help_title: string | null;
   help_screenshot: string | null;
-  help_steps: { instruction: string; detail: string; icon?: string }[];
+  help_steps: { instruction: string; detail: string; icon?: string; image_url?: string }[];
   help_tip: string | null;
   sort_order: number;
   is_active: boolean;
@@ -73,6 +74,18 @@ export function useCheckinQuestions() {
       
       for (const rawData of (data || [])) {
         const raw = rawData as unknown as RawQuestion;
+        
+        // Parse help_steps properly
+        let helpSteps: HelpStep[] = [];
+        if (Array.isArray(raw.help_steps)) {
+          helpSteps = raw.help_steps.map(step => ({
+            instruction: step.instruction || '',
+            detail: step.detail || '',
+            icon: step.icon,
+            image_url: step.image_url,
+          }));
+        }
+        
         const transformed: DeviceQuestion = {
           id: raw.question_id,
           question_id: raw.question_id,
@@ -85,7 +98,7 @@ export function useCheckinQuestions() {
           helpData: {
             title: raw.help_title || raw.text,
             screenshot: raw.help_screenshot || undefined,
-            steps: Array.isArray(raw.help_steps) ? raw.help_steps : [],
+            steps: helpSteps,
             tip: raw.help_tip || undefined,
           },
         };
