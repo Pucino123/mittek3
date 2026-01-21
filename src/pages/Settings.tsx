@@ -529,7 +529,7 @@ const Settings = () => {
               </p>
             )}
             
-            {ownedDevices.length > 1 && (
+            {ownedDevices && ownedDevices.length > 1 && (
               <p className="text-xs text-muted-foreground mt-3 text-center">
                 ✓ Månedligt Tjek viser opgaver for {ownedDevices.length} enheder
               </p>
