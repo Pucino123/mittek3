@@ -1767,6 +1767,10 @@ const Dashboard = () => {
         }}
         onRemoveFromDashboard={handleRemoveCard}
         allCardDefinitions={allCards as any}
+        onRenameCategory={updateCategoryTitle}
+        onAddToCategory={(cardId, categoryId) => {
+          showCard(cardId);
+        }}
       />
 
       {/* Floating AI Chat Widget - Only show if subscription is active */}

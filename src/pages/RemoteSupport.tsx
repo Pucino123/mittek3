@@ -25,7 +25,10 @@ import {
   X,
   ScreenShare,
   Wifi,
-  WifiOff
+  WifiOff,
+  Volume2,
+  VolumeX,
+  Move
 } from 'lucide-react';
 
 type DrawingTool = 'pencil' | 'circle' | 'arrow' | 'eraser';
@@ -65,30 +68,67 @@ const RemoteSupport = () => {
   } = usePeerConnection(bookingId, isAdmin);
   
   // Media state
-  const [webcamEnabled, setWebcamEnabled] = useState(true);
+  const [webcamEnabled, setWebcamEnabled] = useState(false); // Start with camera OFF
   const [micEnabled, setMicEnabled] = useState(true);
+  const [audioMuted, setAudioMuted] = useState(true); // For browser autoplay policy
+  const [showUnmuteOverlay, setShowUnmuteOverlay] = useState(true);
+  
+  // Webcam PiP state
+  const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
+  const [pipPosition, setPipPosition] = useState({ x: 16, y: 16 }); // bottom-right offset
+  const [isDraggingPip, setIsDraggingPip] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const pipRef = useRef<HTMLDivElement>(null);
   
   // Drawing state
   const [selectedTool, setSelectedTool] = useState<DrawingTool>('pencil');
   const [drawingColor, setDrawingColor] = useState('#ef4444');
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const webcamVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Start user camera
-  const startCamera = useCallback(async () => {
+  // Start webcam separately
+  const startWebcam = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: true, 
-        audio: true 
+        audio: false // Audio handled separately
       });
-      
-      streamRef.current = stream;
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      setWebcamStream(stream);
+      setWebcamEnabled(true);
     } catch (error) {
-      console.error('Failed to start camera:', error);
+      console.error('Failed to start webcam:', error);
+      toast.error('Kunne ikke starte kamera');
+    }
+  }, []);
+
+  // Stop webcam
+  const stopWebcam = useCallback(() => {
+    if (webcamStream) {
+      webcamStream.getTracks().forEach(track => track.stop());
+      setWebcamStream(null);
+    }
+    setWebcamEnabled(false);
+  }, [webcamStream]);
+
+  // Toggle webcam
+  const toggleWebcam = useCallback(() => {
+    if (webcamEnabled) {
+      stopWebcam();
+    } else {
+      startWebcam();
+    }
+  }, [webcamEnabled, startWebcam, stopWebcam]);
+
+  // Handle unmute click
+  const handleUnmute = useCallback(() => {
+    setAudioMuted(false);
+    setShowUnmuteOverlay(false);
+    
+    // Try to play the remote video with audio
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.muted = false;
+      remoteVideoRef.current.play().catch(console.error);
     }
   }, []);
 
@@ -103,43 +143,65 @@ const RemoteSupport = () => {
       await startSession(bookingId);
     } else {
       await joinSession(bookingId);
-      await startCamera();
     }
     
     // Initialize PeerJS connection
     await initializePeer();
-  }, [bookingId, isAdmin, startSession, joinSession, startCamera, initializePeer]);
+  }, [bookingId, isAdmin, startSession, joinSession, initializePeer]);
 
   // Handle ending session
   const handleEndSession = useCallback(async () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
+    stopWebcam();
     endCall();
     await endSession();
     toast.info('Session afsluttet');
-  }, [endSession, endCall]);
-
-  const toggleWebcam = () => {
-    if (streamRef.current) {
-      const videoTrack = streamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setWebcamEnabled(videoTrack.enabled);
-      }
-    }
-  };
+  }, [endSession, endCall, stopWebcam]);
 
   const toggleMic = () => {
-    if (streamRef.current) {
-      const audioTrack = streamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setMicEnabled(audioTrack.enabled);
-      }
-    }
+    // Toggle microphone in the peer connection stream
+    setMicEnabled(prev => !prev);
+    toast.info(micEnabled ? 'Mikrofon slukket' : 'Mikrofon tændt');
   };
+
+  // PiP drag handlers
+  const handlePipDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsDraggingPip(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragStartPos.current = { x: clientX - pipPosition.x, y: clientY - pipPosition.y };
+  }, [pipPosition]);
+
+  const handlePipDrag = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!isDraggingPip) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    const newX = Math.max(0, Math.min(window.innerWidth - 160, clientX - dragStartPos.current.x));
+    const newY = Math.max(0, Math.min(window.innerHeight - 120, clientY - dragStartPos.current.y));
+    
+    setPipPosition({ x: newX, y: newY });
+  }, [isDraggingPip]);
+
+  const handlePipDragEnd = useCallback(() => {
+    setIsDraggingPip(false);
+  }, []);
+
+  // Add/remove drag listeners
+  useEffect(() => {
+    if (isDraggingPip) {
+      window.addEventListener('mousemove', handlePipDrag);
+      window.addEventListener('mouseup', handlePipDragEnd);
+      window.addEventListener('touchmove', handlePipDrag);
+      window.addEventListener('touchend', handlePipDragEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handlePipDrag);
+      window.removeEventListener('mouseup', handlePipDragEnd);
+      window.removeEventListener('touchmove', handlePipDrag);
+      window.removeEventListener('touchend', handlePipDragEnd);
+    };
+  }, [isDraggingPip, handlePipDrag, handlePipDragEnd]);
 
   // Subscribe to drawing events when session exists
   useEffect(() => {
@@ -148,15 +210,28 @@ const RemoteSupport = () => {
     }
   }, [bookingId, session.status, subscribeToDrawingEvents]);
 
+  // Update webcam video element
+  useEffect(() => {
+    if (webcamVideoRef.current && webcamStream) {
+      webcamVideoRef.current.srcObject = webcamStream;
+    }
+  }, [webcamStream]);
+
+  // Update remote video element
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.muted = audioMuted;
+    }
+  }, [remoteStream, audioMuted]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
+      stopWebcam();
       cleanupPeer();
     };
-  }, [cleanupPeer]);
+  }, [cleanupPeer, stopWebcam]);
 
   // Waiting screen
   if (session.status === 'idle' || session.status === 'waiting') {
@@ -211,7 +286,7 @@ const RemoteSupport = () => {
                   <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <span className="text-xs font-medium text-primary">3</span>
                   </div>
-                  I kan tale sammen via mikrofon og kamera
+                  I kan tale sammen via mikrofon (valgfrit kamera)
                 </li>
               </ul>
             </div>
@@ -324,17 +399,30 @@ const RemoteSupport = () => {
         <div className="flex-1 relative bg-muted/50">
           {/* Remote stream from PeerJS or placeholder */}
           {remoteStream ? (
-            <video
-              autoPlay
-              playsInline
-              muted={false}
-              className="absolute inset-0 w-full h-full object-contain bg-black"
-              ref={(el) => {
-                if (el && remoteStream) {
-                  el.srcObject = remoteStream;
-                }
-              }}
-            />
+            <>
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                muted={audioMuted}
+                className="absolute inset-0 w-full h-full object-contain bg-black"
+              />
+              
+              {/* Unmute overlay for browser autoplay policy */}
+              {showUnmuteOverlay && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
+                  <Button
+                    variant="hero"
+                    size="lg"
+                    onClick={handleUnmute}
+                    className="gap-2"
+                  >
+                    <Volume2 className="h-5 w-5" />
+                    Tænd lyd
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
@@ -370,22 +458,35 @@ const RemoteSupport = () => {
             onClear={clearDrawings}
           />
           
-          {/* Self-view webcam (small corner view) */}
-          <div className="absolute bottom-4 right-4 w-40 h-30 bg-black rounded-lg overflow-hidden shadow-lg border-2 border-background">
-            {webcamEnabled ? (
+          {/* Webcam PiP (draggable) */}
+          {webcamEnabled && webcamStream && (
+            <div 
+              ref={pipRef}
+              className={`absolute w-40 h-28 bg-black rounded-lg overflow-hidden shadow-lg border-2 border-background z-30 ${
+                isDraggingPip ? 'cursor-grabbing' : 'cursor-grab'
+              }`}
+              style={{
+                left: pipPosition.x,
+                top: pipPosition.y,
+              }}
+            >
               <video
-                ref={videoRef}
+                ref={webcamVideoRef}
                 autoPlay
                 playsInline
                 muted
                 className="w-full h-full object-cover"
               />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <VideoOff className="h-8 w-8 text-muted-foreground" />
+              {/* Drag handle */}
+              <div 
+                className="absolute top-1 left-1 w-6 h-6 rounded bg-black/50 flex items-center justify-center cursor-grab active:cursor-grabbing"
+                onMouseDown={handlePipDragStart}
+                onTouchStart={handlePipDragStart}
+              >
+                <Move className="h-3 w-3 text-white" />
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Sidebar controls */}
@@ -468,6 +569,27 @@ const RemoteSupport = () => {
           {/* Spacer */}
           <div className="flex-1" />
           
+          {/* Audio mute toggle */}
+          {remoteStream && (
+            <button
+              onClick={() => {
+                setAudioMuted(!audioMuted);
+                if (remoteVideoRef.current) {
+                  remoteVideoRef.current.muted = !audioMuted;
+                }
+                setShowUnmuteOverlay(false);
+              }}
+              className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center transition-colors ${
+                !audioMuted 
+                  ? 'bg-muted text-foreground' 
+                  : 'bg-destructive/10 text-destructive'
+              }`}
+              title={audioMuted ? 'Tænd lyd' : 'Sluk lyd'}
+            >
+              {audioMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            </button>
+          )}
+          
           {/* Media controls */}
           <div className="space-y-2">
             <button
@@ -475,7 +597,7 @@ const RemoteSupport = () => {
               className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center transition-colors ${
                 webcamEnabled 
                   ? 'bg-muted text-foreground' 
-                  : 'bg-destructive/10 text-destructive'
+                  : 'bg-muted/50 text-muted-foreground'
               }`}
               title={webcamEnabled ? 'Sluk kamera' : 'Tænd kamera'}
             >
