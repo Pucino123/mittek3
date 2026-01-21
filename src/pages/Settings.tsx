@@ -130,6 +130,9 @@ const Settings = () => {
       
       if (error) throw error;
       
+      // Mark that user has interacted with device settings (for onboarding tracker)
+      localStorage.setItem('device-settings-interacted', 'true');
+      
       // Refetch profile to update all components immediately
       await refetchProfile();
       
