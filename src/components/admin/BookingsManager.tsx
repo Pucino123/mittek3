@@ -150,10 +150,25 @@ export function BookingsManager() {
         .eq('id', cancelBookingTarget.id);
 
       if (error) throw error;
+
+      // Send cancellation email via edge function
+      try {
+        await supabase.functions.invoke('send-booking-cancellation', {
+          body: {
+            bookingId: cancelBookingTarget.id,
+            cancellationReason: cancellationReason.trim(),
+          },
+        });
+        toast.success('Booking annulleret', {
+          description: 'Annulleringsmail sendt til brugeren.'
+        });
+      } catch (emailError) {
+        console.error('Error sending cancellation email:', emailError);
+        toast.success('Booking annulleret', {
+          description: 'Kunne ikke sende annulleringsmail, men brugeren vil se din besked på deres dashboard.'
+        });
+      }
       
-      toast.success('Booking annulleret', {
-        description: 'Brugeren vil se din besked på deres dashboard.'
-      });
       setCancelBookingTarget(null);
       setCancellationReason('');
       fetchBookings();
