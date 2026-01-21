@@ -20,7 +20,7 @@ import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useDashboardSettings } from '@/hooks/useDashboardSettings';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import { AddToolCard } from '@/components/dashboard/AddToolCard';
-import { AddToolModal } from '@/components/dashboard/AddToolModal';
+import { AppStoreToolModal } from '@/components/dashboard/AppStoreToolModal';
 import { DashboardOnboardingTip } from '@/components/dashboard/DashboardOnboardingTip';
 import { EditableCategoryTitle } from '@/components/dashboard/EditableCategoryTitle';
 import { DndContext, closestCorners, pointerWithin, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent, DragOverlay, useDroppable, MeasuringStrategy, AutoScrollActivator, type CollisionDetection } from '@dnd-kit/core';
@@ -1710,7 +1710,7 @@ const Dashboard = () => {
       </main>
 
       {/* Add Tool Modal */}
-      <AddToolModal open={showAddModal} onOpenChange={setShowAddModal} hiddenCards={hiddenCardDefinitions} onAddCard={handleAddCard} onResetAll={handleResetAll} onCreateCategory={handleCreateCategory} currentPlan={subscription?.plan_tier || 'basic'} />
+      <AppStoreToolModal open={showAddModal} onOpenChange={setShowAddModal} hiddenCards={hiddenCardDefinitions} onAddCard={handleAddCard} onResetAll={handleResetAll} onCreateCategory={handleCreateCategory} currentPlan={subscription?.plan_tier || 'basic'} />
 
       {/* Floating AI Chat Widget - Only show if subscription is active */}
       {isSubscriptionActive && <>
