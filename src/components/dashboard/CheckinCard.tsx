@@ -114,13 +114,11 @@ export function CheckinCard({
         Månedligt Tjek
       </h3>
       
-      {/* Dynamic description based on status */}
+      {/* Dynamic description based on status - all inline */}
       {hasRecentCheckin ? (
-        <div className="space-y-1">
-          <p className="text-muted-foreground text-[13px] sm:text-sm">
-            Om {daysUntilNext} {daysUntilNext === 1 ? 'dag' : 'dage'}
-          </p>
-          {/* Compact device icons */}
+        <div className="flex items-center gap-2 text-muted-foreground text-[13px] sm:text-sm flex-wrap">
+          <span>Om {daysUntilNext} {daysUntilNext === 1 ? 'dag' : 'dage'}</span>
+          {/* Compact device icons inline */}
           {checkedDevices.length > 0 && (
             <div className="flex items-center gap-1">
               {checkedDevices.slice(0, 3).map((device, index) => {
