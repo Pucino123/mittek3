@@ -106,6 +106,7 @@ interface GuideStep {
   image_url: string | null;
   video_url?: string | null;
   animated_gif_url?: string | null;
+  device_type?: string[];
 }
 
 interface Ticket {
@@ -153,6 +154,7 @@ const Admin = () => {
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
   const [uploadingVideoStepId, setUploadingVideoStepId] = useState<string | null>(null);
   const [uploadingGifStepId, setUploadingGifStepId] = useState<string | null>(null);
+  const [activeDeviceTab, setActiveDeviceTab] = useState<'all' | 'iphone' | 'ipad' | 'mac'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Support state
@@ -520,6 +522,7 @@ const Admin = () => {
     setEditingGuideSteps(guide);
     setIsStepsDialogOpen(true);
     setIsLoadingSteps(true);
+    setActiveDeviceTab('all'); // Reset to 'all' when opening
     
     try {
       const { data, error } = await supabase
@@ -1730,7 +1733,7 @@ const Admin = () => {
 
             {/* Guide Steps Dialog */}
             <Dialog open={isStepsDialogOpen} onOpenChange={setIsStepsDialogOpen}>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                   <DialogTitle>
                     Rediger Trin: {editingGuideSteps?.title}
@@ -1742,47 +1745,101 @@ const Admin = () => {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="space-y-6 pt-4">
-                    <p className="text-sm text-muted-foreground">
-                      Træk i håndtaget for at ændre rækkefølgen
+                  <div className="flex flex-col flex-1 min-h-0 space-y-4 pt-2">
+                    {/* Device Tab Bar */}
+                    <div className="bg-muted rounded-lg p-1 flex gap-1 shrink-0">
+                      {[
+                        { id: 'all', label: '📱 Alle', desc: 'Vis alle trin' },
+                        { id: 'iphone', label: '📱 iPhone', desc: 'Kun iPhone-trin' },
+                        { id: 'ipad', label: '📲 iPad', desc: 'Kun iPad-trin' },
+                        { id: 'mac', label: '💻 Mac', desc: 'Kun Mac-trin' },
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveDeviceTab(tab.id as 'all' | 'iphone' | 'ipad' | 'mac')}
+                          className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                            activeDeviceTab === tab.id
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                          }`}
+                          title={tab.desc}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground shrink-0">
+                      {activeDeviceTab === 'all' 
+                        ? 'Viser alle trin. Trin uden enhedstype vises for alle enheder.'
+                        : `Viser kun trin der gælder for ${activeDeviceTab.charAt(0).toUpperCase() + activeDeviceTab.slice(1)}.`
+                      }
                     </p>
                     
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <SortableContext
-                        items={guideSteps.map(s => s.id)}
-                        strategy={verticalListSortingStrategy}
+                    <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
                       >
-                        <div className="space-y-4">
-                          {guideSteps.map((step, index) => (
-                            <SortableGuideStep
-                              key={step.id}
-                              step={step}
-                              index={index}
-                              onUpdateStep={updateStep}
-                              onSaveStep={saveStep}
-                              onDeleteStep={deleteStep}
-                              onFileSelect={handleFileSelect}
-                              onRemoveImage={removeStepImage}
-                              onVideoUpload={uploadStepVideo}
-                              onRemoveVideo={removeStepVideo}
-                              onGifUpload={uploadStepGif}
-                              onRemoveGif={removeStepGif}
-                              uploadingStepId={uploadingStepId}
-                              uploadingVideoStepId={uploadingVideoStepId}
-                              uploadingGifStepId={uploadingGifStepId}
-                            />
-                          ))}
-                        </div>
-                      </SortableContext>
-                    </DndContext>
+                        <SortableContext
+                          items={guideSteps.map(s => s.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="space-y-4">
+                            {guideSteps
+                              .filter(step => {
+                                if (activeDeviceTab === 'all') return true;
+                                const deviceTypes = step.device_type || [];
+                                // Show if no device_type set (universal) or includes the selected device
+                                return deviceTypes.length === 0 || 
+                                       deviceTypes.includes(activeDeviceTab) || 
+                                       deviceTypes.includes('universal');
+                              })
+                              .map((step, index) => (
+                                <SortableGuideStep
+                                  key={step.id}
+                                  step={step}
+                                  index={index}
+                                  onUpdateStep={updateStep}
+                                  onSaveStep={saveStep}
+                                  onDeleteStep={deleteStep}
+                                  onFileSelect={handleFileSelect}
+                                  onRemoveImage={removeStepImage}
+                                  onVideoUpload={uploadStepVideo}
+                                  onRemoveVideo={removeStepVideo}
+                                  onGifUpload={uploadStepGif}
+                                  onRemoveGif={removeStepGif}
+                                  uploadingStepId={uploadingStepId}
+                                  uploadingVideoStepId={uploadingVideoStepId}
+                                  uploadingGifStepId={uploadingGifStepId}
+                                />
+                              ))
+                            }
+                            {guideSteps.filter(step => {
+                              if (activeDeviceTab === 'all') return true;
+                              const deviceTypes = step.device_type || [];
+                              return deviceTypes.length === 0 || 
+                                     deviceTypes.includes(activeDeviceTab) || 
+                                     deviceTypes.includes('universal');
+                            }).length === 0 && (
+                              <div className="text-center py-8 border-2 border-dashed rounded-lg">
+                                <p className="text-muted-foreground mb-2">
+                                  Ingen trin for {activeDeviceTab === 'all' ? 'denne guide' : activeDeviceTab.charAt(0).toUpperCase() + activeDeviceTab.slice(1)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Tilføj et nyt trin nedenfor
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
+                    </div>
 
                     <Button
                       variant="outline"
-                      className="w-full"
+                      className="w-full shrink-0"
                       onClick={addStep}
                     >
                       <Plus className="mr-2 h-4 w-4" />

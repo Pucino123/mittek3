@@ -731,7 +731,7 @@ export function AppStoreToolModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-5xl max-h-[90vh] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
         <TooltipProvider delayDuration={300}>
           <DndContext
             sensors={sensors}
@@ -742,7 +742,8 @@ export function AppStoreToolModal({
           >
             <div className="flex h-full">
               {/* Sidebar - Categories + Dashboard Layout */}
-              <div className="w-52 md:w-60 border-r border-border bg-muted/30 flex flex-col">
+              <div className="w-52 md:w-60 border-r border-border bg-muted/30 flex flex-col overflow-hidden">
+                <ScrollArea className="flex-1">
                 {/* Header */}
                 <div className="p-3 border-b border-border">
                   <h2 className="font-bold text-base flex items-center gap-2">
@@ -801,8 +802,10 @@ export function AppStoreToolModal({
                   </div>
                 )}
 
+                </ScrollArea>
+                
                 {/* Footer actions */}
-                <div className="p-2 border-t border-border space-y-1.5 mt-auto">
+                <div className="p-2 border-t border-border space-y-1.5 shrink-0">
                   {/* Undo Button */}
                   <Button
                     variant="outline"
