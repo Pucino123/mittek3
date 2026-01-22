@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { GripVertical, Trash2, Upload, X, Loader2, Video, Image as ImageIcon } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { GripVertical, Trash2, Upload, X, Loader2, Video, Image as ImageIcon, Smartphone, Tablet, Laptop, Globe } from 'lucide-react';
 import { ScreenshotHelpModal } from '@/components/ui/ScreenshotHelpModal';
 import { useState } from 'react';
 
@@ -17,6 +18,7 @@ interface GuideStep {
   image_url: string | null;
   video_url?: string | null;
   animated_gif_url?: string | null;
+  device_type?: string[];
 }
 
 interface SortableGuideStepProps {
@@ -31,6 +33,7 @@ interface SortableGuideStepProps {
   onRemoveVideo?: (stepId: string) => void;
   onGifUpload?: (stepId: string, file: File) => void;
   onRemoveGif?: (stepId: string) => void;
+  onUpdateDeviceType?: (stepId: string, deviceType: string[]) => void;
   uploadingStepId: string | null;
   uploadingVideoStepId?: string | null;
   uploadingGifStepId?: string | null;
@@ -48,6 +51,7 @@ export function SortableGuideStep({
   onRemoveVideo,
   onGifUpload,
   onRemoveGif,
+  onUpdateDeviceType,
   uploadingStepId,
   uploadingVideoStepId,
   uploadingGifStepId,
@@ -97,6 +101,33 @@ export function SortableGuideStep({
     e.target.value = '';
   };
 
+  const handleDeviceTypeChange = (value: string) => {
+    if (!onUpdateDeviceType) return;
+    
+    let newDeviceTypes: string[];
+    if (value === 'all') {
+      newDeviceTypes = [];
+    } else {
+      newDeviceTypes = [value];
+    }
+    onUpdateDeviceType(step.id, newDeviceTypes);
+  };
+
+  const getCurrentDeviceValue = () => {
+    const deviceTypes = step.device_type || [];
+    if (deviceTypes.length === 0) return 'all';
+    return deviceTypes[0];
+  };
+
+  const getDeviceIcon = (device: string) => {
+    switch (device) {
+      case 'iphone': return <Smartphone className="h-4 w-4" />;
+      case 'ipad': return <Tablet className="h-4 w-4" />;
+      case 'mac': return <Laptop className="h-4 w-4" />;
+      default: return <Globe className="h-4 w-4" />;
+    }
+  };
+
   const hasVideo = !!step.video_url;
   const hasImage = !!step.image_url;
   const hasGif = !!step.animated_gif_url;
@@ -136,6 +167,48 @@ export function SortableGuideStep({
         >
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
+      </div>
+
+      {/* Device Type Selector */}
+      <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-border/50">
+        <Label className="text-sm font-medium flex items-center gap-2">
+          {getDeviceIcon(getCurrentDeviceValue())}
+          Enhedstype
+        </Label>
+        <Select value={getCurrentDeviceValue()} onValueChange={handleDeviceTypeChange}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Vælg enhed" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Alle enheder
+              </div>
+            </SelectItem>
+            <SelectItem value="iphone">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4" />
+                iPhone
+              </div>
+            </SelectItem>
+            <SelectItem value="ipad">
+              <div className="flex items-center gap-2">
+                <Tablet className="h-4 w-4" />
+                iPad
+              </div>
+            </SelectItem>
+            <SelectItem value="mac">
+              <div className="flex items-center gap-2">
+                <Laptop className="h-4 w-4" />
+                Mac
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Vælg hvilken enhed dette trin gælder for
+        </p>
       </div>
 
       <div className="space-y-2">
