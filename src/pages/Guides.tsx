@@ -25,8 +25,12 @@ import {
   Cloud,
   MessageSquare,
   AppWindow,
-  Sparkles
+  Sparkles,
+  Smartphone,
+  Tablet,
+  Monitor
 } from 'lucide-react';
+import { DeviceBadges } from '@/components/guides/DeviceBadges';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { trackGuideView } from '@/utils/analytics';
@@ -847,6 +851,9 @@ const Guides = () => {
                                   </div>
                                 )}
                                 
+                                {/* Device badges - bottom left */}
+                                <DeviceBadges steps={guide.steps} className="absolute bottom-2 left-2 z-10" />
+                                
                                 {/* Spine effect */}
                                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20" />
                               </div>
@@ -927,6 +934,9 @@ const Guides = () => {
                                     </div>
                                   </div>
                                 )}
+                                
+                                {/* Device badges - bottom left */}
+                                <DeviceBadges steps={guide.steps} className="absolute bottom-2 left-2 z-10" />
                                 
                                 {/* Read badge - always show on top */}
                                 {isRead && (
@@ -1010,6 +1020,9 @@ const Guides = () => {
                             </div>
                           </div>
                         )}
+                        
+                        {/* Device badges - bottom left */}
+                        <DeviceBadges steps={guide.steps} className="absolute bottom-2 left-2 z-10" />
                         
                         {/* Read badge */}
                         {isRead && (
