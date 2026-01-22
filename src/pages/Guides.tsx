@@ -30,6 +30,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { trackGuideView } from '@/utils/analytics';
+import { getCoverImage } from '@/assets/covers';
 
 interface GuideStep {
   id: string;
@@ -778,12 +779,12 @@ const Guides = () => {
                               className="group text-left"
                             >
                               {/* Book Cover */}
-                              <div className={`aspect-[2/3] rounded-xl ${guide.cover_image_url ? '' : 'bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5'} border-2 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
+                              <div className={`aspect-[2/3] rounded-xl ${(guide.cover_image_url || getCoverImage(guide.category)) ? '' : 'bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5'} border-2 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
                                 {/* Cover Image or Fallback */}
-                                {guide.cover_image_url ? (
+                                {(guide.cover_image_url || getCoverImage(guide.category)) ? (
                                   <>
                                     <img 
-                                      src={guide.cover_image_url} 
+                                      src={guide.cover_image_url || getCoverImage(guide.category) || ''} 
                                       alt={guide.title}
                                       className="w-full h-full object-cover"
                                     />
@@ -862,11 +863,11 @@ const Guides = () => {
                               className="group text-left"
                             >
                               {/* Book Cover */}
-                              <div className={`aspect-[2/3] rounded-xl ${guide.cover_image_url ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
+                              <div className={`aspect-[2/3] rounded-xl ${(guide.cover_image_url || getCoverImage(guide.category)) ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
                                 {/* Cover Image or Fallback */}
-                                {guide.cover_image_url ? (
+                                {(guide.cover_image_url || getCoverImage(guide.category)) ? (
                                   <img 
-                                    src={guide.cover_image_url} 
+                                    src={guide.cover_image_url || getCoverImage(guide.category) || ''} 
                                     alt={guide.title}
                                     className="w-full h-full object-cover"
                                   />
@@ -948,11 +949,11 @@ const Guides = () => {
                       className="group text-left"
                     >
                       {/* Book Cover */}
-                      <div className={`aspect-[2/3] rounded-xl ${guide.cover_image_url ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
+                      <div className={`aspect-[2/3] rounded-xl ${(guide.cover_image_url || getCoverImage(guide.category)) ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
                         {/* Cover Image or Fallback */}
-                        {guide.cover_image_url ? (
+                        {(guide.cover_image_url || getCoverImage(guide.category)) ? (
                           <img 
-                            src={guide.cover_image_url} 
+                            src={guide.cover_image_url || getCoverImage(guide.category) || ''} 
                             alt={guide.title}
                             className="w-full h-full object-cover"
                           />
