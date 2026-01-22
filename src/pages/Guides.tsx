@@ -88,6 +88,7 @@ const Guides = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [isMarkingRead, setIsMarkingRead] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<GuideCategory>('alle');
+  const [selectedDeviceFilter, setSelectedDeviceFilter] = useState<'alle' | 'iphone' | 'ipad' | 'mac'>('alle');
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedStep, setHighlightedStep] = useState<number | null>(null);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -677,10 +678,36 @@ const Guides = () => {
           </div>
 
           {/* Category Filter - with clear labels */}
-          <div className="mb-8 sticky top-0 z-10 bg-background py-3 -mx-4 px-4">
+          <div className="mb-4 sticky top-0 z-10 bg-background py-3 -mx-4 px-4">
             <p className="text-sm font-medium text-muted-foreground mb-3">Filtrer efter emne:</p>
             <div className="overflow-x-auto">
               <CategoryFilter value={selectedCategory} onChange={setSelectedCategory} />
+            </div>
+          </div>
+
+          {/* Device Filter */}
+          <div className="mb-8">
+            <p className="text-sm font-medium text-muted-foreground mb-3">Filtrer efter enhed:</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'alle', label: 'Alle enheder', icon: '📱' },
+                { value: 'iphone', label: 'iPhone', icon: '📱' },
+                { value: 'ipad', label: 'iPad', icon: '📲' },
+                { value: 'mac', label: 'Mac', icon: '💻' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setSelectedDeviceFilter(option.value as 'alle' | 'iphone' | 'ipad' | 'mac')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all min-h-[44px] ${
+                    selectedDeviceFilter === option.value
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  <span className="mr-1.5">{option.icon}</span>
+                  {option.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -688,7 +715,7 @@ const Guides = () => {
             const allGuides: Guide[] = guides;
             const recommendedGuides = getRecommendedGuides(allGuides);
 
-            // Filter guides by category and search
+            // Filter guides by category, device, and search
             const filteredGuides = allGuides.filter(guide => {
               const guideCategory = guide.category || 'hverdag';
               
@@ -696,7 +723,17 @@ const Guides = () => {
               const matchesSearch = searchQuery === '' || 
                 guide.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (guide.description && guide.description.toLowerCase().includes(searchQuery.toLowerCase()));
-              return matchesCategory && matchesSearch;
+              
+              // Check if guide has steps for the selected device
+              const matchesDevice = selectedDeviceFilter === 'alle' || guide.steps.some(step => {
+                const deviceTypes = step.device_type as string[] | undefined;
+                if (!deviceTypes || deviceTypes.length === 0) {
+                  return true; // Universal step
+                }
+                return deviceTypes.includes(selectedDeviceFilter) || deviceTypes.includes('universal');
+              });
+              
+              return matchesCategory && matchesSearch && matchesDevice;
             });
 
             if (allGuides.length === 0) {
@@ -779,12 +816,12 @@ const Guides = () => {
                               className="group text-left"
                             >
                               {/* Book Cover */}
-                              <div className={`aspect-[2/3] rounded-xl ${(guide.cover_image_url || getCoverImage(guide.category)) ? '' : 'bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5'} border-2 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
+                              <div className={`aspect-[2/3] rounded-xl ${(guide.cover_image_url || getCoverImage(guide.slug, guide.category)) ? '' : 'bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5'} border-2 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
                                 {/* Cover Image or Fallback */}
-                                {(guide.cover_image_url || getCoverImage(guide.category)) ? (
+                                {(guide.cover_image_url || getCoverImage(guide.slug, guide.category)) ? (
                                   <>
                                     <img 
-                                      src={guide.cover_image_url || getCoverImage(guide.category) || ''} 
+                                      src={guide.cover_image_url || getCoverImage(guide.slug, guide.category) || ''} 
                                       alt={guide.title}
                                       className="w-full h-full object-cover"
                                     />
@@ -863,11 +900,11 @@ const Guides = () => {
                               className="group text-left"
                             >
                               {/* Book Cover */}
-                              <div className={`aspect-[2/3] rounded-xl ${(guide.cover_image_url || getCoverImage(guide.category)) ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
+                              <div className={`aspect-[2/3] rounded-xl ${(guide.cover_image_url || getCoverImage(guide.slug, guide.category)) ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
                                 {/* Cover Image or Fallback */}
-                                {(guide.cover_image_url || getCoverImage(guide.category)) ? (
+                                {(guide.cover_image_url || getCoverImage(guide.slug, guide.category)) ? (
                                   <img 
-                                    src={guide.cover_image_url || getCoverImage(guide.category) || ''} 
+                                    src={guide.cover_image_url || getCoverImage(guide.slug, guide.category) || ''} 
                                     alt={guide.title}
                                     className="w-full h-full object-cover"
                                   />
@@ -949,11 +986,11 @@ const Guides = () => {
                       className="group text-left"
                     >
                       {/* Book Cover */}
-                      <div className={`aspect-[2/3] rounded-xl ${(guide.cover_image_url || getCoverImage(guide.category)) ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
+                      <div className={`aspect-[2/3] rounded-xl ${(guide.cover_image_url || getCoverImage(guide.slug, guide.category)) ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
                         {/* Cover Image or Fallback */}
-                        {(guide.cover_image_url || getCoverImage(guide.category)) ? (
+                        {(guide.cover_image_url || getCoverImage(guide.slug, guide.category)) ? (
                           <img 
-                            src={guide.cover_image_url || getCoverImage(guide.category) || ''} 
+                            src={guide.cover_image_url || getCoverImage(guide.slug, guide.category) || ''} 
                             alt={guide.title}
                             className="w-full h-full object-cover"
                           />
