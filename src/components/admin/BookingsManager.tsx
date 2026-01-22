@@ -431,7 +431,7 @@ export function BookingsManager() {
                             className="animate-pulse"
                           >
                             <Monitor className="mr-2 h-4 w-4" />
-                            {booking.status === 'waiting_for_technician' ? 'Start Remote Control' : 'Åbn session'}
+                            {booking.status === 'waiting_for_technician' ? 'Start fjernsupport' : 'Åbn session'}
                           </Button>
                         )}
                         {/* Confirmed bookings can also start directly */}
@@ -442,7 +442,7 @@ export function BookingsManager() {
                             onClick={() => openRemoteSession(booking.id)}
                           >
                             <Monitor className="mr-2 h-4 w-4" />
-                            Start Remote Control
+                            Start fjernsupport
                           </Button>
                         )}
                         {/* Cancel button for confirmed bookings */}

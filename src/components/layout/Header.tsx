@@ -8,6 +8,7 @@ import { IOSSwitch } from '@/components/ui/ios-switch';
 import { Label } from '@/components/ui/label';
 import { BackButton } from './BackButton';
 import { useNotificationCount } from '@/hooks/useNotificationCount';
+import { useWaitingBookings } from '@/hooks/useWaitingBookings';
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -15,6 +16,7 @@ export function Header() {
   const { user, isAdmin, signOut } = useAuth();
   const location = useLocation();
   const { count: notificationCount } = useNotificationCount();
+  const { waitingCount } = useWaitingBookings();
 
   // Show back button on sub-pages (not on landing or dashboard)
   const isSubPage = user && location.pathname !== '/dashboard' && location.pathname !== '/';
@@ -43,9 +45,14 @@ export function Header() {
               {/* Admin shortcut - only for admins */}
               {isAdmin && (
                 <Link to="/admin">
-                  <Button variant="outline" size="default" className="border-info/40 text-info hover:bg-info/10">
+                  <Button variant="outline" size="default" className="border-info/40 text-info hover:bg-info/10 relative">
                     <ShieldCheck className="mr-2 h-4 w-4" />
                     Admin
+                    {waitingCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+                        {waitingCount > 9 ? '9+' : waitingCount}
+                      </span>
+                    )}
                   </Button>
                 </Link>
               )}
@@ -113,9 +120,14 @@ export function Header() {
                 {/* Admin shortcut - mobile - only for admins */}
                 {isAdmin && (
                   <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block">
-                    <Button variant="outline" size="lg" className="w-full min-h-[52px] border-info/40 text-info hover:bg-info/10">
+                    <Button variant="outline" size="lg" className="w-full min-h-[52px] border-info/40 text-info hover:bg-info/10 relative">
                       <ShieldCheck className="mr-2 h-5 w-5" />
                       Admin Panel
+                      {waitingCount > 0 && (
+                        <span className="absolute top-2 right-4 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+                          {waitingCount > 9 ? '9+' : waitingCount}
+                        </span>
+                      )}
                     </Button>
                   </Link>
                 )}
