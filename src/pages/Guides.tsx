@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useSearchParams, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DeviceSelector, DeviceType } from '@/components/ui/DeviceSelector';
-import { CategoryFilter, GuideCategory } from '@/components/guides/CategoryFilter';
+import { GuideCategory } from '@/components/guides/CategoryFilter';
 import { GuideStepCard } from '@/components/guides/GuideStepCard';
 import { useUserAchievements } from '@/hooks/useUserAchievements';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,14 +22,16 @@ import {
   PartyPopper,
   Search,
   Shield,
-  Battery,
+  Battery as BatteryIcon,
   Cloud,
   MessageSquare,
   AppWindow,
   Sparkles,
   Smartphone,
   Tablet,
-  Monitor
+  Monitor,
+  LayoutGrid,
+  Home
 } from 'lucide-react';
 import { DeviceBadges } from '@/components/guides/DeviceBadges';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,7 +70,7 @@ const getGuideIcon = (category: string | undefined) => {
   switch (category) {
     case 'hverdag': return RefreshCw;
     case 'sikkerhed': return Shield;
-    case 'batteri': return Battery;
+    case 'batteri': return BatteryIcon;
     case 'icloud': return Cloud;
     case 'beskeder': return MessageSquare;
     case 'apps': return AppWindow;
@@ -681,37 +684,70 @@ const Guides = () => {
             />
           </div>
 
-          {/* Category Filter - with clear labels */}
-          <div className="mb-4 sticky top-0 z-10 bg-background py-3 -mx-4 px-4">
-            <p className="text-sm font-medium text-muted-foreground mb-3">Filtrer efter emne:</p>
-            <div className="overflow-x-auto">
-              <CategoryFilter value={selectedCategory} onChange={setSelectedCategory} />
+          {/* Combined Filters Row */}
+          <div className="mb-8 flex flex-wrap items-end gap-4">
+            {/* Device Filter */}
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground mb-3">Filtrer efter enhed:</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: 'alle', label: 'Alle enheder', icon: '📱' },
+                  { value: 'iphone', label: 'iPhone', icon: '📱' },
+                  { value: 'ipad', label: 'iPad', icon: '📲' },
+                  { value: 'mac', label: 'Mac', icon: '💻' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setSelectedDeviceFilter(option.value as 'alle' | 'iphone' | 'ipad' | 'mac')}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all min-h-[44px] ${
+                      selectedDeviceFilter === option.value
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <span className="mr-1.5">{option.icon}</span>
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* Device Filter */}
-          <div className="mb-8">
-            <p className="text-sm font-medium text-muted-foreground mb-3">Filtrer efter enhed:</p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { value: 'alle', label: 'Alle enheder', icon: '📱' },
-                { value: 'iphone', label: 'iPhone', icon: '📱' },
-                { value: 'ipad', label: 'iPad', icon: '📲' },
-                { value: 'mac', label: 'Mac', icon: '💻' },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setSelectedDeviceFilter(option.value as 'alle' | 'iphone' | 'ipad' | 'mac')}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all min-h-[44px] ${
-                    selectedDeviceFilter === option.value
-                      ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  <span className="mr-1.5">{option.icon}</span>
-                  {option.label}
-                </button>
-              ))}
+            
+            {/* Category Dropdown */}
+            <div className="flex-shrink-0">
+              <p className="text-sm font-medium text-muted-foreground mb-3">Filtrer efter emne:</p>
+              <Select 
+                value={selectedCategory} 
+                onValueChange={(value: GuideCategory) => setSelectedCategory(value)}
+              >
+                <SelectTrigger className="w-[180px] min-h-[44px] rounded-xl border-2 bg-card">
+                  <SelectValue placeholder="Vælg emne" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-2 rounded-xl z-50">
+                  {[
+                    { id: 'alle', label: 'Alle emner', icon: LayoutGrid },
+                    { id: 'sikkerhed', label: 'Sikkerhed', icon: Shield },
+                    { id: 'hverdag', label: 'Hverdag', icon: Home },
+                    { id: 'batteri', label: 'Batteri', icon: BatteryIcon },
+                    { id: 'icloud', label: 'iCloud', icon: Cloud },
+                    { id: 'beskeder', label: 'Beskeder', icon: MessageSquare },
+                    { id: 'apps', label: 'Apps', icon: AppWindow },
+                  ].map((category) => {
+                    const IconComponent = category.icon;
+                    return (
+                      <SelectItem 
+                        key={category.id} 
+                        value={category.id}
+                        className="min-h-[44px] cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <IconComponent className="h-4 w-4" />
+                          {category.label}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
