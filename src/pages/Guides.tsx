@@ -679,7 +679,7 @@ const Guides = () => {
             </div>
           </div>
 
-          {(() => {
+            {(() => {
             const allGuides: Guide[] = guides;
             const recommendedGuides = getRecommendedGuides(allGuides);
 
@@ -728,12 +728,12 @@ const Guides = () => {
               );
             }
 
-            // If showing all categories, group by category
+            // If showing all categories, group by category - Use Apple Books grid layout
             if (selectedCategory === 'alle' && searchQuery === '') {
               const groupedGuides = groupGuidesByCategory(filteredGuides);
               
               return (
-                <div className="space-y-8">
+                <div className="space-y-10">
                   {/* Recommended Section - Only show if user has devices configured */}
                   {recommendedGuides.length > 0 && (
                     <section className="mb-2">
@@ -758,7 +758,8 @@ const Guides = () => {
                         }).join(', ')}
                       </p>
                       
-                      <div className="space-y-3">
+                      {/* Apple Books style grid for recommended */}
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {recommendedGuides.map((guide) => {
                           const IconComponent = getGuideIcon(guide.category);
                           
@@ -770,30 +771,37 @@ const Guides = () => {
                                 setCurrentStep(0);
                                 trackGuideView(guide.id, guide.title);
                               }}
-                              className="w-full text-left rounded-2xl border-2 border-primary/30 bg-primary/5 transition-all p-5 flex items-center gap-4 hover:border-primary hover:shadow-md"
+                              className="group text-left"
                             >
-                              <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/15">
-                                <IconComponent className="h-7 w-7 text-primary" />
+                              {/* Book Cover */}
+                              <div className="aspect-[2/3] rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 border-2 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+                                {/* Decorative corner */}
+                                <div className="absolute top-0 right-0 w-12 h-12 bg-primary/10 rounded-bl-full" />
+                                
+                                <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-4">
+                                  <IconComponent className="h-8 w-8 text-primary" />
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-xs text-primary/70 font-medium mb-1">Anbefalet</p>
+                                  <h4 className="text-sm font-semibold text-foreground line-clamp-2 leading-tight">
+                                    {guide.title}
+                                  </h4>
+                                </div>
+                                
+                                {/* Spine effect */}
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20" />
                               </div>
-                              
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-base md:text-lg mb-1 leading-tight">
-                                  {guide.title}
-                                </h3>
-                                {guide.description && (
-                                  <p className="text-sm text-muted-foreground line-clamp-2">
-                                    {guide.description}
-                                  </p>
-                                )}
-                              </div>
-                              
-                              <ChevronRight className="h-6 w-6 text-primary flex-shrink-0" />
+                              {/* Title below */}
+                              <p className="mt-2 text-xs font-medium text-muted-foreground line-clamp-2 text-center">
+                                {guide.title}
+                              </p>
                             </button>
                           );
                         })}
                       </div>
                     </section>
                   )}
+                  
                   {groupedGuides.map(group => (
                     <section key={group.category}>
                       {/* Category Header */}
@@ -804,11 +812,23 @@ const Guides = () => {
                         </span>
                       </h2>
                       
-                      {/* Guides in this category */}
-                      <div className="space-y-3">
+                      {/* Apple Books style grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {group.guides.map((guide) => {
                           const IconComponent = getGuideIcon(guide.category);
                           const isRead = isGuideRead(guide.id);
+                          
+                          // Generate cover gradient based on category
+                          const getCoverGradient = (category: string | undefined) => {
+                            switch (category) {
+                              case 'sikkerhed': return 'from-blue-500/20 via-blue-400/10 to-blue-300/5';
+                              case 'batteri': return 'from-green-500/20 via-green-400/10 to-green-300/5';
+                              case 'icloud': return 'from-purple-500/20 via-purple-400/10 to-purple-300/5';
+                              case 'beskeder': return 'from-orange-500/20 via-orange-400/10 to-orange-300/5';
+                              case 'apps': return 'from-pink-500/20 via-pink-400/10 to-pink-300/5';
+                              default: return 'from-primary/20 via-primary/10 to-primary/5';
+                            }
+                          };
                           
                           return (
                             <button
@@ -818,42 +838,40 @@ const Guides = () => {
                                 setCurrentStep(0);
                                 trackGuideView(guide.id, guide.title);
                               }}
-                              className={`w-full text-left rounded-2xl border-2 transition-all p-5 flex items-center gap-4 ${
-                                isRead 
-                                  ? 'bg-success/5 border-success/30 hover:border-success/50' 
-                                  : 'bg-card border-border hover:border-primary/50 hover:shadow-md'
-                              }`}
+                              className="group text-left"
                             >
-                              {/* Icon */}
-                              <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                                isRead ? 'bg-success/15' : 'bg-primary/10'
-                              }`}>
-                                {isRead ? (
-                                  <CheckCircle2 className="h-7 w-7 text-success" />
-                                ) : (
-                                  <IconComponent className="h-7 w-7 text-primary" />
-                                )}
-                              </div>
-                              
-                              {/* Text */}
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-base md:text-lg mb-1 leading-tight">
-                                  {guide.title}
-                                </h3>
-                                {guide.description && (
-                                  <p className="text-sm text-muted-foreground line-clamp-2">
-                                    {guide.description}
-                                  </p>
-                                )}
+                              {/* Book Cover */}
+                              <div className={`aspect-[2/3] rounded-xl bg-gradient-to-br ${getCoverGradient(guide.category)} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 flex flex-col items-center justify-center p-4 relative overflow-hidden`}>
+                                {/* Read badge */}
                                 {isRead && (
-                                  <p className="text-xs text-success font-medium mt-1">
-                                    ✓ Du har læst denne
-                                  </p>
+                                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-success flex items-center justify-center">
+                                    <CheckCircle2 className="h-4 w-4 text-white" />
+                                  </div>
                                 )}
+                                
+                                {/* Decorative corner */}
+                                <div className={`absolute top-0 right-0 w-12 h-12 ${isRead ? 'bg-success/10' : 'bg-primary/10'} rounded-bl-full`} />
+                                
+                                <div className={`w-16 h-16 rounded-2xl ${isRead ? 'bg-success/15' : 'bg-primary/15'} flex items-center justify-center mb-4`}>
+                                  {isRead ? (
+                                    <CheckCircle2 className="h-8 w-8 text-success" />
+                                  ) : (
+                                    <IconComponent className="h-8 w-8 text-primary" />
+                                  )}
+                                </div>
+                                <div className="text-center px-1">
+                                  <h4 className="text-sm font-semibold text-foreground line-clamp-3 leading-tight">
+                                    {guide.title}
+                                  </h4>
+                                </div>
+                                
+                                {/* Spine effect */}
+                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${isRead ? 'bg-success/30' : 'bg-primary/20'}`} />
                               </div>
-                              
-                              {/* Arrow */}
-                              <ChevronRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                              {/* Title below */}
+                              <p className={`mt-2 text-xs font-medium line-clamp-2 text-center ${isRead ? 'text-success' : 'text-muted-foreground'}`}>
+                                {guide.title}
+                              </p>
                             </button>
                           );
                         })}
@@ -864,16 +882,28 @@ const Guides = () => {
               );
             }
 
-            // Flat list when filtering or searching
+            // Apple Books grid when filtering or searching
             return (
-              <div className="space-y-3">
+              <div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Viser {filteredGuides.length} {filteredGuides.length === 1 ? 'guide' : 'guides'}
                 </p>
                 
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filteredGuides.map((guide) => {
                   const IconComponent = getGuideIcon(guide.category);
                   const isRead = isGuideRead(guide.id);
+                  
+                  const getCoverGradient = (category: string | undefined) => {
+                    switch (category) {
+                      case 'sikkerhed': return 'from-blue-500/20 via-blue-400/10 to-blue-300/5';
+                      case 'batteri': return 'from-green-500/20 via-green-400/10 to-green-300/5';
+                      case 'icloud': return 'from-purple-500/20 via-purple-400/10 to-purple-300/5';
+                      case 'beskeder': return 'from-orange-500/20 via-orange-400/10 to-orange-300/5';
+                      case 'apps': return 'from-pink-500/20 via-pink-400/10 to-pink-300/5';
+                      default: return 'from-primary/20 via-primary/10 to-primary/5';
+                    }
+                  };
                   
                   return (
                     <button
@@ -883,45 +913,41 @@ const Guides = () => {
                         setCurrentStep(0);
                         trackGuideView(guide.id, guide.title);
                       }}
-                      className={`w-full text-left rounded-2xl border-2 transition-all p-5 flex items-center gap-4 ${
-                        isRead 
-                          ? 'bg-success/5 border-success/30 hover:border-success/50' 
-                          : 'bg-card border-border hover:border-primary/50 hover:shadow-md'
-                      }`}
+                      className="group text-left"
                     >
-                      {/* Icon */}
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        isRead ? 'bg-success/15' : 'bg-primary/10'
-                      }`}>
-                        {isRead ? (
-                          <CheckCircle2 className="h-7 w-7 text-success" />
-                        ) : (
-                          <IconComponent className="h-7 w-7 text-primary" />
-                        )}
-                      </div>
-                      
-                      {/* Text */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base md:text-lg mb-1 leading-tight">
-                          {guide.title}
-                        </h3>
-                        {guide.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {guide.description}
-                          </p>
-                        )}
+                      {/* Book Cover */}
+                      <div className={`aspect-[2/3] rounded-xl bg-gradient-to-br ${getCoverGradient(guide.category)} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 flex flex-col items-center justify-center p-4 relative overflow-hidden`}>
+                        {/* Read badge */}
                         {isRead && (
-                          <p className="text-xs text-success font-medium mt-1">
-                            ✓ Du har læst denne
-                          </p>
+                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-success flex items-center justify-center">
+                            <CheckCircle2 className="h-4 w-4 text-white" />
+                          </div>
                         )}
+                        
+                        <div className={`w-16 h-16 rounded-2xl ${isRead ? 'bg-success/15' : 'bg-primary/15'} flex items-center justify-center mb-4`}>
+                          {isRead ? (
+                            <CheckCircle2 className="h-8 w-8 text-success" />
+                          ) : (
+                            <IconComponent className="h-8 w-8 text-primary" />
+                          )}
+                        </div>
+                        <div className="text-center px-1">
+                          <h4 className="text-sm font-semibold text-foreground line-clamp-3 leading-tight">
+                            {guide.title}
+                          </h4>
+                        </div>
+                        
+                        {/* Spine effect */}
+                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${isRead ? 'bg-success/30' : 'bg-primary/20'}`} />
                       </div>
-                      
-                      {/* Arrow */}
-                      <ChevronRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                      {/* Title below */}
+                      <p className={`mt-2 text-xs font-medium line-clamp-2 text-center ${isRead ? 'text-success' : 'text-muted-foreground'}`}>
+                        {guide.title}
+                      </p>
                     </button>
                   );
                 })}
+                </div>
               </div>
             );
           })()}
