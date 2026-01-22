@@ -150,6 +150,14 @@ const RemoteSupport = () => {
     }
   }, [bookingId, isAdmin, startSession, joinSession, initializePeer]);
 
+  // Auto-start for admin when landing on page
+  useEffect(() => {
+    if (isAdmin && bookingId && session.status === 'idle') {
+      // Auto-trigger session start when admin lands on page
+      handleStartSession();
+    }
+  }, [isAdmin, bookingId, session.status, handleStartSession]);
+
   // When admin starts session, user should auto-connect
   useEffect(() => {
     // If we're in waiting_for_technician and session becomes connected (admin started), init our peer

@@ -422,27 +422,31 @@ export function BookingsManager() {
                     <TableCell>{booking.price_dkk} DKK</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {booking.status === 'in_progress' && (
+                        {/* Prominent button for active sessions */}
+                        {(booking.status === 'in_progress' || booking.status === 'waiting_for_technician') && (
+                          <Button 
+                            size="sm" 
+                            variant="hero"
+                            onClick={() => openRemoteSession(booking.id)}
+                            className="animate-pulse"
+                          >
+                            <Monitor className="mr-2 h-4 w-4" />
+                            {booking.status === 'waiting_for_technician' ? 'Start Remote Control' : 'Åbn session'}
+                          </Button>
+                        )}
+                        {/* Confirmed bookings can also start directly */}
+                        {booking.status === 'confirmed' && (
                           <Button 
                             size="sm" 
                             variant="hero"
                             onClick={() => openRemoteSession(booking.id)}
                           >
-                            <Video className="mr-2 h-4 w-4" />
-                            Åbn session
+                            <Monitor className="mr-2 h-4 w-4" />
+                            Start Remote Control
                           </Button>
                         )}
-                        {booking.status === 'confirmed' && isSessionTime(booking) && (
-                          <Button 
-                            size="sm" 
-                            variant="hero"
-                            onClick={() => setSelectedBooking(booking)}
-                          >
-                            <Video className="mr-2 h-4 w-4" />
-                            Start
-                          </Button>
-                        )}
-                        {booking.status === 'confirmed' && !isSessionTime(booking) && (
+                        {/* Cancel button for confirmed bookings */}
+                        {booking.status === 'confirmed' && (
                           <Button 
                             size="sm"
                             variant="outline"
