@@ -54,6 +54,8 @@ interface Guide {
   supportsDevices?: boolean;
   titleByDevice?: Record<DeviceType, string>;
   stepsByDevice?: Record<DeviceType, GuideStep[]>;
+  cover_image_url?: string | null;
+  is_paginated?: boolean;
 }
 
 const getGuideIcon = (category: string | undefined) => {
@@ -231,6 +233,8 @@ const Guides = () => {
         title: guide.title,
         description: guide.description,
         category: (guide as any).category || 'hverdag',
+        cover_image_url: (guide as any).cover_image_url || null,
+        is_paginated: (guide as any).is_paginated || false,
         steps: (stepsData || [])
           .filter(step => step.guide_id === guide.id)
           .map(step => ({
@@ -774,19 +778,36 @@ const Guides = () => {
                               className="group text-left"
                             >
                               {/* Book Cover */}
-                              <div className="aspect-[2/3] rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 border-2 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-                                {/* Decorative corner */}
-                                <div className="absolute top-0 right-0 w-12 h-12 bg-primary/10 rounded-bl-full" />
-                                
-                                <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-4">
-                                  <IconComponent className="h-8 w-8 text-primary" />
-                                </div>
-                                <div className="text-center">
-                                  <p className="text-xs text-primary/70 font-medium mb-1">Anbefalet</p>
-                                  <h4 className="text-sm font-semibold text-foreground line-clamp-2 leading-tight">
-                                    {guide.title}
-                                  </h4>
-                                </div>
+                              <div className={`aspect-[2/3] rounded-xl ${guide.cover_image_url ? '' : 'bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5'} border-2 border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
+                                {/* Cover Image or Fallback */}
+                                {guide.cover_image_url ? (
+                                  <>
+                                    <img 
+                                      src={guide.cover_image_url} 
+                                      alt={guide.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                    {/* Recommended badge overlay */}
+                                    <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded text-xs font-medium">
+                                      Anbefalet
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center h-full p-4">
+                                    {/* Decorative corner */}
+                                    <div className="absolute top-0 right-0 w-12 h-12 bg-primary/10 rounded-bl-full" />
+                                    
+                                    <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-4">
+                                      <IconComponent className="h-8 w-8 text-primary" />
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-xs text-primary/70 font-medium mb-1">Anbefalet</p>
+                                      <h4 className="text-sm font-semibold text-foreground line-clamp-2 leading-tight">
+                                        {guide.title}
+                                      </h4>
+                                    </div>
+                                  </div>
+                                )}
                                 
                                 {/* Spine effect */}
                                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/20" />
@@ -841,29 +862,40 @@ const Guides = () => {
                               className="group text-left"
                             >
                               {/* Book Cover */}
-                              <div className={`aspect-[2/3] rounded-xl bg-gradient-to-br ${getCoverGradient(guide.category)} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 flex flex-col items-center justify-center p-4 relative overflow-hidden`}>
-                                {/* Read badge */}
-                                {isRead && (
-                                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-success flex items-center justify-center">
-                                    <CheckCircle2 className="h-4 w-4 text-white" />
+                              <div className={`aspect-[2/3] rounded-xl ${guide.cover_image_url ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
+                                {/* Cover Image or Fallback */}
+                                {guide.cover_image_url ? (
+                                  <img 
+                                    src={guide.cover_image_url} 
+                                    alt={guide.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center h-full p-4">
+                                    {/* Decorative corner */}
+                                    <div className={`absolute top-0 right-0 w-12 h-12 ${isRead ? 'bg-success/10' : 'bg-primary/10'} rounded-bl-full`} />
+                                    
+                                    <div className={`w-16 h-16 rounded-2xl ${isRead ? 'bg-success/15' : 'bg-primary/15'} flex items-center justify-center mb-4`}>
+                                      {isRead ? (
+                                        <CheckCircle2 className="h-8 w-8 text-success" />
+                                      ) : (
+                                        <IconComponent className="h-8 w-8 text-primary" />
+                                      )}
+                                    </div>
+                                    <div className="text-center px-1">
+                                      <h4 className="text-sm font-semibold text-foreground line-clamp-3 leading-tight">
+                                        {guide.title}
+                                      </h4>
+                                    </div>
                                   </div>
                                 )}
                                 
-                                {/* Decorative corner */}
-                                <div className={`absolute top-0 right-0 w-12 h-12 ${isRead ? 'bg-success/10' : 'bg-primary/10'} rounded-bl-full`} />
-                                
-                                <div className={`w-16 h-16 rounded-2xl ${isRead ? 'bg-success/15' : 'bg-primary/15'} flex items-center justify-center mb-4`}>
-                                  {isRead ? (
-                                    <CheckCircle2 className="h-8 w-8 text-success" />
-                                  ) : (
-                                    <IconComponent className="h-8 w-8 text-primary" />
-                                  )}
-                                </div>
-                                <div className="text-center px-1">
-                                  <h4 className="text-sm font-semibold text-foreground line-clamp-3 leading-tight">
-                                    {guide.title}
-                                  </h4>
-                                </div>
+                                {/* Read badge - always show on top */}
+                                {isRead && (
+                                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-success flex items-center justify-center z-10">
+                                    <CheckCircle2 className="h-4 w-4 text-white" />
+                                  </div>
+                                )}
                                 
                                 {/* Spine effect */}
                                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${isRead ? 'bg-success/30' : 'bg-primary/20'}`} />
@@ -916,26 +948,37 @@ const Guides = () => {
                       className="group text-left"
                     >
                       {/* Book Cover */}
-                      <div className={`aspect-[2/3] rounded-xl bg-gradient-to-br ${getCoverGradient(guide.category)} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 flex flex-col items-center justify-center p-4 relative overflow-hidden`}>
-                        {/* Read badge */}
-                        {isRead && (
-                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-success flex items-center justify-center">
-                            <CheckCircle2 className="h-4 w-4 text-white" />
+                      <div className={`aspect-[2/3] rounded-xl ${guide.cover_image_url ? '' : `bg-gradient-to-br ${getCoverGradient(guide.category)}`} border-2 ${isRead ? 'border-success/40' : 'border-border'} shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] group-hover:border-primary/50 relative overflow-hidden`}>
+                        {/* Cover Image or Fallback */}
+                        {guide.cover_image_url ? (
+                          <img 
+                            src={guide.cover_image_url} 
+                            alt={guide.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full p-4">
+                            <div className={`w-16 h-16 rounded-2xl ${isRead ? 'bg-success/15' : 'bg-primary/15'} flex items-center justify-center mb-4`}>
+                              {isRead ? (
+                                <CheckCircle2 className="h-8 w-8 text-success" />
+                              ) : (
+                                <IconComponent className="h-8 w-8 text-primary" />
+                              )}
+                            </div>
+                            <div className="text-center px-1">
+                              <h4 className="text-sm font-semibold text-foreground line-clamp-3 leading-tight">
+                                {guide.title}
+                              </h4>
+                            </div>
                           </div>
                         )}
                         
-                        <div className={`w-16 h-16 rounded-2xl ${isRead ? 'bg-success/15' : 'bg-primary/15'} flex items-center justify-center mb-4`}>
-                          {isRead ? (
-                            <CheckCircle2 className="h-8 w-8 text-success" />
-                          ) : (
-                            <IconComponent className="h-8 w-8 text-primary" />
-                          )}
-                        </div>
-                        <div className="text-center px-1">
-                          <h4 className="text-sm font-semibold text-foreground line-clamp-3 leading-tight">
-                            {guide.title}
-                          </h4>
-                        </div>
+                        {/* Read badge */}
+                        {isRead && (
+                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-success flex items-center justify-center z-10">
+                            <CheckCircle2 className="h-4 w-4 text-white" />
+                          </div>
+                        )}
                         
                         {/* Spine effect */}
                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${isRead ? 'bg-success/30' : 'bg-primary/20'}`} />

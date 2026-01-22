@@ -329,10 +329,12 @@ export type Database = {
       guides: {
         Row: {
           category: string | null
+          cover_image_url: string | null
           created_at: string
           description: string | null
           icon: string | null
           id: string
+          is_paginated: boolean | null
           is_published: boolean | null
           min_plan: Database["public"]["Enums"]["plan_tier"] | null
           slug: string | null
@@ -342,10 +344,12 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          cover_image_url?: string | null
           created_at?: string
           description?: string | null
           icon?: string | null
           id?: string
+          is_paginated?: boolean | null
           is_published?: boolean | null
           min_plan?: Database["public"]["Enums"]["plan_tier"] | null
           slug?: string | null
@@ -355,10 +359,12 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          cover_image_url?: string | null
           created_at?: string
           description?: string | null
           icon?: string | null
           id?: string
+          is_paginated?: boolean | null
           is_published?: boolean | null
           min_plan?: Database["public"]["Enums"]["plan_tier"] | null
           slug?: string | null

@@ -68,6 +68,8 @@ interface Guide {
   is_published: boolean;
   min_plan: string;
   sort_order: number;
+  cover_image_url?: string | null;
+  is_paginated?: boolean;
 }
 
 const GUIDE_CATEGORIES = [
@@ -143,6 +145,8 @@ const Admin = () => {
   const [guideDescription, setGuideDescription] = useState('');
   const [guideCategory, setGuideCategory] = useState('');
   const [guideIcon, setGuideIcon] = useState('');
+  const [guideCoverImageUrl, setGuideCoverImageUrl] = useState('');
+  const [guideIsPaginated, setGuideIsPaginated] = useState(false);
   const [isGuideDialogOpen, setIsGuideDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -426,12 +430,16 @@ const Admin = () => {
       setGuideDescription(guide.description || '');
       setGuideCategory(guide.category || '');
       setGuideIcon(guide.icon || '');
+      setGuideCoverImageUrl(guide.cover_image_url || '');
+      setGuideIsPaginated(guide.is_paginated || false);
     } else {
       setEditingGuide(null);
       setGuideTitle('');
       setGuideDescription('');
       setGuideCategory('');
       setGuideIcon('');
+      setGuideCoverImageUrl('');
+      setGuideIsPaginated(false);
     }
     setIsGuideDialogOpen(true);
   };
@@ -452,6 +460,8 @@ const Admin = () => {
             description: guideDescription,
             category: guideCategory || null,
             icon: guideIcon || null,
+            cover_image_url: guideCoverImageUrl || null,
+            is_paginated: guideIsPaginated,
           })
           .eq('id', editingGuide.id);
 
@@ -465,6 +475,8 @@ const Admin = () => {
             description: guideDescription,
             category: guideCategory || null,
             icon: guideIcon || null,
+            cover_image_url: guideCoverImageUrl || null,
+            is_paginated: guideIsPaginated,
             is_published: false,
             min_plan: 'basic',
             sort_order: guides.length,
@@ -572,6 +584,26 @@ const Admin = () => {
     setGuideSteps(steps => 
       steps.map(s => s.id === stepId ? { ...s, [field]: value } : s)
     );
+  };
+
+  const updateStepDeviceType = async (stepId: string, deviceType: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('guide_steps')
+        .update({ device_type: deviceType })
+        .eq('id', stepId);
+
+      if (error) throw error;
+
+      setGuideSteps(steps => 
+        steps.map(s => s.id === stepId ? { ...s, device_type: deviceType } : s)
+      );
+      
+      toast.success('Enhedstype opdateret');
+    } catch (error) {
+      console.error('Update device type error:', error);
+      toast.error('Kunne ikke opdatere enhedstype');
+    }
   };
 
   const saveStep = async (step: GuideStep) => {
@@ -1653,6 +1685,44 @@ const Admin = () => {
                               </Select>
                             </div>
                           </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="coverImage">Cover Billede URL</Label>
+                            <Input
+                              id="coverImage"
+                              value={guideCoverImageUrl}
+                              onChange={(e) => setGuideCoverImageUrl(e.target.value)}
+                              placeholder="https://... (vises som bogomslag i oversigten)"
+                            />
+                            {guideCoverImageUrl && (
+                              <div className="mt-2 aspect-[2/3] w-24 rounded-lg border overflow-hidden bg-muted">
+                                <img 
+                                  src={guideCoverImageUrl} 
+                                  alt="Cover preview" 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
+                            <input
+                              type="checkbox"
+                              id="isPaginated"
+                              checked={guideIsPaginated}
+                              onChange={(e) => setGuideIsPaginated(e.target.checked)}
+                              className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <div className="flex-1">
+                              <Label htmlFor="isPaginated" className="font-medium cursor-pointer">
+                                Trin-for-trin visning
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Vis kun ét trin ad gangen med Forrige/Næste navigation
+                              </p>
+                            </div>
+                          </div>
                           <div className="flex gap-2 pt-4">
                             <Button
                               variant="outline"
@@ -1810,6 +1880,7 @@ const Admin = () => {
                                   onRemoveVideo={removeStepVideo}
                                   onGifUpload={uploadStepGif}
                                   onRemoveGif={removeStepGif}
+                                  onUpdateDeviceType={updateStepDeviceType}
                                   uploadingStepId={uploadingStepId}
                                   uploadingVideoStepId={uploadingVideoStepId}
                                   uploadingGifStepId={uploadingGifStepId}
