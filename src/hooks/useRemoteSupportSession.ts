@@ -17,7 +17,7 @@ interface SessionState {
   peerId: string | null;
   remotePeerId: string | null;
   startedAt: string | null;
-  status: 'idle' | 'waiting' | 'connecting' | 'connected' | 'ended';
+  status: 'idle' | 'waiting_for_technician' | 'waiting' | 'connecting' | 'connected' | 'ended';
 }
 
 export function useRemoteSupportSession(bookingId?: string) {
@@ -154,18 +154,24 @@ export function useRemoteSupportSession(bookingId?: string) {
     });
   }, [generatePeerId, subscribeToDrawingEvents]);
 
-  // Join a session (user side)
+  // Join a session (user side) - sets status to waiting_for_technician
   const joinSession = useCallback(async (bookingId: string) => {
     const peerId = generatePeerId();
     
-    // Subscribe to channel
+    // Update booking status to waiting_for_technician
+    await supabase
+      .from('support_bookings')
+      .update({ status: 'waiting_for_technician' })
+      .eq('id', bookingId);
+    
+    // Subscribe to channel for updates
     subscribeToDrawingEvents(bookingId);
 
     setSession(prev => ({
       ...prev,
       bookingId,
       peerId,
-      status: 'waiting',
+      status: 'waiting_for_technician',
     }));
   }, [generatePeerId, subscribeToDrawingEvents]);
 

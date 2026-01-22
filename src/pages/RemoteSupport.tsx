@@ -140,14 +140,23 @@ const RemoteSupport = () => {
     }
 
     if (isAdmin) {
+      // Admin: Start session and initialize P2P connection
       await startSession(bookingId);
+      await initializePeer();
     } else {
+      // User: Just join and wait for admin to start
       await joinSession(bookingId);
+      // Do NOT initialize peer here - wait for admin
     }
-    
-    // Initialize PeerJS connection
-    await initializePeer();
   }, [bookingId, isAdmin, startSession, joinSession, initializePeer]);
+
+  // When admin starts session, user should auto-connect
+  useEffect(() => {
+    // If we're in waiting_for_technician and session becomes connected (admin started), init our peer
+    if (!isAdmin && session.status === 'connected' && !peerConnected && !peerConnecting) {
+      initializePeer();
+    }
+  }, [isAdmin, session.status, peerConnected, peerConnecting, initializePeer]);
 
   // Handle ending session
   const handleEndSession = useCallback(async () => {
@@ -233,8 +242,10 @@ const RemoteSupport = () => {
     };
   }, [cleanupPeer, stopWebcam]);
 
-  // Waiting screen
-  if (session.status === 'idle' || session.status === 'waiting') {
+  // Waiting screen - handles idle, waiting_for_technician, and waiting states
+  if (session.status === 'idle' || session.status === 'waiting_for_technician' || session.status === 'waiting') {
+    const isWaitingForTech = session.status === 'waiting_for_technician';
+    
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b border-border">
@@ -249,21 +260,21 @@ const RemoteSupport = () => {
               <Monitor className="h-10 w-10 text-info" />
             </div>
             <h1 className="text-2xl font-bold mb-3">
-              {isAdmin ? 'Start fjernsupport-session' : 'Vent på tekniker'}
+              {isAdmin ? 'Start fjernsupport-session' : isWaitingForTech ? 'Afventer tekniker' : 'Deltag i session'}
             </h1>
             <p className="text-muted-foreground mb-8">
               {isAdmin 
                 ? 'Klik nedenfor for at starte sessionen og oprette forbindelse til brugeren.'
-                : session.status === 'waiting'
-                  ? 'Venter på at teknikeren starter sessionen...'
-                  : 'Når du starter sessionen, vil en tekniker kunne se din skærm og hjælpe dig i realtid.'
+                : isWaitingForTech
+                  ? 'Afventer at teknikeren starter sessionen... Du behøver ikke gøre noget.'
+                  : 'Klik nedenfor for at vente på at teknikeren starter sessionen.'
               }
             </p>
             
-            {session.status === 'waiting' && (
+            {isWaitingForTech && (
               <div className="flex items-center justify-center gap-2 mb-8">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="text-muted-foreground">Venter på forbindelse...</span>
+                <span className="text-muted-foreground">Afventer at tekniker starter sessionen...</span>
               </div>
             )}
             
@@ -291,7 +302,7 @@ const RemoteSupport = () => {
               </ul>
             </div>
             
-            {session.status !== 'waiting' && (
+            {!isWaitingForTech && (
               <Button variant="hero" size="lg" onClick={handleStartSession}>
                 <Video className="mr-2 h-5 w-5" />
                 {isAdmin ? 'Start session' : 'Deltag i session'}
