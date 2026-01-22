@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } 
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { IOSSwitch } from '@/components/ui/ios-switch';
-import { Shield, ClipboardCheck, BookOpen, HelpCircle, AlertTriangle, Camera, Lock, Settings, LogOut, Wrench, Loader2, ShieldCheck, Key, BookText, Battery, Star, Trash2, Wifi, HeartPulse, ShieldAlert, Smartphone, Clock, AlertCircle, Check, ChevronRight, CreditCard, HeartHandshake } from 'lucide-react';
+import { Shield, ClipboardCheck, BookOpen, HelpCircle, AlertTriangle, Camera, Lock, Settings, LogOut, Wrench, Loader2, ShieldCheck, Key, BookText, Battery, Star, Trash2, Wifi, HeartPulse, ShieldAlert, Smartphone, Clock, AlertCircle, Check, ChevronRight, CreditCard, HeartHandshake, Handshake } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSeniorMode } from '@/contexts/SeniorModeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,6 +36,7 @@ import { SecurityCheckCard } from '@/components/dashboard/SecurityCheckCard';
 import { CheckinCard } from '@/components/dashboard/CheckinCard';
 import SmartSearchBar from '@/components/dashboard/SmartSearchBar';
 import { RemoteSupportBookingCard } from '@/components/dashboard/RemoteSupportBookingCard';
+import { PartnerDealsCard } from '@/components/dashboard/PartnerDealsCard';
 import { useQuery } from '@tanstack/react-query';
 
 // Card definition type
@@ -50,6 +51,7 @@ interface CardDefinition {
   category: string;
   isWidget?: boolean; // For inline widget cards like Notes
   addedDate?: string; // ISO date string for "Ny!" badge (shows for 30 days)
+  comingSoon?: boolean; // For locked "coming soon" features
 }
 
 // All available cards (flat list)
@@ -280,6 +282,19 @@ const allCards: CardDefinition[] = [
   minPlan: 'basic',
   category: 'safety',
   isWidget: true
+},
+// Partner Deals - Coming Soon (Locked)
+{
+  id: 'partner-deals',
+  title: 'Vores samarbejdspartnere',
+  description: 'Få rabat hos reparatører',
+  icon: Handshake,
+  href: '',
+  color: 'bg-accent/10 text-accent',
+  minPlan: 'plus',
+  category: 'extras',
+  isWidget: true,
+  comingSoon: true
 }];
 
 // Standard Suite: The 16 tools visible by default on the dashboard
@@ -425,6 +440,8 @@ function renderWidgetCard(
       return <PasswordHealthCard {...props} />;
     case 'security-check':
       return <SecurityCheckCard {...props} />;
+    case 'partner-deals':
+      return <PartnerDealsCard {...props} />;
     default:
       return <NoteWidgetCard {...props} />;
   }

@@ -1,5 +1,7 @@
 import { Lightbulb, AlertTriangle, BookOpen } from 'lucide-react';
-import { parseTextWithIcons } from '@/utils/inlineIcons';
+
+// REMOVED: parseTextWithIcons - auto-icon injection disabled per admin request
+// Icons must now be manually added by admins
 
 interface GuideStepCardProps {
   stepNumber: number;
@@ -116,8 +118,8 @@ export const GuideStepCard = ({
           </span>
         </div>
 
-        <h2 className="text-2xl font-bold text-foreground">{parseTextWithIcons(title)}</h2>
-        <p className="text-lg text-muted-foreground leading-relaxed">{parseTextWithIcons(instruction)}</p>
+        <h2 className="text-2xl font-bold text-foreground">{title}</h2>
+        <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">{instruction}</p>
 
         {/* Tip Box */}
         {tipText && (
@@ -127,7 +129,7 @@ export const GuideStepCard = ({
             </div>
             <div className="flex-1">
               <p className="font-semibold text-amber-800 dark:text-amber-200 text-sm mb-1">Godt tip</p>
-              <p className="text-amber-700 dark:text-amber-300 text-sm leading-relaxed">{parseTextWithIcons(tipText)}</p>
+              <p className="text-amber-700 dark:text-amber-300 text-sm leading-relaxed whitespace-pre-line">{tipText}</p>
             </div>
           </div>
         )}
@@ -140,7 +142,7 @@ export const GuideStepCard = ({
             </div>
             <div className="flex-1">
               <p className="font-semibold text-rose-800 dark:text-rose-200 text-sm mb-1">Vigtigt at vide</p>
-              <p className="text-rose-700 dark:text-rose-300 text-sm leading-relaxed">{parseTextWithIcons(warningText)}</p>
+              <p className="text-rose-700 dark:text-rose-300 text-sm leading-relaxed whitespace-pre-line">{warningText}</p>
             </div>
           </div>
         )}

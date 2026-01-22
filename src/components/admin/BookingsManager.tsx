@@ -210,6 +210,8 @@ export function BookingsManager() {
         return <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">Afventer bekræftelse</Badge>;
       case 'confirmed':
         return <Badge className="bg-info text-info-foreground">Bekræftet</Badge>;
+      case 'waiting_for_technician':
+        return <Badge className="bg-primary text-primary-foreground animate-pulse">Bruger venter</Badge>;
       case 'in_progress':
         return <Badge className="bg-success text-success-foreground animate-pulse">I gang</Badge>;
       case 'completed':
@@ -231,6 +233,7 @@ export function BookingsManager() {
 
   const pendingBookings = bookings.filter(b => b.status === 'pending');
   const upcomingBookings = bookings.filter(b => b.status === 'confirmed');
+  const waitingBookings = bookings.filter(b => b.status === 'waiting_for_technician');
   const activeBookings = bookings.filter(b => b.status === 'in_progress');
   const pastBookings = bookings.filter(b => ['completed', 'cancelled'].includes(b.status));
 
