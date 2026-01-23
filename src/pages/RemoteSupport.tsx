@@ -112,6 +112,7 @@ const RemoteSupport = () => {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1920, height: 1080 });
+  const [canvasOffset, setCanvasOffset] = useState({ left: 0, top: 0 });
 
   const strictCleanupKey = `remote-support:${bookingId ?? 'no-booking'}:${isAdmin ? 'admin' : 'user'}`;
 
@@ -314,24 +315,71 @@ const RemoteSupport = () => {
     }
   }, [remoteStream, audioMuted]);
 
-  // Measure video container for canvas sizing (1:1 overlay)
+  // Measure video for canvas sizing (1:1 overlay with object-contain compensation)
   useEffect(() => {
     const updateCanvasSize = () => {
-      if (videoContainerRef.current) {
-        const rect = videoContainerRef.current.getBoundingClientRect();
-        setCanvasSize({ width: rect.width, height: rect.height });
+      const container = videoContainerRef.current;
+      const video = remoteVideoRef.current;
+      
+      if (!container) return;
+      
+      const containerRect = container.getBoundingClientRect();
+      
+      // If we have a video with actual dimensions, calculate object-contain positioning
+      if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+        const videoAspect = video.videoWidth / video.videoHeight;
+        const containerAspect = containerRect.width / containerRect.height;
+        
+        let renderWidth: number;
+        let renderHeight: number;
+        let offsetLeft: number;
+        let offsetTop: number;
+        
+        if (videoAspect > containerAspect) {
+          // Video is wider than container - letterbox top/bottom
+          renderWidth = containerRect.width;
+          renderHeight = containerRect.width / videoAspect;
+          offsetLeft = 0;
+          offsetTop = (containerRect.height - renderHeight) / 2;
+        } else {
+          // Video is taller than container - pillarbox left/right
+          renderHeight = containerRect.height;
+          renderWidth = containerRect.height * videoAspect;
+          offsetLeft = (containerRect.width - renderWidth) / 2;
+          offsetTop = 0;
+        }
+        
+        setCanvasSize({ width: renderWidth, height: renderHeight });
+        setCanvasOffset({ left: offsetLeft, top: offsetTop });
+      } else {
+        // No video yet - use full container
+        setCanvasSize({ width: containerRect.width, height: containerRect.height });
+        setCanvasOffset({ left: 0, top: 0 });
       }
     };
     
     updateCanvasSize();
     window.addEventListener('resize', updateCanvasSize);
     
-    // Also update when remoteStream changes (video might change aspect ratio)
+    // Also update when video metadata loads (to get actual dimensions)
+    const video = remoteVideoRef.current;
+    if (video) {
+      video.addEventListener('loadedmetadata', updateCanvasSize);
+      video.addEventListener('resize', updateCanvasSize);
+    }
+    
+    // Delayed updates for stream changes
     const timer = setTimeout(updateCanvasSize, 100);
+    const timer2 = setTimeout(updateCanvasSize, 500);
     
     return () => {
       window.removeEventListener('resize', updateCanvasSize);
+      if (video) {
+        video.removeEventListener('loadedmetadata', updateCanvasSize);
+        video.removeEventListener('resize', updateCanvasSize);
+      }
       clearTimeout(timer);
+      clearTimeout(timer2);
     };
   }, [remoteStream]);
 
@@ -726,17 +774,27 @@ const RemoteSupport = () => {
             </div>
           )}
           
-          {/* Drawing canvas overlay - uses dynamic container size for 1:1 alignment */}
-          <DrawingCanvas
-            width={canvasSize.width}
-            height={canvasSize.height}
-            drawingPoints={drawingPoints}
-            isAdmin={isAdmin}
-            selectedTool={selectedTool}
-            selectedColor={drawingColor}
-            onDraw={broadcastDraw}
-            onClear={clearDrawings}
-          />
+          {/* Drawing canvas overlay - positioned to match video exactly within object-contain */}
+          <div 
+            className="absolute pointer-events-none"
+            style={{
+              left: canvasOffset.left,
+              top: canvasOffset.top,
+              width: canvasSize.width,
+              height: canvasSize.height,
+            }}
+          >
+            <DrawingCanvas
+              width={canvasSize.width}
+              height={canvasSize.height}
+              drawingPoints={drawingPoints}
+              isAdmin={isAdmin}
+              selectedTool={selectedTool}
+              selectedColor={drawingColor}
+              onDraw={broadcastDraw}
+              onClear={clearDrawings}
+            />
+          </div>
           
           {/* Webcam PiP (draggable) */}
           {webcamEnabled && webcamStream && (
