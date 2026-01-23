@@ -8,6 +8,7 @@ import { usePeerConnection } from '@/hooks/usePeerConnection';
 import { SessionTimer } from '@/components/remote-support/SessionTimer';
 import { DrawingCanvas } from '@/components/remote-support/DrawingCanvas';
 import { SessionChat } from '@/components/remote-support/SessionChat';
+import { DebugInfo } from '@/components/remote-support/DebugInfo';
 import { toast } from 'sonner';
 import { 
   Video, 
@@ -61,6 +62,7 @@ const RemoteSupport = () => {
     isConnected: peerConnected,
     isConnecting: peerConnecting,
     remoteStream,
+    peerIdSavedToDb,
     initializePeer,
     startScreenShareCall,
     endCall,
@@ -144,9 +146,10 @@ const RemoteSupport = () => {
       await startSession(bookingId);
       await initializePeer();
     } else {
-      // User: Just join and wait for admin to start
+      // User: Join session and immediately initialize peer to save ID to DB
       await joinSession(bookingId);
-      // Do NOT initialize peer here - wait for admin
+      // Initialize peer immediately so our ID is saved to DB for admin to fetch
+      await initializePeer();
     }
   }, [bookingId, isAdmin, startSession, joinSession, initializePeer]);
 
@@ -158,13 +161,13 @@ const RemoteSupport = () => {
     }
   }, [isAdmin, bookingId, session.status, handleStartSession]);
 
-  // When admin starts session, user should auto-connect
+  // When admin starts session, user should auto-connect (if they haven't already)
   useEffect(() => {
-    // If we're in waiting_for_technician and session becomes connected (admin started), init our peer
-    if (!isAdmin && session.status === 'connected' && !peerConnected && !peerConnecting) {
+    // If we're in waiting_for_technician and session becomes connected (admin started), init our peer if not already
+    if (!isAdmin && session.status === 'connected' && !peerConnected && !peerConnecting && !peerId) {
       initializePeer();
     }
-  }, [isAdmin, session.status, peerConnected, peerConnecting, initializePeer]);
+  }, [isAdmin, session.status, peerConnected, peerConnecting, peerId, initializePeer]);
 
   // Handle ending session
   const handleEndSession = useCallback(async () => {
@@ -268,13 +271,13 @@ const RemoteSupport = () => {
               <Monitor className="h-10 w-10 text-info" />
             </div>
             <h1 className="text-2xl font-bold mb-3">
-              {isAdmin ? 'Start fjernsupport-session' : isWaitingForTech ? 'Afventer tekniker' : 'Deltag i session'}
+              {isAdmin ? 'Start fjernsupport-session' : isWaitingForTech ? 'Forbindelse klar' : 'Deltag i session'}
             </h1>
             <p className="text-muted-foreground mb-8">
               {isAdmin 
                 ? 'Klik nedenfor for at starte sessionen og oprette forbindelse til brugeren.'
                 : isWaitingForTech
-                  ? 'Afventer at teknikeren starter sessionen... Du behøver ikke gøre noget.'
+                  ? 'Forbindelse klar. Venter på tekniker...'
                   : 'Klik nedenfor for at vente på at teknikeren starter sessionen.'
               }
             </p>
@@ -318,6 +321,16 @@ const RemoteSupport = () => {
             )}
           </div>
         </main>
+        
+        {/* Debug Info */}
+        <DebugInfo
+          isAdmin={isAdmin}
+          myPeerId={peerId}
+          remotePeerId={remotePeerId}
+          peerIdSavedToDb={peerIdSavedToDb}
+          isConnected={peerConnected}
+          isConnecting={peerConnecting}
+        />
       </div>
     );
   }
@@ -644,6 +657,16 @@ const RemoteSupport = () => {
           />
         )}
       </div>
+      
+      {/* Debug Info */}
+      <DebugInfo
+        isAdmin={isAdmin}
+        myPeerId={peerId}
+        remotePeerId={remotePeerId}
+        peerIdSavedToDb={peerIdSavedToDb}
+        isConnected={peerConnected}
+        isConnecting={peerConnecting}
+      />
     </div>
   );
 };
