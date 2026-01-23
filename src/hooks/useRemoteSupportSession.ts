@@ -101,8 +101,14 @@ export function useRemoteSupportSession(bookingId?: string) {
 
   // Broadcast a drawing point
   const broadcastDraw = useCallback((point: DrawingPoint) => {
-    if (!channelRef.current || !session.bookingId) return;
-    
+    if (!session.bookingId) return;
+
+    // Local echo so the drawer (admin) sees their own strokes immediately.
+    // Realtime broadcast isn't guaranteed to be delivered back to the sender.
+    setDrawingPoints(prev => [...prev, point]);
+
+    if (!channelRef.current) return;
+
     channelRef.current.send({
       type: 'broadcast',
       event: 'draw',
@@ -112,9 +118,10 @@ export function useRemoteSupportSession(bookingId?: string) {
 
   // Clear all drawings
   const clearDrawings = useCallback(() => {
+    setDrawingPoints([]);
+
     if (!channelRef.current) return;
     
-    setDrawingPoints([]);
     channelRef.current.send({
       type: 'broadcast',
       event: 'clear',
