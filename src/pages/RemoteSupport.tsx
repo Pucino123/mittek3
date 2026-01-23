@@ -80,12 +80,14 @@ const RemoteSupport = () => {
     peerIdSavedToDb,
     screenShareReady,
     screenShareError,
+    bookingStatus,
     initializePeer,
     startUserScreenShare,
     startScreenShareCall,
     endCall,
     reconnect,
     cleanup: cleanupPeer,
+    forceFetchRemotePeerId,
   } = usePeerConnection(bookingId, isAdmin);
   
   // Media state
@@ -502,6 +504,8 @@ const RemoteSupport = () => {
           isConnected={peerConnected}
           isConnecting={peerConnecting}
           screenShareReady={screenShareReady}
+          bookingStatus={bookingStatus}
+          onForceFetch={forceFetchRemotePeerId}
         />
       </div>
     );
@@ -878,6 +882,8 @@ const RemoteSupport = () => {
         isConnected={peerConnected}
         isConnecting={peerConnecting}
         screenShareReady={screenShareReady}
+        bookingStatus={bookingStatus}
+        onForceFetch={forceFetchRemotePeerId}
       />
     </div>
   );
