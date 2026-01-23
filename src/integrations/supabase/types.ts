@@ -721,6 +721,7 @@ export type Database = {
       support_bookings: {
         Row: {
           admin_notes: string | null
+          admin_peer_id: string | null
           cancellation_message: string | null
           cancelled_by: string | null
           created_at: string
@@ -733,9 +734,11 @@ export type Database = {
           stripe_payment_id: string | null
           updated_at: string
           user_id: string
+          user_peer_id: string | null
         }
         Insert: {
           admin_notes?: string | null
+          admin_peer_id?: string | null
           cancellation_message?: string | null
           cancelled_by?: string | null
           created_at?: string
@@ -748,9 +751,11 @@ export type Database = {
           stripe_payment_id?: string | null
           updated_at?: string
           user_id: string
+          user_peer_id?: string | null
         }
         Update: {
           admin_notes?: string | null
+          admin_peer_id?: string | null
           cancellation_message?: string | null
           cancelled_by?: string | null
           created_at?: string
@@ -763,6 +768,7 @@ export type Database = {
           stripe_payment_id?: string | null
           updated_at?: string
           user_id?: string
+          user_peer_id?: string | null
         }
         Relationships: []
       }
