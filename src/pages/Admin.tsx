@@ -29,6 +29,7 @@ import { UserActionsMenu } from '@/components/admin/UserActionsMenu';
 import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
 import { CheckinQuestionsManager } from '@/components/admin/CheckinQuestionsManager';
 import { BookingsManager } from '@/components/admin/BookingsManager';
+import { coversByCategory } from '@/assets/covers';
 
 
 interface Subscription {
@@ -147,6 +148,7 @@ const Admin = () => {
   const [guideIcon, setGuideIcon] = useState('');
   const [guideCoverImageUrl, setGuideCoverImageUrl] = useState('');
   const [guideIsPaginated, setGuideIsPaginated] = useState(false);
+  const [useCategoryCover, setUseCategoryCover] = useState(false);
   const [isGuideDialogOpen, setIsGuideDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -434,6 +436,8 @@ const Admin = () => {
       setGuideIcon(guide.icon || '');
       setGuideCoverImageUrl(guide.cover_image_url || '');
       setGuideIsPaginated(guide.is_paginated || false);
+      // If no custom cover, use category cover
+      setUseCategoryCover(!guide.cover_image_url);
     } else {
       setEditingGuide(null);
       setGuideTitle('');
@@ -442,6 +446,7 @@ const Admin = () => {
       setGuideIcon('');
       setGuideCoverImageUrl('');
       setGuideIsPaginated(false);
+      setUseCategoryCover(true);
     }
     setIsGuideDialogOpen(true);
   };
@@ -462,7 +467,7 @@ const Admin = () => {
             description: guideDescription,
             category: guideCategory || null,
             icon: guideIcon || null,
-            cover_image_url: guideCoverImageUrl || null,
+            cover_image_url: useCategoryCover ? null : (guideCoverImageUrl || null),
             is_paginated: guideIsPaginated,
           })
           .eq('id', editingGuide.id);
@@ -477,7 +482,7 @@ const Admin = () => {
             description: guideDescription,
             category: guideCategory || null,
             icon: guideIcon || null,
-            cover_image_url: guideCoverImageUrl || null,
+            cover_image_url: useCategoryCover ? null : (guideCoverImageUrl || null),
             is_paginated: guideIsPaginated,
             is_published: false,
             min_plan: 'basic',
@@ -1687,105 +1692,165 @@ const Admin = () => {
                               </Select>
                             </div>
                           </div>
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <Label>Cover Billede</Label>
-                            <input
-                              ref={coverImageInputRef}
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                
-                                setUploadingCoverImage(true);
-                                try {
-                                  const fileExt = file.name.split('.').pop();
-                                  const fileName = `cover-${Date.now()}.${fileExt}`;
-                                  const filePath = `covers/${fileName}`;
-                                  
-                                  const { error: uploadError } = await supabase.storage
-                                    .from('guide-images')
-                                    .upload(filePath, file);
-                                  
-                                  if (uploadError) throw uploadError;
-                                  
-                                  const { data: { publicUrl } } = supabase.storage
-                                    .from('guide-images')
-                                    .getPublicUrl(filePath);
-                                  
-                                  setGuideCoverImageUrl(publicUrl);
-                                  toast.success('Cover billede uploadet');
-                                } catch (error) {
-                                  console.error('Upload error:', error);
-                                  toast.error('Fejl ved upload af billede');
-                                } finally {
-                                  setUploadingCoverImage(false);
-                                  if (coverImageInputRef.current) {
-                                    coverImageInputRef.current.value = '';
-                                  }
-                                }
-                              }}
-                            />
                             
-                            {guideCoverImageUrl ? (
-                              <div className="flex items-start gap-3">
+                            {/* Toggle between category and custom cover */}
+                            <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
+                              <input
+                                type="checkbox"
+                                id="useCategoryCover"
+                                checked={useCategoryCover}
+                                onChange={(e) => {
+                                  setUseCategoryCover(e.target.checked);
+                                  if (e.target.checked) {
+                                    setGuideCoverImageUrl('');
+                                  }
+                                }}
+                                className="h-5 w-5 rounded border-border text-primary focus:ring-primary"
+                              />
+                              <div className="flex-1">
+                                <Label htmlFor="useCategoryCover" className="font-medium cursor-pointer">
+                                  Brug kategori-cover
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                  Automatisk cover baseret på guidens kategori
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {useCategoryCover ? (
+                              // Show category cover preview
+                              <div className="flex items-start gap-3 p-3 border rounded-lg bg-muted/50">
                                 <div className="aspect-[2/3] w-24 rounded-lg border overflow-hidden bg-muted flex-shrink-0">
-                                  <img 
-                                    src={guideCoverImageUrl} 
-                                    alt="Cover preview" 
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).src = '/placeholder.svg';
-                                    }}
-                                  />
+                                  {guideCategory && coversByCategory[guideCategory] ? (
+                                    <img 
+                                      src={coversByCategory[guideCategory]} 
+                                      alt="Kategori cover preview" 
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="flex flex-col gap-2">
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">
+                                    {guideCategory ? `Cover for "${guideCategory}"` : 'Vælg en kategori'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {guideCategory && coversByCategory[guideCategory] 
+                                      ? 'Dette cover vises automatisk baseret på kategorien'
+                                      : 'Vælg en kategori ovenfor for at se preview'}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              // Show custom upload UI
+                              <>
+                                <input
+                                  ref={coverImageInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    
+                                    setUploadingCoverImage(true);
+                                    try {
+                                      const fileExt = file.name.split('.').pop();
+                                      const fileName = `cover-${Date.now()}.${fileExt}`;
+                                      const filePath = `covers/${fileName}`;
+                                      
+                                      const { error: uploadError } = await supabase.storage
+                                        .from('guide-images')
+                                        .upload(filePath, file);
+                                      
+                                      if (uploadError) throw uploadError;
+                                      
+                                      const { data: { publicUrl } } = supabase.storage
+                                        .from('guide-images')
+                                        .getPublicUrl(filePath);
+                                      
+                                      setGuideCoverImageUrl(publicUrl);
+                                      toast.success('Cover billede uploadet');
+                                    } catch (error) {
+                                      console.error('Upload error:', error);
+                                      toast.error('Fejl ved upload af billede');
+                                    } finally {
+                                      setUploadingCoverImage(false);
+                                      if (coverImageInputRef.current) {
+                                        coverImageInputRef.current.value = '';
+                                      }
+                                    }
+                                  }}
+                                />
+                                
+                                {guideCoverImageUrl ? (
+                                  <div className="flex items-start gap-3">
+                                    <div className="aspect-[2/3] w-24 rounded-lg border overflow-hidden bg-muted flex-shrink-0">
+                                      <img 
+                                        src={guideCoverImageUrl} 
+                                        alt="Cover preview" 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => coverImageInputRef.current?.click()}
+                                        disabled={uploadingCoverImage}
+                                      >
+                                        {uploadingCoverImage ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Upload className="h-4 w-4" />
+                                        )}
+                                        Skift billede
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive"
+                                        onClick={() => setGuideCoverImageUrl('')}
+                                      >
+                                        <X className="h-4 w-4" />
+                                        Fjern
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
                                   <Button
                                     type="button"
                                     variant="outline"
-                                    size="sm"
+                                    className="w-full h-32 border-dashed flex flex-col gap-2"
                                     onClick={() => coverImageInputRef.current?.click()}
                                     disabled={uploadingCoverImage}
                                   >
                                     {uploadingCoverImage ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                                     ) : (
-                                      <Upload className="h-4 w-4" />
+                                      <>
+                                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                                        <span className="text-sm text-muted-foreground">
+                                          Klik for at uploade cover billede
+                                        </span>
+                                      </>
                                     )}
-                                    Skift billede
                                   </Button>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => setGuideCoverImageUrl('')}
-                                  >
-                                    <X className="h-4 w-4" />
-                                    Fjern
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full h-32 border-dashed flex flex-col gap-2"
-                                onClick={() => coverImageInputRef.current?.click()}
-                                disabled={uploadingCoverImage}
-                              >
-                                {uploadingCoverImage ? (
-                                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                                ) : (
-                                  <>
-                                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                                    <span className="text-sm text-muted-foreground">
-                                      Klik for at uploade cover billede
-                                    </span>
-                                  </>
                                 )}
-                              </Button>
+                              </>
                             )}
                           </div>
                           <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
