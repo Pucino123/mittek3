@@ -158,8 +158,10 @@ const Admin = () => {
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
   const [uploadingVideoStepId, setUploadingVideoStepId] = useState<string | null>(null);
   const [uploadingGifStepId, setUploadingGifStepId] = useState<string | null>(null);
+  const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
   const [activeDeviceTab, setActiveDeviceTab] = useState<'all' | 'iphone' | 'ipad' | 'mac'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
 
   // Support state
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -1686,24 +1688,104 @@ const Admin = () => {
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="coverImage">Cover Billede URL</Label>
-                            <Input
-                              id="coverImage"
-                              value={guideCoverImageUrl}
-                              onChange={(e) => setGuideCoverImageUrl(e.target.value)}
-                              placeholder="https://... (vises som bogomslag i oversigten)"
+                            <Label>Cover Billede</Label>
+                            <input
+                              ref={coverImageInputRef}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                
+                                setUploadingCoverImage(true);
+                                try {
+                                  const fileExt = file.name.split('.').pop();
+                                  const fileName = `cover-${Date.now()}.${fileExt}`;
+                                  const filePath = `covers/${fileName}`;
+                                  
+                                  const { error: uploadError } = await supabase.storage
+                                    .from('guide-images')
+                                    .upload(filePath, file);
+                                  
+                                  if (uploadError) throw uploadError;
+                                  
+                                  const { data: { publicUrl } } = supabase.storage
+                                    .from('guide-images')
+                                    .getPublicUrl(filePath);
+                                  
+                                  setGuideCoverImageUrl(publicUrl);
+                                  toast.success('Cover billede uploadet');
+                                } catch (error) {
+                                  console.error('Upload error:', error);
+                                  toast.error('Fejl ved upload af billede');
+                                } finally {
+                                  setUploadingCoverImage(false);
+                                  if (coverImageInputRef.current) {
+                                    coverImageInputRef.current.value = '';
+                                  }
+                                }
+                              }}
                             />
-                            {guideCoverImageUrl && (
-                              <div className="mt-2 aspect-[2/3] w-24 rounded-lg border overflow-hidden bg-muted">
-                                <img 
-                                  src={guideCoverImageUrl} 
-                                  alt="Cover preview" 
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }}
-                                />
+                            
+                            {guideCoverImageUrl ? (
+                              <div className="flex items-start gap-3">
+                                <div className="aspect-[2/3] w-24 rounded-lg border overflow-hidden bg-muted flex-shrink-0">
+                                  <img 
+                                    src={guideCoverImageUrl} 
+                                    alt="Cover preview" 
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                    }}
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => coverImageInputRef.current?.click()}
+                                    disabled={uploadingCoverImage}
+                                  >
+                                    {uploadingCoverImage ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Upload className="h-4 w-4" />
+                                    )}
+                                    Skift billede
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => setGuideCoverImageUrl('')}
+                                  >
+                                    <X className="h-4 w-4" />
+                                    Fjern
+                                  </Button>
+                                </div>
                               </div>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full h-32 border-dashed flex flex-col gap-2"
+                                onClick={() => coverImageInputRef.current?.click()}
+                                disabled={uploadingCoverImage}
+                              >
+                                {uploadingCoverImage ? (
+                                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                ) : (
+                                  <>
+                                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                                    <span className="text-sm text-muted-foreground">
+                                      Klik for at uploade cover billede
+                                    </span>
+                                  </>
+                                )}
+                              </Button>
                             )}
                           </div>
                           <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
