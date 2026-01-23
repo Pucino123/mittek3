@@ -11,6 +11,7 @@ interface PeerConnectionState {
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   peerIdSavedToDb: boolean;
+  screenShareReady: boolean; // NEW: Track if user has shared screen
 }
 
 export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
@@ -22,12 +23,14 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     localStream: null,
     remoteStream: null,
     peerIdSavedToDb: false,
+    screenShareReady: false,
   });
   
   const peerRef = useRef<Peer | null>(null);
   const callRef = useRef<MediaConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const hasCalledRef = useRef(false);
+  const localStreamRef = useRef<MediaStream | null>(null); // Keep stream reference for answering calls
 
   // Save peer ID to database
   const savePeerIdToDb = useCallback(async (peerId: string) => {
@@ -106,11 +109,86 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     channelRef.current = channel;
   }, [bookingId, isAdmin, state.peerId]);
 
-  // Initialize peer and set up connection
-  const initializePeer = useCallback(async () => {
+  // USER ONLY: Get screen share stream FIRST before signaling readiness
+  const startUserScreenShare = useCallback(async (): Promise<MediaStream | null> => {
+    console.log('[PeerConnection] User: Starting screen share...');
+    
+    try {
+      // Get screen share with system audio
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: 'monitor',
+        },
+        audio: true,
+      });
+      
+      console.log('[PeerConnection] User: Screen share acquired, tracks:', displayStream.getTracks().map(t => `${t.kind}:${t.label}`));
+      
+      // Also get microphone for two-way voice
+      let micStream: MediaStream | null = null;
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+          },
+          video: false,
+        });
+        console.log('[PeerConnection] User: Microphone acquired');
+      } catch (micError) {
+        console.warn('[PeerConnection] User: Microphone access denied:', micError);
+        toast.warning('Mikrofon ikke tilgængelig - kun skærmdeling');
+      }
+      
+      // Combine screen + mic into one stream
+      const combinedStream = new MediaStream();
+      displayStream.getTracks().forEach(track => {
+        combinedStream.addTrack(track);
+        console.log('[PeerConnection] User: Added track to combined stream:', track.kind, track.label);
+      });
+      if (micStream) {
+        micStream.getAudioTracks().forEach(track => {
+          combinedStream.addTrack(track);
+          console.log('[PeerConnection] User: Added mic track to combined stream:', track.kind, track.label);
+        });
+      }
+      
+      // Store in ref for answering calls
+      localStreamRef.current = combinedStream;
+      
+      // Handle stream end (user stops sharing)
+      displayStream.getVideoTracks()[0].onended = () => {
+        console.log('[PeerConnection] User: Screen share stopped by user');
+        toast.info('Skærmdeling stoppet');
+        if (micStream) {
+          micStream.getTracks().forEach(track => track.stop());
+        }
+        localStreamRef.current = null;
+        setState(prev => ({ ...prev, localStream: null, screenShareReady: false }));
+      };
+      
+      setState(prev => ({ ...prev, localStream: combinedStream, screenShareReady: true }));
+      
+      return combinedStream;
+    } catch (error) {
+      console.error('[PeerConnection] User: Failed to get screen share:', error);
+      toast.error('Kunne ikke starte skærmdeling. Prøv igen.');
+      return null;
+    }
+  }, []);
+
+  // Initialize peer connection (for User: call AFTER screen share is ready)
+  const initializePeer = useCallback(async (requireScreenShare = false) => {
     if (!bookingId) return;
     if (peerRef.current) {
       console.log('[PeerConnection] Peer already initialized');
+      return;
+    }
+    
+    // For user (non-admin), require screen share to be ready before initializing
+    if (!isAdmin && requireScreenShare && !localStreamRef.current) {
+      console.error('[PeerConnection] User: Cannot initialize peer without screen share');
+      toast.error('Del din skærm først');
       return;
     }
     
@@ -145,73 +223,50 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       });
       
       // Handle incoming calls (user side receives call from admin)
-      peer.on('call', async (call) => {
+      peer.on('call', (call) => {
         console.log('[PeerConnection] Incoming call from:', call.peer);
         
-        try {
-          // Get screen share stream with audio for user
-          const displayStream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: true,
-          });
-          
-          // Also get microphone audio for two-way voice
-          let micStream: MediaStream | null = null;
-          try {
-            micStream = await navigator.mediaDevices.getUserMedia({
-              audio: true,
-              video: false,
-            });
-          } catch (micError) {
-            console.warn('[PeerConnection] Microphone access denied:', micError);
-            toast.warning('Mikrofon ikke tilgængelig - kun skærmdeling');
-          }
-          
-          // Combine screen + mic into one stream
-          const combinedStream = new MediaStream();
-          displayStream.getTracks().forEach(track => combinedStream.addTrack(track));
-          if (micStream) {
-            micStream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
-          }
-          
-          setState(prev => ({ ...prev, localStream: combinedStream }));
-          
-          // Handle stream end
-          displayStream.getVideoTracks()[0].onended = () => {
-            toast.info('Skærmdeling stoppet');
-            if (micStream) {
-              micStream.getTracks().forEach(track => track.stop());
-            }
-            setState(prev => ({ ...prev, localStream: null }));
-          };
-          
-          // Answer the call with combined stream
-          call.answer(combinedStream);
-          callRef.current = call;
-          
-          call.on('stream', (remoteStream) => {
-            console.log('[PeerConnection] Received remote stream');
-            setState(prev => ({ 
-              ...prev, 
-              remoteStream,
-              isConnected: true,
-              isConnecting: false,
-            }));
-          });
-          
-          call.on('close', () => {
-            console.log('[PeerConnection] Call closed');
-            setState(prev => ({ 
-              ...prev, 
-              isConnected: false,
-              remoteStream: null,
-            }));
-          });
-          
-        } catch (error) {
-          console.error('[PeerConnection] Failed to get screen share:', error);
-          toast.error('Kunne ikke starte skærmdeling');
+        // CRITICAL FIX: Use the pre-acquired stream from localStreamRef
+        const stream = localStreamRef.current;
+        
+        if (!stream) {
+          console.error('[PeerConnection] No local stream available to answer call!');
+          toast.error('Skærmdeling ikke klar - kunne ikke besvare opkald');
+          return;
         }
+        
+        console.log('[PeerConnection] Answering call with stream tracks:', stream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
+        
+        // Answer the call with the pre-acquired stream
+        call.answer(stream);
+        callRef.current = call;
+        
+        call.on('stream', (remoteStream) => {
+          console.log('[PeerConnection] User: Received remote stream from admin');
+          console.log('[PeerConnection] User: Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
+          
+          setState(prev => ({ 
+            ...prev, 
+            remoteStream,
+            isConnected: true,
+            isConnecting: false,
+          }));
+          toast.success('Forbindelse oprettet!');
+        });
+        
+        call.on('close', () => {
+          console.log('[PeerConnection] Call closed');
+          setState(prev => ({ 
+            ...prev, 
+            isConnected: false,
+            remoteStream: null,
+          }));
+        });
+        
+        call.on('error', (err) => {
+          console.error('[PeerConnection] Call error (user side):', err);
+          toast.error('Opkaldsfejl');
+        });
       });
       
       peer.on('error', (err) => {
@@ -224,7 +279,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       console.error('[PeerConnection] Failed to initialize peer:', error);
       setState(prev => ({ ...prev, isConnecting: false }));
     }
-  }, [bookingId, savePeerIdToDb, subscribeToRemotePeerId, fetchRemotePeerId]);
+  }, [bookingId, isAdmin, savePeerIdToDb, subscribeToRemotePeerId, fetchRemotePeerId]);
 
   // Call remote peer (admin calls user)
   const callRemotePeer = useCallback(async (remotePeerId: string, stream: MediaStream) => {
@@ -239,14 +294,29 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }
     hasCalledRef.current = true;
     
-    console.log('[PeerConnection] Calling remote peer:', remotePeerId);
+    console.log('[PeerConnection] Admin: Calling remote peer:', remotePeerId);
+    console.log('[PeerConnection] Admin: Sending stream with tracks:', stream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
+    
     setState(prev => ({ ...prev, isConnecting: true, localStream: stream }));
     
     const call = peerRef.current.call(remotePeerId, stream);
     callRef.current = call;
     
     call.on('stream', (remoteStream) => {
-      console.log('[PeerConnection] Received remote stream from call');
+      console.log('[PeerConnection] Admin: Received remote stream from user');
+      console.log('[PeerConnection] Admin: Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
+      
+      // CRITICAL DEBUG: Check if tracks are active
+      const videoTracks = remoteStream.getVideoTracks();
+      const audioTracks = remoteStream.getAudioTracks();
+      console.log('[PeerConnection] Admin: Video tracks count:', videoTracks.length);
+      console.log('[PeerConnection] Admin: Audio tracks count:', audioTracks.length);
+      
+      if (videoTracks.length === 0) {
+        console.error('[PeerConnection] Admin: WARNING - No video tracks in remote stream!');
+        toast.warning('Brugerens skærmdeling har ingen video');
+      }
+      
       setState(prev => ({ 
         ...prev, 
         remoteStream,
@@ -257,7 +327,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     });
     
     call.on('close', () => {
-      console.log('[PeerConnection] Call ended');
+      console.log('[PeerConnection] Admin: Call ended');
       hasCalledRef.current = false;
       setState(prev => ({ 
         ...prev, 
@@ -267,7 +337,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     });
     
     call.on('error', (err) => {
-      console.error('[PeerConnection] Call error:', err);
+      console.error('[PeerConnection] Admin: Call error:', err);
       hasCalledRef.current = false;
       toast.error('Opkaldsfejl');
       setState(prev => ({ ...prev, isConnecting: false }));
@@ -381,6 +451,8 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     
     // Reset state but keep remotePeerId if we had it
     const previousRemotePeerId = state.remotePeerId;
+    localStreamRef.current = null;
+    
     setState({
       peerId: null,
       remotePeerId: previousRemotePeerId,
@@ -389,13 +461,19 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       localStream: null,
       remoteStream: null,
       peerIdSavedToDb: false,
+      screenShareReady: false,
     });
     
     // Reinitialize after a short delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    await initializePeer();
     
-    toast.info('Genopretter forbindelse...');
+    // For user, they need to re-share screen first
+    if (!isAdmin) {
+      toast.info('Del din skærm igen for at genoprette forbindelsen');
+    } else {
+      await initializePeer();
+      toast.info('Genopretter forbindelse...');
+    }
   }, [state.localStream, state.remotePeerId, initializePeer]);
 
   // Cleanup on unmount
@@ -423,6 +501,8 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     
     hasCalledRef.current = false;
     
+    localStreamRef.current = null;
+    
     setState({
       peerId: null,
       remotePeerId: null,
@@ -431,6 +511,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       localStream: null,
       remoteStream: null,
       peerIdSavedToDb: false,
+      screenShareReady: false,
     });
   }, [endCall, bookingId, isAdmin]);
 
@@ -443,6 +524,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   return {
     ...state,
     initializePeer,
+    startUserScreenShare,
     startScreenShareCall,
     callRemotePeer,
     endCall,
