@@ -45,6 +45,10 @@ import {
 
 type DrawingTool = 'pencil' | 'circle' | 'arrow' | 'eraser';
 
+// React 18 StrictMode (dev) mounts/unmounts components twice.
+// If we cleanup Peer/streams in the first "fake" unmount, the connection drops instantly.
+const pendingRemoteSupportCleanupTimers = new Map<string, number>();
+
 const RemoteSupport = () => {
   useScrollRestoration();
   const navigate = useNavigate();
@@ -103,6 +107,8 @@ const RemoteSupport = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+
+  const strictCleanupKey = `remote-support:${bookingId ?? 'no-booking'}:${isAdmin ? 'admin' : 'user'}`;
 
   // Start webcam separately
   const startWebcam = useCallback(async () => {
@@ -303,13 +309,27 @@ const RemoteSupport = () => {
     }
   }, [remoteStream, audioMuted]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount (StrictMode-safe)
   useEffect(() => {
+    const pending = pendingRemoteSupportCleanupTimers.get(strictCleanupKey);
+    if (pending) {
+      window.clearTimeout(pending);
+      pendingRemoteSupportCleanupTimers.delete(strictCleanupKey);
+    }
+
     return () => {
-      stopWebcam();
-      cleanupPeer();
+      const existing = pendingRemoteSupportCleanupTimers.get(strictCleanupKey);
+      if (existing) window.clearTimeout(existing);
+
+      const timerId = window.setTimeout(() => {
+        pendingRemoteSupportCleanupTimers.delete(strictCleanupKey);
+        stopWebcam();
+        cleanupPeer();
+      }, 0);
+
+      pendingRemoteSupportCleanupTimers.set(strictCleanupKey, timerId);
     };
-  }, [cleanupPeer, stopWebcam]);
+  }, [strictCleanupKey, cleanupPeer, stopWebcam]);
 
   // Waiting screen - handles idle, waiting_for_technician, and waiting states
   if (session.status === 'idle' || session.status === 'waiting_for_technician' || session.status === 'waiting') {
