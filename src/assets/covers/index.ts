@@ -1,22 +1,13 @@
-// Fallback category-based covers for guides without database cover_image_url
-import guideBattery from './guide-battery.jpg';
-import guideIcloud from './guide-icloud.jpg';
-import guideSecurity from './guide-security.jpg';
-import guideApps from './guide-apps.jpg';
-import guideMessages from './guide-messages.jpg';
-import guideDaily from './guide-daily.jpg';
-import guideCleanup from './guide-cleanup.jpg';
-import guideConnection from './guide-connection.jpg';
-
+// Category-based covers for guides - using public folder paths for fallback
 export const coversByCategory: Record<string, string> = {
-  'batteri': guideBattery,
-  'icloud': guideIcloud,
-  'sikkerhed': guideSecurity,
-  'apps': guideApps,
-  'beskeder': guideMessages,
-  'hverdag': guideDaily,
-  'oprydning': guideCleanup,
-  'forbindelse': guideConnection,
+  'batteri': '/guide-covers/category-battery.jpg',
+  'icloud': '/guide-covers/category-icloud.jpg',
+  'sikkerhed': '/guide-covers/category-security.jpg',
+  'apps': '/guide-covers/category-apps.jpg',
+  'beskeder': '/guide-covers/category-messages.jpg',
+  'hverdag': '/guide-covers/category-daily.jpg',
+  'oprydning': '/guide-covers/category-cleanup.jpg',
+  'forbindelse': '/guide-covers/category-connection.jpg',
 };
 
 // Get cover image fallback - only used if guide.cover_image_url is null
