@@ -113,8 +113,16 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   const startUserScreenShare = useCallback(async (): Promise<MediaStream | null> => {
     console.log('[PeerConnection] User: Starting screen share...');
     
+    // Clear any previous state
+    if (localStreamRef.current) {
+      console.log('[PeerConnection] User: Cleaning up previous stream');
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+    
     try {
       // Get screen share with system audio
+      console.log('[PeerConnection] User: Requesting getDisplayMedia...');
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           displaySurface: 'monitor',
@@ -122,7 +130,14 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         audio: true,
       });
       
-      console.log('[PeerConnection] User: Screen share acquired, tracks:', displayStream.getTracks().map(t => `${t.kind}:${t.label}`));
+      const videoTracks = displayStream.getVideoTracks();
+      console.log('[PeerConnection] User: Screen share acquired, video tracks:', videoTracks.length);
+      console.log('[PeerConnection] User: All tracks:', displayStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
+      
+      if (videoTracks.length === 0) {
+        console.error('[PeerConnection] User: No video tracks in display stream!');
+        return null;
+      }
       
       // Also get microphone for two-way voice
       let micStream: MediaStream | null = null;
@@ -144,7 +159,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       const combinedStream = new MediaStream();
       displayStream.getTracks().forEach(track => {
         combinedStream.addTrack(track);
-        console.log('[PeerConnection] User: Added track to combined stream:', track.kind, track.label);
+        console.log('[PeerConnection] User: Added track to combined stream:', track.kind, track.label, track.readyState);
       });
       if (micStream) {
         micStream.getAudioTracks().forEach(track => {
@@ -153,11 +168,13 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         });
       }
       
-      // Store in ref for answering calls
+      // Store in ref for answering calls - CRITICAL: do this BEFORE updating state
       localStreamRef.current = combinedStream;
+      console.log('[PeerConnection] User: Stored stream in localStreamRef, tracks:', 
+        localStreamRef.current.getTracks().map(t => `${t.kind}:${t.readyState}`));
       
       // Handle stream end (user stops sharing)
-      displayStream.getVideoTracks()[0].onended = () => {
+      videoTracks[0].onended = () => {
         console.log('[PeerConnection] User: Screen share stopped by user');
         toast.info('Skærmdeling stoppet');
         if (micStream) {
@@ -167,10 +184,22 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         setState(prev => ({ ...prev, localStream: null, screenShareReady: false }));
       };
       
-      setState(prev => ({ ...prev, localStream: combinedStream, screenShareReady: true }));
+      // Update state to reflect screen share is ready
+      setState(prev => ({ 
+        ...prev, 
+        localStream: combinedStream, 
+        screenShareReady: true 
+      }));
+      
+      console.log('[PeerConnection] User: Screen share setup complete, screenShareReady=true');
       
       return combinedStream;
-    } catch (error) {
+    } catch (error: unknown) {
+      // User cancelled the screen share picker
+      if (error instanceof Error && error.name === 'NotAllowedError') {
+        console.log('[PeerConnection] User: Screen share cancelled by user');
+        return null;
+      }
       console.error('[PeerConnection] User: Failed to get screen share:', error);
       toast.error('Kunne ikke starte skærmdeling. Prøv igen.');
       return null;
