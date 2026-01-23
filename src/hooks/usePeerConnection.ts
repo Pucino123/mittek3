@@ -526,7 +526,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     });
   }, []);
 
-  // Start screen share and call with audio (for admin)
+  // Start call to user - admin only sends audio, receives user's screen share
   const startScreenShareCall = useCallback(async () => {
     if (!state.remotePeerId) {
       toast.error('Venter på modpart...');
@@ -534,43 +534,32 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }
     
     try {
-      // Get screen share with system audio
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
-      });
+      // Admin does NOT share their screen - they only need to send audio
+      // and receive the USER's screen share
+      let audioStream: MediaStream | null = null;
       
-      // Also get microphone for two-way voice
-      let micStream: MediaStream | null = null;
       try {
-        micStream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+          },
           video: false,
         });
+        console.log('[PeerConnection] Admin: Got microphone stream');
       } catch (micError) {
-        console.warn('[PeerConnection] Microphone access denied:', micError);
-        toast.warning('Mikrofon ikke tilgængelig - kun skærmdeling');
+        console.warn('[PeerConnection] Admin: Microphone access denied:', micError);
+        toast.warning('Mikrofon ikke tilgængelig - kun modtagelse af skærmdeling');
       }
       
-      // Combine screen + mic into one stream
-      const combinedStream = new MediaStream();
-      displayStream.getTracks().forEach(track => combinedStream.addTrack(track));
-      if (micStream) {
-        micStream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
-      }
+      // Create a minimal stream (even if no audio, PeerJS needs a stream to call)
+      const callStream = audioStream || new MediaStream();
       
-      displayStream.getVideoTracks()[0].onended = () => {
-        toast.info('Skærmdeling stoppet');
-        if (micStream) {
-          micStream.getTracks().forEach(track => track.stop());
-        }
-        endCall();
-      };
-      
-      await callRemotePeer(state.remotePeerId, combinedStream);
+      console.log('[PeerConnection] Admin: Calling user to receive their screen share');
+      await callRemotePeer(state.remotePeerId, callStream);
     } catch (error) {
-      console.error('[PeerConnection] Failed to get display media:', error);
-      toast.error('Kunne ikke starte skærmdeling');
+      console.error('[PeerConnection] Admin: Failed to start call:', error);
+      toast.error('Kunne ikke oprette forbindelse');
     }
   }, [state.remotePeerId, callRemotePeer]);
 
