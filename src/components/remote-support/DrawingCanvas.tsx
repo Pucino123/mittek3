@@ -204,7 +204,8 @@ export function DrawingCanvas({
       ref={canvasRef}
       width={width}
       height={height}
-      className={`absolute inset-0 w-full h-full ${isAdmin ? 'cursor-crosshair' : 'pointer-events-none'}`}
+      className={`w-full h-full ${isAdmin ? 'cursor-crosshair pointer-events-auto' : 'pointer-events-none'}`}
+      style={{ display: 'block' }}
       onMouseDown={startDrawing}
       onMouseMove={draw}
       onMouseUp={stopDrawing}
