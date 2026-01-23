@@ -3,6 +3,12 @@ import Peer, { MediaConnection } from 'peerjs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// React 18 StrictMode (dev) mounts/unmounts components twice.
+// If we run destructive cleanup in the first "fake" unmount, screen share and PeerJS
+// will be torn down immediately (looks like a page refresh / 1s connection).
+// We debounce unmount cleanup across component instances using a module-level map.
+const pendingUnmountCleanupTimers = new Map<string, number>();
+
 interface PeerConnectionState {
   peerId: string | null;
   remotePeerId: string | null;
@@ -33,6 +39,8 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   const localStreamRef = useRef<MediaStream | null>(null); // Keep stream reference for answering calls
   const isInitializedRef = useRef(false); // CRITICAL: Prevent double-init in React Strict Mode
   const isMountedRef = useRef(true); // Track if component is truly mounted
+
+  const cleanupKey = `${bookingId ?? 'no-booking'}:${isAdmin ? 'admin' : 'user'}`;
 
   // Save peer ID to database
   const savePeerIdToDb = useCallback(async (peerId: string) => {
@@ -481,12 +489,15 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       state.localStream.getTracks().forEach(track => track.stop());
     }
     
-    setState(prev => ({
-      ...prev,
-      isConnected: false,
-      localStream: null,
-      remoteStream: null,
-    }));
+    // Avoid state updates during unmount (StrictMode fake unmount included)
+    if (isMountedRef.current) {
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        localStream: null,
+        remoteStream: null,
+      }));
+    }
   }, [state.localStream]);
 
   // Reconnect - destroy peer and reinitialize
@@ -545,11 +556,14 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }
   }, [state.localStream, state.remotePeerId, initializePeer, isAdmin]);
 
-  // Cleanup on unmount
-  const cleanup = useCallback(async () => {
+  // Cleanup (manual or true unmount)
+  const cleanupNow = useCallback(async () => {
     console.log('[PeerConnection] Cleanup called');
+
+    // If we're already unmounted, do not attempt setState (but still stop resources + clear DB)
+    const canSetState = isMountedRef.current;
     isMountedRef.current = false;
-    
+
     endCall();
     
     // Clear peer ID from database
@@ -576,28 +590,46 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     
     localStreamRef.current = null;
     
-    setState({
-      peerId: null,
-      remotePeerId: null,
-      isConnected: false,
-      isConnecting: false,
-      localStream: null,
-      remoteStream: null,
-      peerIdSavedToDb: false,
-      screenShareReady: false,
-    });
+    if (canSetState) {
+      setState({
+        peerId: null,
+        remotePeerId: null,
+        isConnected: false,
+        isConnecting: false,
+        localStream: null,
+        remoteStream: null,
+        peerIdSavedToDb: false,
+        screenShareReady: false,
+      });
+    }
   }, [endCall, bookingId, isAdmin]);
 
-  // CRITICAL: Proper mount/unmount tracking for React Strict Mode
+  // CRITICAL: StrictMode-safe mount/unmount handling.
+  // Debounce cleanup to the next tick and cancel if we remount immediately.
   useEffect(() => {
+    const pending = pendingUnmountCleanupTimers.get(cleanupKey);
+    if (pending) {
+      window.clearTimeout(pending);
+      pendingUnmountCleanupTimers.delete(cleanupKey);
+      console.log('[PeerConnection] Cancelled pending unmount cleanup (StrictMode remount)');
+    }
+
     isMountedRef.current = true;
-    
+
     return () => {
-      // Only cleanup if truly unmounting (not just React Strict Mode double-mount)
       isMountedRef.current = false;
-      cleanup();
+
+      const existing = pendingUnmountCleanupTimers.get(cleanupKey);
+      if (existing) window.clearTimeout(existing);
+
+      const timerId = window.setTimeout(() => {
+        pendingUnmountCleanupTimers.delete(cleanupKey);
+        void cleanupNow();
+      }, 0);
+
+      pendingUnmountCleanupTimers.set(cleanupKey, timerId);
     };
-  }, []);
+  }, [cleanupKey, cleanupNow]);
 
   return {
     ...state,
@@ -607,6 +639,6 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     callRemotePeer,
     endCall,
     reconnect,
-    cleanup,
+    cleanup: cleanupNow,
   };
 }
