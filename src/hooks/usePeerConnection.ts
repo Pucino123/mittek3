@@ -9,6 +9,9 @@ import { toast } from 'sonner';
 // We debounce unmount cleanup across component instances using a module-level map.
 const pendingUnmountCleanupTimers = new Map<string, number>();
 
+// Polling interval for fallback peer ID fetching (5 seconds)
+const POLLING_INTERVAL_MS = 5000;
+
 export type ScreenShareError = 
   | 'cancelled'        // User cancelled the picker dialog
   | 'permission'       // Permission denied
@@ -26,6 +29,7 @@ interface PeerConnectionState {
   peerIdSavedToDb: boolean;
   screenShareReady: boolean; // Track if user has shared screen
   screenShareError: ScreenShareError; // Track why screen share failed
+  bookingStatus: string | null; // Track booking status for UI feedback
 }
 
 export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
@@ -39,19 +43,22 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     peerIdSavedToDb: false,
     screenShareReady: false,
     screenShareError: null,
+    bookingStatus: null,
   });
   
   const peerRef = useRef<Peer | null>(null);
   const callRef = useRef<MediaConnection | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const statusChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const hasCalledRef = useRef(false);
   const localStreamRef = useRef<MediaStream | null>(null); // Keep stream reference for answering calls
   const isInitializedRef = useRef(false); // CRITICAL: Prevent double-init in React Strict Mode
   const isMountedRef = useRef(true); // Track if component is truly mounted
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const cleanupKey = `${bookingId ?? 'no-booking'}:${isAdmin ? 'admin' : 'user'}`;
 
-  // Save peer ID to database
+  // Save peer ID to database with toast notification
   const savePeerIdToDb = useCallback(async (peerId: string) => {
     if (!bookingId) return false;
     
@@ -65,15 +72,17 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     
     if (error) {
       console.error('[PeerConnection] Failed to save peer ID:', error);
+      toast.error('Kunne ikke gemme forbindelses-ID');
       return false;
     }
     
     console.log(`[PeerConnection] ${column} saved successfully`);
+    toast.success(isAdmin ? 'Klar til at modtage forbindelse' : 'Dit ID er gemt - venter på tekniker');
     return true;
   }, [bookingId, isAdmin]);
 
   // Fetch remote peer ID from database
-  const fetchRemotePeerId = useCallback(async () => {
+  const fetchRemotePeerId = useCallback(async (): Promise<string | null> => {
     if (!bookingId) return null;
     
     const column = isAdmin ? 'user_peer_id' : 'admin_peer_id';
@@ -81,7 +90,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     
     const { data, error } = await supabase
       .from('support_bookings')
-      .select(column)
+      .select(`${column}, status`)
       .eq('id', bookingId)
       .single();
     
@@ -91,9 +100,34 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }
     
     const remotePeerId = data?.[column as keyof typeof data] as string | null;
-    console.log(`[PeerConnection] ${column} from DB:`, remotePeerId);
+    const status = data?.status as string | null;
+    
+    console.log(`[PeerConnection] ${column} from DB:`, remotePeerId, 'status:', status);
+    
+    // Update booking status in state
+    if (status && isMountedRef.current) {
+      setState(prev => ({ ...prev, bookingStatus: status }));
+    }
+    
     return remotePeerId;
   }, [bookingId, isAdmin]);
+
+  // Force fetch remote peer ID (for manual retry button)
+  const forceFetchRemotePeerId = useCallback(async () => {
+    console.log('[PeerConnection] Force fetching remote peer ID...');
+    toast.info('Henter forbindelses-ID...');
+    
+    const remotePeerId = await fetchRemotePeerId();
+    
+    if (remotePeerId && isMountedRef.current) {
+      setState(prev => ({ ...prev, remotePeerId }));
+      toast.success('Fundet! Opretter forbindelse...');
+    } else {
+      toast.warning('Modpartens ID ikke fundet endnu');
+    }
+    
+    return remotePeerId;
+  }, [fetchRemotePeerId]);
 
   // Subscribe to realtime updates for peer ID changes
   const subscribeToRemotePeerId = useCallback(() => {
@@ -114,10 +148,19 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         },
         (payload) => {
           const newPeerId = payload.new[column] as string | null;
-          console.log(`[PeerConnection] Realtime: ${column} changed to:`, newPeerId);
+          const newStatus = payload.new['status'] as string | null;
+          console.log(`[PeerConnection] Realtime: ${column} changed to:`, newPeerId, 'status:', newStatus);
           
-          if (newPeerId && newPeerId !== state.peerId) {
-            setState(prev => ({ ...prev, remotePeerId: newPeerId }));
+          if (isMountedRef.current) {
+            setState(prev => ({ 
+              ...prev, 
+              remotePeerId: newPeerId || prev.remotePeerId,
+              bookingStatus: newStatus || prev.bookingStatus,
+            }));
+            
+            if (newPeerId && !state.remotePeerId) {
+              toast.success(isAdmin ? 'Bruger er klar!' : 'Tekniker er klar!');
+            }
           }
         }
       )
@@ -126,7 +169,48 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       });
     
     channelRef.current = channel;
-  }, [bookingId, isAdmin, state.peerId]);
+  }, [bookingId, isAdmin, state.remotePeerId]);
+
+  // Start polling for remote peer ID as backup to realtime
+  const startPolling = useCallback(() => {
+    if (pollingIntervalRef.current) return; // Already polling
+    
+    console.log('[PeerConnection] Starting polling backup...');
+    
+    pollingIntervalRef.current = setInterval(async () => {
+      if (!isMountedRef.current || state.remotePeerId || state.isConnected) {
+        // Stop polling if we have remote peer ID or are connected
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        return;
+      }
+      
+      console.log('[PeerConnection] Polling for remote peer ID...');
+      const remotePeerId = await fetchRemotePeerId();
+      
+      if (remotePeerId && isMountedRef.current && !state.remotePeerId) {
+        console.log('[PeerConnection] Polling found remote peer ID:', remotePeerId);
+        setState(prev => ({ ...prev, remotePeerId }));
+        toast.success(isAdmin ? 'Bruger fundet via polling!' : 'Tekniker fundet via polling!');
+        
+        // Stop polling once we have the ID
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      }
+    }, POLLING_INTERVAL_MS);
+  }, [fetchRemotePeerId, isAdmin, state.remotePeerId, state.isConnected]);
+
+  // Stop polling
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, []);
 
   // USER ONLY: Get screen share stream FIRST before signaling readiness
   const startUserScreenShare = useCallback(async (): Promise<MediaStream | null> => {
@@ -285,6 +369,9 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         
         // Subscribe to realtime updates for remote peer
         subscribeToRemotePeerId();
+        
+        // Start polling as backup for realtime
+        startPolling();
         
         // Fetch current remote peer ID from database
         const remotePeerId = await fetchRemotePeerId();
@@ -562,6 +649,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       peerIdSavedToDb: false,
       screenShareReady: false,
       screenShareError: null,
+      bookingStatus: null,
     });
     
     // Reinitialize after a short delay
@@ -600,6 +688,12 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       channelRef.current = null;
     }
     
+    // Stop polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    
     if (peerRef.current) {
       peerRef.current.destroy();
       peerRef.current = null;
@@ -621,6 +715,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         peerIdSavedToDb: false,
         screenShareReady: false,
         screenShareError: null,
+        bookingStatus: null,
       });
     }
   }, [endCall, bookingId, isAdmin]);
@@ -661,5 +756,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     endCall,
     reconnect,
     cleanup: cleanupNow,
+    forceFetchRemotePeerId,
+    stopPolling,
   };
 }

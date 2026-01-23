@@ -1,4 +1,5 @@
-import { Bug, Check, X, Loader2, ScreenShare } from 'lucide-react';
+import { Bug, Check, X, Loader2, ScreenShare, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface DebugInfoProps {
   isAdmin: boolean;
@@ -8,6 +9,8 @@ interface DebugInfoProps {
   isConnected: boolean;
   isConnecting: boolean;
   screenShareReady?: boolean;
+  bookingStatus?: string | null;
+  onForceFetch?: () => void;
 }
 
 export function DebugInfo({ 
@@ -18,6 +21,8 @@ export function DebugInfo({
   isConnected,
   isConnecting,
   screenShareReady,
+  bookingStatus,
+  onForceFetch,
 }: DebugInfoProps) {
   return (
     <div className="fixed bottom-4 left-4 z-50 bg-background/95 border border-border rounded-lg p-3 text-xs font-mono shadow-lg max-w-xs">
@@ -78,6 +83,20 @@ export function DebugInfo({
           </span>
         </div>
         
+        {/* Booking status */}
+        {bookingStatus && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Booking:</span>
+            <span className={`${
+              bookingStatus === 'in_progress' ? 'text-success' : 
+              bookingStatus === 'waiting_for_technician' ? 'text-warning' : 
+              'text-muted-foreground'
+            }`}>
+              {bookingStatus}
+            </span>
+          </div>
+        )}
+        
         <div className="flex items-center gap-2 pt-1 border-t border-border mt-2">
           <span className="text-muted-foreground">Status:</span>
           {isConnected ? (
@@ -94,6 +113,20 @@ export function DebugInfo({
             <span className="text-muted-foreground">Waiting</span>
           )}
         </div>
+        
+        {/* Force fetch button when not connected and no remote peer */}
+        {!isConnected && !remotePeerId && onForceFetch && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={(e) => { e.preventDefault(); onForceFetch(); }}
+            className="w-full mt-2 h-7 text-xs gap-1"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Hent ID manuelt
+          </Button>
+        )}
       </div>
     </div>
   );
