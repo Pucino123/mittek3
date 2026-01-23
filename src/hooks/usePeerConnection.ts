@@ -351,6 +351,53 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }));
   }, [state.localStream]);
 
+  // Reconnect - destroy peer and reinitialize
+  const reconnect = useCallback(async () => {
+    console.log('[PeerConnection] Reconnecting...');
+    hasCalledRef.current = false;
+    
+    // End current call
+    if (callRef.current) {
+      callRef.current.close();
+      callRef.current = null;
+    }
+    
+    // Stop local streams
+    if (state.localStream) {
+      state.localStream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Unsubscribe from realtime
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    
+    // Destroy peer
+    if (peerRef.current) {
+      peerRef.current.destroy();
+      peerRef.current = null;
+    }
+    
+    // Reset state but keep remotePeerId if we had it
+    const previousRemotePeerId = state.remotePeerId;
+    setState({
+      peerId: null,
+      remotePeerId: previousRemotePeerId,
+      isConnected: false,
+      isConnecting: false,
+      localStream: null,
+      remoteStream: null,
+      peerIdSavedToDb: false,
+    });
+    
+    // Reinitialize after a short delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await initializePeer();
+    
+    toast.info('Genopretter forbindelse...');
+  }, [state.localStream, state.remotePeerId, initializePeer]);
+
   // Cleanup on unmount
   const cleanup = useCallback(async () => {
     endCall();
@@ -399,6 +446,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     startScreenShareCall,
     callRemotePeer,
     endCall,
+    reconnect,
     cleanup,
   };
 }

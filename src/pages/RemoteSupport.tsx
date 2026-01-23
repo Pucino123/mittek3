@@ -29,7 +29,8 @@ import {
   WifiOff,
   Volume2,
   VolumeX,
-  Move
+  Move,
+  RefreshCw
 } from 'lucide-react';
 
 type DrawingTool = 'pencil' | 'circle' | 'arrow' | 'eraser';
@@ -66,6 +67,7 @@ const RemoteSupport = () => {
     initializePeer,
     startScreenShareCall,
     endCall,
+    reconnect,
     cleanup: cleanupPeer,
   } = usePeerConnection(bookingId, isAdmin);
   
@@ -398,7 +400,7 @@ const RemoteSupport = () => {
             ) : remotePeerId ? (
               <>
                 <WifiOff className="h-3.5 w-3.5 text-warning" />
-                <span>Klar til forbindelse</span>
+                <span>Forbindelse afbrudt</span>
               </>
             ) : (
               <>
@@ -407,6 +409,19 @@ const RemoteSupport = () => {
               </>
             )}
           </div>
+          
+          {/* Reconnect button - show when disconnected but we have peer IDs */}
+          {!peerConnected && !peerConnecting && peerId && remotePeerId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={reconnect}
+              className="ml-2 gap-1.5 text-xs h-7"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Genopret forbindelse
+            </Button>
+          )}
         </div>
         
         {/* Session Timer */}
