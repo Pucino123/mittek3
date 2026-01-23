@@ -9,6 +9,16 @@ import { SessionTimer } from '@/components/remote-support/SessionTimer';
 import { DrawingCanvas } from '@/components/remote-support/DrawingCanvas';
 import { SessionChat } from '@/components/remote-support/SessionChat';
 import { DebugInfo } from '@/components/remote-support/DebugInfo';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { 
   Video, 
@@ -78,6 +88,7 @@ const RemoteSupport = () => {
   const [micEnabled, setMicEnabled] = useState(true);
   const [audioMuted, setAudioMuted] = useState(true); // For browser autoplay policy
   const [showUnmuteOverlay, setShowUnmuteOverlay] = useState(true);
+  const [showEndConfirmDialog, setShowEndConfirmDialog] = useState(false);
   
   // Webcam PiP state
   const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
@@ -521,11 +532,35 @@ const RemoteSupport = () => {
         <Button 
           variant="destructive" 
           size="sm"
-          onClick={handleEndSession}
+          onClick={() => setShowEndConfirmDialog(true)}
         >
           <Phone className="mr-2 h-4 w-4" />
           Afslut session
         </Button>
+        
+        {/* End Session Confirmation Dialog */}
+        <AlertDialog open={showEndConfirmDialog} onOpenChange={setShowEndConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Afslut fjernsupport?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Er du sikker på, at du vil afslutte denne session? 
+                {isAdmin 
+                  ? ' Brugeren vil miste forbindelsen til dig.'
+                  : ' Du vil miste forbindelsen til teknikeren.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuller</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleEndSession}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Ja, afslut session
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </header>
 
       {/* Main content */}
