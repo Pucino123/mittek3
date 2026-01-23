@@ -171,20 +171,36 @@ const RemoteSupport = () => {
   const handleUserShareScreen = useCallback(async () => {
     console.log('[RemoteSupport] User clicked Share Screen button');
     
-    // Step 1: Get screen share FIRST (requires user interaction)
-    const stream = await startUserScreenShare();
-    
-    if (!stream) {
-      console.error('[RemoteSupport] Failed to get screen share');
-      return;
+    try {
+      // Step 1: Get screen share FIRST (requires user interaction)
+      const stream = await startUserScreenShare();
+      
+      if (!stream) {
+        console.error('[RemoteSupport] Failed to get screen share - user cancelled or error');
+        toast.error('Skærmdeling blev annulleret. Prøv igen.');
+        return;
+      }
+      
+      // Verify stream has video track
+      const videoTracks = stream.getVideoTracks();
+      console.log('[RemoteSupport] Screen share acquired with video tracks:', videoTracks.length);
+      
+      if (videoTracks.length === 0) {
+        console.error('[RemoteSupport] Screen share has no video tracks!');
+        toast.error('Ingen video i skærmdeling. Prøv igen.');
+        return;
+      }
+      
+      console.log('[RemoteSupport] Screen share verified, now initializing peer...');
+      
+      // Step 2: Only AFTER screen share is ready, initialize peer and save ID to DB
+      await initializePeer(true);
+      
+      toast.success('Skærmdeling startet - venter på tekniker');
+    } catch (error) {
+      console.error('[RemoteSupport] Error during screen share setup:', error);
+      toast.error('Fejl ved skærmdeling. Prøv igen.');
     }
-    
-    console.log('[RemoteSupport] Screen share acquired, now initializing peer...');
-    
-    // Step 2: Only AFTER screen share is ready, initialize peer and save ID to DB
-    await initializePeer(true);
-    
-    toast.success('Skærmdeling startet - venter på tekniker');
   }, [startUserScreenShare, initializePeer]);
 
   // Auto-start for admin when landing on page
