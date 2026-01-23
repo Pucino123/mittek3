@@ -1,4 +1,4 @@
-import { Bug, Check, X, Loader2 } from 'lucide-react';
+import { Bug, Check, X, Loader2, ScreenShare } from 'lucide-react';
 
 interface DebugInfoProps {
   isAdmin: boolean;
@@ -7,6 +7,7 @@ interface DebugInfoProps {
   peerIdSavedToDb: boolean;
   isConnected: boolean;
   isConnecting: boolean;
+  screenShareReady?: boolean;
 }
 
 export function DebugInfo({ 
@@ -16,6 +17,7 @@ export function DebugInfo({
   peerIdSavedToDb,
   isConnected,
   isConnecting,
+  screenShareReady,
 }: DebugInfoProps) {
   return (
     <div className="fixed bottom-4 left-4 z-50 bg-background/95 border border-border rounded-lg p-3 text-xs font-mono shadow-lg max-w-xs">
@@ -25,6 +27,22 @@ export function DebugInfo({
       </div>
       
       <div className="space-y-1.5">
+        {/* Screen share status (User only) */}
+        {!isAdmin && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Screen Share:</span>
+            {screenShareReady ? (
+              <span className="flex items-center gap-1 text-success">
+                <ScreenShare className="h-3 w-3" /> Active
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-warning">
+                <X className="h-3 w-3" /> Not shared
+              </span>
+            )}
+          </div>
+        )}
+        
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">My ID:</span>
           <span className="text-foreground truncate max-w-32">

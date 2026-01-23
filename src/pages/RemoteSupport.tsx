@@ -64,7 +64,9 @@ const RemoteSupport = () => {
     isConnecting: peerConnecting,
     remoteStream,
     peerIdSavedToDb,
+    screenShareReady,
     initializePeer,
+    startUserScreenShare,
     startScreenShareCall,
     endCall,
     reconnect,
@@ -148,12 +150,31 @@ const RemoteSupport = () => {
       await startSession(bookingId);
       await initializePeer();
     } else {
-      // User: Join session and immediately initialize peer to save ID to DB
+      // User: Join session but DON'T initialize peer yet - wait for screen share
       await joinSession(bookingId);
-      // Initialize peer immediately so our ID is saved to DB for admin to fetch
-      await initializePeer();
+      // User will need to click "Del skærm" button to proceed
     }
   }, [bookingId, isAdmin, startSession, joinSession, initializePeer]);
+
+  // USER ONLY: Handle screen share button click
+  const handleUserShareScreen = useCallback(async () => {
+    console.log('[RemoteSupport] User clicked Share Screen button');
+    
+    // Step 1: Get screen share FIRST (requires user interaction)
+    const stream = await startUserScreenShare();
+    
+    if (!stream) {
+      console.error('[RemoteSupport] Failed to get screen share');
+      return;
+    }
+    
+    console.log('[RemoteSupport] Screen share acquired, now initializing peer...');
+    
+    // Step 2: Only AFTER screen share is ready, initialize peer and save ID to DB
+    await initializePeer(true);
+    
+    toast.success('Skærmdeling startet - venter på tekniker');
+  }, [startUserScreenShare, initializePeer]);
 
   // Auto-start for admin when landing on page
   useEffect(() => {
@@ -239,11 +260,19 @@ const RemoteSupport = () => {
     }
   }, [webcamStream]);
 
-  // Update remote video element
+  // Update remote video element - CRITICAL for displaying remote stream
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
+      console.log('[RemoteSupport] Attaching remote stream to video element');
+      console.log('[RemoteSupport] Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
+      
       remoteVideoRef.current.srcObject = remoteStream;
       remoteVideoRef.current.muted = audioMuted;
+      
+      // Explicitly try to play (for browsers that block autoplay)
+      remoteVideoRef.current.play()
+        .then(() => console.log('[RemoteSupport] Video playback started'))
+        .catch(err => console.warn('[RemoteSupport] Video autoplay blocked:', err));
     }
   }, [remoteStream, audioMuted]);
 
@@ -258,6 +287,8 @@ const RemoteSupport = () => {
   // Waiting screen - handles idle, waiting_for_technician, and waiting states
   if (session.status === 'idle' || session.status === 'waiting_for_technician' || session.status === 'waiting') {
     const isWaitingForTech = session.status === 'waiting_for_technician';
+    const userNeedsToShareScreen = !isAdmin && isWaitingForTech && !screenShareReady;
+    const userReadyAndWaiting = !isAdmin && isWaitingForTech && screenShareReady;
     
     return (
       <div className="min-h-screen bg-background">
@@ -273,21 +304,39 @@ const RemoteSupport = () => {
               <Monitor className="h-10 w-10 text-info" />
             </div>
             <h1 className="text-2xl font-bold mb-3">
-              {isAdmin ? 'Start fjernsupport-session' : isWaitingForTech ? 'Forbindelse klar' : 'Deltag i session'}
+              {isAdmin 
+                ? 'Start fjernsupport-session' 
+                : userReadyAndWaiting
+                  ? 'Skærmdeling aktiv'
+                  : userNeedsToShareScreen
+                    ? 'Del din skærm'
+                    : 'Deltag i session'
+              }
             </h1>
             <p className="text-muted-foreground mb-8">
               {isAdmin 
                 ? 'Klik nedenfor for at starte sessionen og oprette forbindelse til brugeren.'
-                : isWaitingForTech
-                  ? 'Forbindelse klar. Venter på tekniker...'
-                  : 'Klik nedenfor for at vente på at teknikeren starter sessionen.'
+                : userReadyAndWaiting
+                  ? 'Din skærm deles nu. Venter på at teknikeren opretter forbindelse...'
+                  : userNeedsToShareScreen
+                    ? 'Klik på knappen nedenfor for at dele din skærm med teknikeren.'
+                    : 'Klik nedenfor for at vente på at teknikeren starter sessionen.'
               }
             </p>
             
-            {isWaitingForTech && (
+            {/* User waiting with screen share ready */}
+            {userReadyAndWaiting && (
               <div className="flex items-center justify-center gap-2 mb-8">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="text-muted-foreground">Afventer at tekniker starter sessionen...</span>
+                <div className="w-3 h-3 rounded-full bg-success animate-pulse" />
+                <span className="text-success font-medium">Skærmdeling aktiv</span>
+              </div>
+            )}
+            
+            {/* User waiting without screen share */}
+            {userNeedsToShareScreen && (
+              <div className="flex items-center justify-center gap-2 mb-8">
+                <Loader2 className="h-5 w-5 animate-spin text-warning" />
+                <span className="text-warning">Del din skærm for at fortsætte</span>
               </div>
             )}
             
@@ -295,8 +344,12 @@ const RemoteSupport = () => {
               <h3 className="font-semibold mb-3">Hvad sker der?</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-medium text-primary">1</span>
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                    userReadyAndWaiting ? 'bg-success/20' : 'bg-primary/10'
+                  }`}>
+                    <span className={`text-xs font-medium ${userReadyAndWaiting ? 'text-success' : 'text-primary'}`}>
+                      {userReadyAndWaiting ? '✓' : '1'}
+                    </span>
                   </div>
                   {isAdmin ? 'Du vil kunne se brugerens skærm' : 'Du deler din skærm med vores tekniker'}
                 </li>
@@ -315,11 +368,33 @@ const RemoteSupport = () => {
               </ul>
             </div>
             
-            {!isWaitingForTech && (
+            {/* Initial join button (before waiting_for_technician) */}
+            {session.status === 'idle' && (
               <Button variant="hero" size="lg" onClick={handleStartSession}>
                 <Video className="mr-2 h-5 w-5" />
                 {isAdmin ? 'Start session' : 'Deltag i session'}
               </Button>
+            )}
+            
+            {/* USER: Big screen share button - CRITICAL for browser permission */}
+            {userNeedsToShareScreen && (
+              <Button 
+                variant="hero" 
+                size="lg" 
+                onClick={handleUserShareScreen}
+                className="gap-2 text-lg py-6 px-8"
+              >
+                <ScreenShare className="h-6 w-6" />
+                Del skærm med tekniker
+              </Button>
+            )}
+            
+            {/* User ready and waiting indicator */}
+            {userReadyAndWaiting && (
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Afventer at tekniker opretter forbindelse...</p>
+              </div>
             )}
           </div>
         </main>
@@ -332,6 +407,7 @@ const RemoteSupport = () => {
           peerIdSavedToDb={peerIdSavedToDb}
           isConnected={peerConnected}
           isConnecting={peerConnecting}
+          screenShareReady={screenShareReady}
         />
       </div>
     );
@@ -681,6 +757,7 @@ const RemoteSupport = () => {
         peerIdSavedToDb={peerIdSavedToDb}
         isConnected={peerConnected}
         isConnecting={peerConnecting}
+        screenShareReady={screenShareReady}
       />
     </div>
   );
