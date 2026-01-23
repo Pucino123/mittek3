@@ -396,6 +396,18 @@ const RemoteSupport = () => {
                 <p className="text-sm text-muted-foreground">Afventer at tekniker opretter forbindelse...</p>
               </div>
             )}
+            
+            {/* End session button for user in waiting state */}
+            {!isAdmin && (session.status === 'waiting_for_technician' || session.status === 'waiting') && (
+              <Button 
+                variant="outline" 
+                className="mt-6 text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={handleEndSession}
+              >
+                <X className="mr-2 h-4 w-4" />
+                Afslut og forlad
+              </Button>
+            )}
           </div>
         </main>
         
