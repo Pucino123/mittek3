@@ -5,6 +5,8 @@ import guideSecurity from './guide-security.jpg';
 import guideApps from './guide-apps.jpg';
 import guideMessages from './guide-messages.jpg';
 import guideDaily from './guide-daily.jpg';
+import guideCleanup from './guide-cleanup.jpg';
+import guideConnection from './guide-connection.jpg';
 
 export const coversByCategory: Record<string, string> = {
   'batteri': guideBattery,
@@ -13,6 +15,8 @@ export const coversByCategory: Record<string, string> = {
   'apps': guideApps,
   'beskeder': guideMessages,
   'hverdag': guideDaily,
+  'oprydning': guideCleanup,
+  'forbindelse': guideConnection,
 };
 
 // Get cover image fallback - only used if guide.cover_image_url is null
