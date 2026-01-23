@@ -79,6 +79,7 @@ const RemoteSupport = () => {
     remoteStream,
     peerIdSavedToDb,
     screenShareReady,
+    screenShareError,
     initializePeer,
     startUserScreenShare,
     startScreenShareCall,
@@ -379,11 +380,43 @@ const RemoteSupport = () => {
               </div>
             )}
             
-            {/* User waiting without screen share */}
+            {/* User waiting without screen share - show error status if any */}
             {userNeedsToShareScreen && (
-              <div className="flex items-center justify-center gap-2 mb-8">
-                <Loader2 className="h-5 w-5 animate-spin text-warning" />
-                <span className="text-warning">Del din skærm for at fortsætte</span>
+              <div className="flex flex-col items-center gap-2 mb-8">
+                {!screenShareError ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin text-warning" />
+                    <span className="text-warning">Del din skærm for at fortsætte</span>
+                  </>
+                ) : (
+                  <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 max-w-md w-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <X className="h-5 w-5 text-destructive" />
+                      <span className="text-destructive font-medium">
+                        {screenShareError === 'cancelled' && 'Skærmdeling blev annulleret'}
+                        {screenShareError === 'no_video_track' && 'Ingen video fundet i skærmdeling'}
+                        {screenShareError === 'permission' && 'Tilladelse til skærmdeling nægtet'}
+                        {screenShareError === 'unknown' && 'Uventet fejl ved skærmdeling'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {screenShareError === 'cancelled' && 'Du lukkede skærmvælgeren uden at vælge noget.'}
+                      {screenShareError === 'no_video_track' && 'Din browser sendte ikke et video-signal. Prøv at vælge et andet vindue.'}
+                      {screenShareError === 'permission' && 'Din browser eller enhed blokerer for skærmdeling. Tjek dine indstillinger.'}
+                      {screenShareError === 'unknown' && 'Noget gik galt. Prøv igen eller genindlæs siden.'}
+                    </p>
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      size="sm"
+                      onClick={(e) => { e.preventDefault(); handleUserShareScreen(); }}
+                      className="gap-2"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Prøv igen
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
             

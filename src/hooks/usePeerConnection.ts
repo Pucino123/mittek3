@@ -9,6 +9,13 @@ import { toast } from 'sonner';
 // We debounce unmount cleanup across component instances using a module-level map.
 const pendingUnmountCleanupTimers = new Map<string, number>();
 
+export type ScreenShareError = 
+  | 'cancelled'        // User cancelled the picker dialog
+  | 'permission'       // Permission denied
+  | 'no_video_track'   // Stream has no video tracks
+  | 'unknown'          // Unknown error
+  | null;              // No error (ready or not attempted)
+
 interface PeerConnectionState {
   peerId: string | null;
   remotePeerId: string | null;
@@ -17,7 +24,8 @@ interface PeerConnectionState {
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   peerIdSavedToDb: boolean;
-  screenShareReady: boolean; // NEW: Track if user has shared screen
+  screenShareReady: boolean; // Track if user has shared screen
+  screenShareError: ScreenShareError; // Track why screen share failed
 }
 
 export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
@@ -30,6 +38,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     remoteStream: null,
     peerIdSavedToDb: false,
     screenShareReady: false,
+    screenShareError: null,
   });
   
   const peerRef = useRef<Peer | null>(null);
@@ -146,6 +155,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       
       if (videoTracks.length === 0) {
         console.error('[PeerConnection] User: No video tracks in display stream!');
+        setState(prev => ({ ...prev, screenShareError: 'no_video_track' }));
         return null;
       }
       
@@ -191,14 +201,15 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
           micStream.getTracks().forEach(track => track.stop());
         }
         localStreamRef.current = null;
-        setState(prev => ({ ...prev, localStream: null, screenShareReady: false }));
+        setState(prev => ({ ...prev, localStream: null, screenShareReady: false, screenShareError: 'cancelled' }));
       };
       
-      // Update state to reflect screen share is ready
+      // Update state to reflect screen share is ready (clear any previous error)
       setState(prev => ({ 
         ...prev, 
         localStream: combinedStream, 
-        screenShareReady: true 
+        screenShareReady: true,
+        screenShareError: null,
       }));
       
       console.log('[PeerConnection] User: Screen share setup complete, screenShareReady=true');
@@ -208,9 +219,17 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       // User cancelled the screen share picker
       if (error instanceof Error && error.name === 'NotAllowedError') {
         console.log('[PeerConnection] User: Screen share cancelled by user');
+        setState(prev => ({ ...prev, screenShareError: 'cancelled' }));
+        return null;
+      }
+      // Permission denied (e.g. in Safari or enterprise policies)
+      if (error instanceof Error && error.name === 'NotFoundError') {
+        console.log('[PeerConnection] User: Screen share permission denied');
+        setState(prev => ({ ...prev, screenShareError: 'permission' }));
         return null;
       }
       console.error('[PeerConnection] User: Failed to get screen share:', error);
+      setState(prev => ({ ...prev, screenShareError: 'unknown' }));
       toast.error('Kunne ikke starte skærmdeling. Prøv igen.');
       return null;
     }
@@ -542,6 +561,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       remoteStream: null,
       peerIdSavedToDb: false,
       screenShareReady: false,
+      screenShareError: null,
     });
     
     // Reinitialize after a short delay
@@ -600,6 +620,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         remoteStream: null,
         peerIdSavedToDb: false,
         screenShareReady: false,
+        screenShareError: null,
       });
     }
   }, [endCall, bookingId, isAdmin]);
