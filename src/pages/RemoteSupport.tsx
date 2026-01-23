@@ -397,7 +397,7 @@ const RemoteSupport = () => {
             
             {/* Initial join button (before waiting_for_technician) */}
             {session.status === 'idle' && (
-              <Button variant="hero" size="lg" onClick={handleStartSession}>
+              <Button type="button" variant="hero" size="lg" onClick={(e) => { e.preventDefault(); handleStartSession(); }}>
                 <Video className="mr-2 h-5 w-5" />
                 {isAdmin ? 'Start session' : 'Deltag i session'}
               </Button>
@@ -406,9 +406,10 @@ const RemoteSupport = () => {
             {/* USER: Big screen share button - CRITICAL for browser permission */}
             {userNeedsToShareScreen && (
               <Button 
+                type="button"
                 variant="hero" 
                 size="lg" 
-                onClick={handleUserShareScreen}
+                onClick={(e) => { e.preventDefault(); handleUserShareScreen(); }}
                 className="gap-2 text-lg py-6 px-8"
               >
                 <ScreenShare className="h-6 w-6" />
@@ -427,9 +428,10 @@ const RemoteSupport = () => {
             {/* End session button for user in waiting state */}
             {!isAdmin && (session.status === 'waiting_for_technician' || session.status === 'waiting') && (
               <Button 
+                type="button"
                 variant="outline" 
                 className="mt-6 text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={handleEndSession}
+                onClick={(e) => { e.preventDefault(); handleEndSession(); }}
               >
                 <X className="mr-2 h-4 w-4" />
                 Afslut og forlad
@@ -478,10 +480,10 @@ const RemoteSupport = () => {
             Tak fordi du brugte vores fjernsupport. Vi håber det hjalp!
           </p>
           <div className="flex flex-col gap-3">
-            <Button variant="hero" onClick={() => navigate('/dashboard')}>
+            <Button type="button" variant="hero" onClick={(e) => { e.preventDefault(); navigate('/dashboard'); }}>
               Tilbage til dashboard
             </Button>
-            <Button variant="outline" onClick={() => navigate('/support-hub')}>
+            <Button type="button" variant="outline" onClick={(e) => { e.preventDefault(); navigate('/support-hub'); }}>
               Book ny session
             </Button>
           </div>
@@ -528,9 +530,10 @@ const RemoteSupport = () => {
           {/* Reconnect button - show when disconnected but we have peer IDs */}
           {!peerConnected && !peerConnecting && peerId && remotePeerId && (
             <Button
+              type="button"
               variant="outline"
               size="sm"
-              onClick={reconnect}
+              onClick={(e) => { e.preventDefault(); reconnect(); }}
               className="ml-2 gap-1.5 text-xs h-7"
             >
               <RefreshCw className="h-3.5 w-3.5" />
@@ -546,9 +549,10 @@ const RemoteSupport = () => {
         />
         
         <Button 
+          type="button"
           variant="destructive" 
           size="sm"
-          onClick={() => setShowEndConfirmDialog(true)}
+          onClick={(e) => { e.preventDefault(); setShowEndConfirmDialog(true); }}
         >
           <Phone className="mr-2 h-4 w-4" />
           Afslut session
@@ -583,33 +587,33 @@ const RemoteSupport = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* Screen share view */}
         <div className="flex-1 relative bg-muted/50">
-          {/* Remote stream from PeerJS or placeholder */}
-          {remoteStream ? (
-            <>
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                muted={audioMuted}
-                className="absolute inset-0 w-full h-full object-contain bg-black"
-              />
-              
-              {/* Unmute overlay for browser autoplay policy */}
-              {showUnmuteOverlay && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    onClick={handleUnmute}
-                    className="gap-2"
-                  >
-                    <Volume2 className="h-5 w-5" />
-                    Tænd lyd
-                  </Button>
-                </div>
-              )}
-            </>
-          ) : (
+          {/* CRITICAL: Always render video element, use CSS to show/hide */}
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            muted={audioMuted}
+            className={`absolute inset-0 w-full h-full object-contain bg-black ${remoteStream ? 'block' : 'hidden'}`}
+          />
+          
+          {/* Unmute overlay for browser autoplay policy */}
+          {remoteStream && showUnmuteOverlay && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
+              <Button
+                type="button"
+                variant="hero"
+                size="lg"
+                onClick={(e) => { e.preventDefault(); handleUnmute(); }}
+                className="gap-2"
+              >
+                <Volume2 className="h-5 w-5" />
+                Tænd lyd
+              </Button>
+            </div>
+          )}
+          
+          {/* Placeholder when no stream */}
+          {!remoteStream && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
                 <Monitor className="h-20 w-20 text-muted-foreground mx-auto mb-4" />
@@ -623,7 +627,7 @@ const RemoteSupport = () => {
                       : 'Venter på tekniker...'}
                 </p>
                 {remotePeerId && (
-                  <Button variant="hero" onClick={startScreenShareCall}>
+                  <Button type="button" variant="hero" onClick={(e) => { e.preventDefault(); startScreenShareCall(); }}>
                     <ScreenShare className="mr-2 h-4 w-4" />
                     {isAdmin ? 'Opret forbindelse' : 'Del skærm'}
                   </Button>

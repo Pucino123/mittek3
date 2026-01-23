@@ -31,6 +31,8 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const hasCalledRef = useRef(false);
   const localStreamRef = useRef<MediaStream | null>(null); // Keep stream reference for answering calls
+  const isInitializedRef = useRef(false); // CRITICAL: Prevent double-init in React Strict Mode
+  const isMountedRef = useRef(true); // Track if component is truly mounted
 
   // Save peer ID to database
   const savePeerIdToDb = useCallback(async (peerId: string) => {
@@ -209,15 +211,19 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   // Initialize peer connection (for User: call AFTER screen share is ready)
   const initializePeer = useCallback(async (requireScreenShare = false) => {
     if (!bookingId) return;
-    if (peerRef.current) {
-      console.log('[PeerConnection] Peer already initialized');
+    
+    // CRITICAL: Prevent double-initialization (React Strict Mode fix)
+    if (peerRef.current || isInitializedRef.current) {
+      console.log('[PeerConnection] Peer already initialized, skipping');
       return;
     }
+    isInitializedRef.current = true;
     
     // For user (non-admin), require screen share to be ready before initializing
     if (!isAdmin && requireScreenShare && !localStreamRef.current) {
       console.error('[PeerConnection] User: Cannot initialize peer without screen share');
       toast.error('Del din skærm først');
+      isInitializedRef.current = false;
       return;
     }
     
@@ -230,10 +236,20 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       peerRef.current = peer;
       
       peer.on('open', async (id) => {
+        // CRITICAL: Check if still mounted before updating state
+        if (!isMountedRef.current) {
+          console.log('[PeerConnection] Component unmounted during peer open, cleaning up');
+          peer.destroy();
+          return;
+        }
+        
         console.log('[PeerConnection] My Peer ID is:', id);
         
         // Save to database immediately
         const saved = await savePeerIdToDb(id);
+        
+        if (!isMountedRef.current) return;
+        
         setState(prev => ({ 
           ...prev, 
           peerId: id,
@@ -245,7 +261,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         
         // Fetch current remote peer ID from database
         const remotePeerId = await fetchRemotePeerId();
-        if (remotePeerId) {
+        if (remotePeerId && isMountedRef.current) {
           console.log('[PeerConnection] Found remote peer ID:', remotePeerId);
           setState(prev => ({ ...prev, remotePeerId }));
         }
@@ -271,6 +287,8 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         callRef.current = call;
         
         call.on('stream', (remoteStream) => {
+          if (!isMountedRef.current) return;
+          
           console.log('[PeerConnection] User: Received remote stream from admin');
           console.log('[PeerConnection] User: Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
           
@@ -284,6 +302,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         });
         
         call.on('close', () => {
+          if (!isMountedRef.current) return;
           console.log('[PeerConnection] Call closed');
           setState(prev => ({ 
             ...prev, 
@@ -294,18 +313,33 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         
         call.on('error', (err) => {
           console.error('[PeerConnection] Call error (user side):', err);
-          toast.error('Opkaldsfejl');
+          if (isMountedRef.current) {
+            toast.error('Opkaldsfejl');
+          }
         });
       });
       
       peer.on('error', (err) => {
         console.error('[PeerConnection] PeerJS error:', err);
-        toast.error('Forbindelsesfejl: ' + err.type);
-        setState(prev => ({ ...prev, isConnecting: false }));
+        if (isMountedRef.current) {
+          toast.error('Forbindelsesfejl: ' + err.type);
+          setState(prev => ({ ...prev, isConnecting: false }));
+        }
+      });
+      
+      // CRITICAL: Handle peer disconnection
+      peer.on('disconnected', () => {
+        console.log('[PeerConnection] Peer disconnected from signaling server');
+        // Don't destroy - try to reconnect
+        if (peerRef.current && isMountedRef.current) {
+          console.log('[PeerConnection] Attempting to reconnect...');
+          peerRef.current.reconnect();
+        }
       });
       
     } catch (error) {
       console.error('[PeerConnection] Failed to initialize peer:', error);
+      isInitializedRef.current = false;
       setState(prev => ({ ...prev, isConnecting: false }));
     }
   }, [bookingId, isAdmin, savePeerIdToDb, subscribeToRemotePeerId, fetchRemotePeerId]);
@@ -332,6 +366,8 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     callRef.current = call;
     
     call.on('stream', (remoteStream) => {
+      if (!isMountedRef.current) return;
+      
       console.log('[PeerConnection] Admin: Received remote stream from user');
       console.log('[PeerConnection] Admin: Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
       
@@ -356,6 +392,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     });
     
     call.on('close', () => {
+      if (!isMountedRef.current) return;
       console.log('[PeerConnection] Admin: Call ended');
       hasCalledRef.current = false;
       setState(prev => ({ 
@@ -368,8 +405,10 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     call.on('error', (err) => {
       console.error('[PeerConnection] Admin: Call error:', err);
       hasCalledRef.current = false;
-      toast.error('Opkaldsfejl');
-      setState(prev => ({ ...prev, isConnecting: false }));
+      if (isMountedRef.current) {
+        toast.error('Opkaldsfejl');
+        setState(prev => ({ ...prev, isConnecting: false }));
+      }
     });
   }, []);
 
@@ -454,6 +493,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   const reconnect = useCallback(async () => {
     console.log('[PeerConnection] Reconnecting...');
     hasCalledRef.current = false;
+    isInitializedRef.current = false; // Allow re-initialization
     
     // End current call
     if (callRef.current) {
@@ -503,10 +543,13 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       await initializePeer();
       toast.info('Genopretter forbindelse...');
     }
-  }, [state.localStream, state.remotePeerId, initializePeer]);
+  }, [state.localStream, state.remotePeerId, initializePeer, isAdmin]);
 
   // Cleanup on unmount
   const cleanup = useCallback(async () => {
+    console.log('[PeerConnection] Cleanup called');
+    isMountedRef.current = false;
+    
     endCall();
     
     // Clear peer ID from database
@@ -529,6 +572,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }
     
     hasCalledRef.current = false;
+    isInitializedRef.current = false;
     
     localStreamRef.current = null;
     
@@ -544,8 +588,13 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     });
   }, [endCall, bookingId, isAdmin]);
 
+  // CRITICAL: Proper mount/unmount tracking for React Strict Mode
   useEffect(() => {
+    isMountedRef.current = true;
+    
     return () => {
+      // Only cleanup if truly unmounting (not just React Strict Mode double-mount)
+      isMountedRef.current = false;
       cleanup();
     };
   }, []);
