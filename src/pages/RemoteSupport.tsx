@@ -110,6 +110,8 @@ const RemoteSupport = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 1920, height: 1080 });
 
   const strictCleanupKey = `remote-support:${bookingId ?? 'no-booking'}:${isAdmin ? 'admin' : 'user'}`;
 
@@ -311,6 +313,27 @@ const RemoteSupport = () => {
         .catch(err => console.warn('[RemoteSupport] Video autoplay blocked:', err));
     }
   }, [remoteStream, audioMuted]);
+
+  // Measure video container for canvas sizing (1:1 overlay)
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      if (videoContainerRef.current) {
+        const rect = videoContainerRef.current.getBoundingClientRect();
+        setCanvasSize({ width: rect.width, height: rect.height });
+      }
+    };
+    
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+    
+    // Also update when remoteStream changes (video might change aspect ratio)
+    const timer = setTimeout(updateCanvasSize, 100);
+    
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize);
+      clearTimeout(timer);
+    };
+  }, [remoteStream]);
 
   // Cleanup on unmount (StrictMode-safe)
   useEffect(() => {
@@ -643,7 +666,7 @@ const RemoteSupport = () => {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Screen share view */}
-        <div className="flex-1 relative bg-muted/50">
+        <div ref={videoContainerRef} className="flex-1 relative bg-muted/50">
           {/* CRITICAL: Always render video element, use CSS to show/hide */}
           <video
             ref={remoteVideoRef}
@@ -677,26 +700,36 @@ const RemoteSupport = () => {
                 <p className="text-muted-foreground mb-4">
                   {isAdmin 
                     ? remotePeerId 
-                      ? 'Bruger klar - klik for at oprette forbindelse'
-                      : 'Venter på brugerens forbindelse...' 
+                      ? peerConnecting
+                        ? 'Opretter forbindelse til bruger...'
+                        : 'Bruger klar - forbindelse oprettes automatisk'
+                      : 'Venter på brugerens skærmdeling...' 
                     : remotePeerId
                       ? 'Tekniker klar - del din skærm for at få hjælp'
                       : 'Venter på tekniker...'}
                 </p>
-                {remotePeerId && (
+                {/* Manual connect button - only show if not auto-connecting */}
+                {remotePeerId && !peerConnecting && !peerConnected && isAdmin && (
                   <Button type="button" variant="hero" onClick={(e) => { e.preventDefault(); startScreenShareCall(); }}>
                     <ScreenShare className="mr-2 h-4 w-4" />
-                    {isAdmin ? 'Opret forbindelse' : 'Del skærm'}
+                    Opret forbindelse manuelt
                   </Button>
+                )}
+                {/* Loading spinner when connecting */}
+                {peerConnecting && (
+                  <div className="flex items-center justify-center gap-2 text-primary">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Opretter forbindelse...</span>
+                  </div>
                 )}
               </div>
             </div>
           )}
           
-          {/* Drawing canvas overlay */}
+          {/* Drawing canvas overlay - uses dynamic container size for 1:1 alignment */}
           <DrawingCanvas
-            width={1920}
-            height={1080}
+            width={canvasSize.width}
+            height={canvasSize.height}
             drawingPoints={drawingPoints}
             isAdmin={isAdmin}
             selectedTool={selectedTool}
