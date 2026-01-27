@@ -12,12 +12,31 @@ const pendingUnmountCleanupTimers = new Map<string, number>();
 // Polling interval for fallback peer ID fetching (5 seconds)
 const POLLING_INTERVAL_MS = 5000;
 
+// Connection timeout in milliseconds (15 seconds)
+const CONNECTION_TIMEOUT_MS = 15000;
+
 export type ScreenShareError = 
   | 'cancelled'        // User cancelled the picker dialog
   | 'permission'       // Permission denied
   | 'no_video_track'   // Stream has no video tracks
   | 'unknown'          // Unknown error
   | null;              // No error (ready or not attempted)
+
+// Stream type as detected from getSettings().displaySurface
+export type StreamSurfaceType = 'browser' | 'window' | 'monitor' | 'unknown' | null;
+
+// ICE connection state for debugging
+export type IceConnectionState = 'new' | 'checking' | 'connected' | 'completed' | 'failed' | 'disconnected' | 'closed' | null;
+
+// Connection status for more granular UI feedback
+export type ConnectionStatus = 
+  | 'idle'
+  | 'waiting_for_stream'
+  | 'calling'
+  | 'ice_checking'
+  | 'connected'
+  | 'timeout'
+  | 'failed';
 
 interface PeerConnectionState {
   peerId: string | null;
@@ -30,6 +49,9 @@ interface PeerConnectionState {
   screenShareReady: boolean; // Track if user has shared screen
   screenShareError: ScreenShareError; // Track why screen share failed
   bookingStatus: string | null; // Track booking status for UI feedback
+  streamSurfaceType: StreamSurfaceType; // What type of surface is being shared
+  iceState: IceConnectionState; // ICE connection state for debugging
+  connectionStatus: ConnectionStatus; // More granular connection status
 }
 
 export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
@@ -44,6 +66,9 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     screenShareReady: false,
     screenShareError: null,
     bookingStatus: null,
+    streamSurfaceType: null,
+    iceState: null,
+    connectionStatus: 'idle',
   });
   
   const peerRef = useRef<Peer | null>(null);
@@ -55,6 +80,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   const isInitializedRef = useRef(false); // CRITICAL: Prevent double-init in React Strict Mode
   const isMountedRef = useRef(true); // Track if component is truly mounted
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout for connection
 
   const cleanupKey = `${bookingId ?? 'no-booking'}:${isAdmin ? 'admin' : 'user'}`;
 
@@ -225,9 +251,11 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     
     try {
       // Get screen share with system audio
+      // Note: We don't restrict displaySurface - let user choose tab/window/screen
       console.log('[PeerConnection] User: Requesting getDisplayMedia...');
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
+          // Prefer screen share but allow any surface type
           displaySurface: 'monitor',
         },
         audio: true,
@@ -239,9 +267,16 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       
       if (videoTracks.length === 0) {
         console.error('[PeerConnection] User: No video tracks in display stream!');
-        setState(prev => ({ ...prev, screenShareError: 'no_video_track' }));
+        setState(prev => ({ ...prev, screenShareError: 'no_video_track', streamSurfaceType: null }));
         return null;
       }
+      
+      // Detect what type of surface the user chose to share
+      const videoTrack = videoTracks[0];
+      const trackSettings = videoTrack.getSettings();
+      const surfaceType = (trackSettings as { displaySurface?: string }).displaySurface as StreamSurfaceType || 'unknown';
+      console.log('[PeerConnection] User: Stream surface type:', surfaceType);
+      console.log('[PeerConnection] User: Track settings:', JSON.stringify(trackSettings));
       
       // Also get microphone for two-way voice
       let micStream: MediaStream | null = null;
@@ -294,9 +329,10 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         localStream: combinedStream, 
         screenShareReady: true,
         screenShareError: null,
+        streamSurfaceType: surfaceType,
       }));
       
-      console.log('[PeerConnection] User: Screen share setup complete, screenShareReady=true');
+      console.log('[PeerConnection] User: Screen share setup complete, screenShareReady=true, surfaceType:', surfaceType);
       
       return combinedStream;
     } catch (error: unknown) {
@@ -458,6 +494,55 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }
   }, [bookingId, isAdmin, savePeerIdToDb, subscribeToRemotePeerId, fetchRemotePeerId]);
 
+  // Clear connection timeout
+  const clearConnectionTimeout = useCallback(() => {
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Setup ICE connection state monitoring
+  const setupIceMonitoring = useCallback((call: MediaConnection) => {
+    // Access the underlying RTCPeerConnection
+    const peerConnection = (call as { peerConnection?: RTCPeerConnection }).peerConnection;
+    
+    if (!peerConnection) {
+      console.log('[PeerConnection] No peerConnection available for ICE monitoring');
+      return;
+    }
+    
+    console.log('[PeerConnection] Setting up ICE connection monitoring');
+    
+    peerConnection.oniceconnectionstatechange = () => {
+      const iceState = peerConnection.iceConnectionState as IceConnectionState;
+      console.log('[PeerConnection] ICE connection state changed:', iceState);
+      
+      if (isMountedRef.current) {
+        setState(prev => ({ ...prev, iceState }));
+      }
+      
+      // Handle ICE failures
+      if (iceState === 'failed' || iceState === 'disconnected') {
+        console.error('[PeerConnection] ICE connection failed/disconnected');
+        if (isMountedRef.current) {
+          toast.error('Netværksforbindelse fejlede - prøv "Genopret forbindelse"');
+          setState(prev => ({ 
+            ...prev, 
+            isConnecting: false,
+            connectionStatus: 'failed',
+          }));
+        }
+        clearConnectionTimeout();
+      }
+    };
+    
+    // Also monitor ICE gathering state for debugging
+    peerConnection.onicegatheringstatechange = () => {
+      console.log('[PeerConnection] ICE gathering state:', peerConnection.iceGatheringState);
+    };
+  }, [clearConnectionTimeout]);
+
   // Call remote peer (admin calls user)
   const callRemotePeer = useCallback(async (remotePeerId: string, stream: MediaStream) => {
     if (!peerRef.current) {
@@ -474,13 +559,40 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     console.log('[PeerConnection] Admin: Calling remote peer:', remotePeerId);
     console.log('[PeerConnection] Admin: Sending stream with tracks:', stream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
     
-    setState(prev => ({ ...prev, isConnecting: true, localStream: stream }));
+    setState(prev => ({ 
+      ...prev, 
+      isConnecting: true, 
+      localStream: stream,
+      connectionStatus: 'calling',
+    }));
     
     const call = peerRef.current.call(remotePeerId, stream);
     callRef.current = call;
     
+    // Setup ICE monitoring for debugging
+    setupIceMonitoring(call);
+    
+    // Set connection timeout - if stream not received within 15 seconds, show error
+    clearConnectionTimeout();
+    connectionTimeoutRef.current = setTimeout(() => {
+      if (isMountedRef.current && !state.isConnected && state.isConnecting) {
+        console.error('[PeerConnection] Connection timeout - no stream received within', CONNECTION_TIMEOUT_MS, 'ms');
+        toast.error('Forbindelse timeout - brugerens skærm modtages ikke. Prøv "Genopret forbindelse".');
+        
+        hasCalledRef.current = false;
+        setState(prev => ({ 
+          ...prev, 
+          isConnecting: false,
+          connectionStatus: 'timeout',
+        }));
+      }
+    }, CONNECTION_TIMEOUT_MS);
+    
     call.on('stream', (remoteStream) => {
       if (!isMountedRef.current) return;
+      
+      // Clear timeout since we received the stream
+      clearConnectionTimeout();
       
       console.log('[PeerConnection] Admin: Received remote stream from user');
       console.log('[PeerConnection] Admin: Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
@@ -496,11 +608,22 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         toast.warning('Brugerens skærmdeling har ingen video');
       }
       
+      // Try to detect the stream surface type from the remote stream
+      let detectedSurfaceType: StreamSurfaceType = null;
+      if (videoTracks.length > 0) {
+        const settings = videoTracks[0].getSettings();
+        detectedSurfaceType = (settings as { displaySurface?: string }).displaySurface as StreamSurfaceType || 'unknown';
+        console.log('[PeerConnection] Admin: Detected remote stream surface type:', detectedSurfaceType);
+      }
+      
       setState(prev => ({ 
         ...prev, 
         remoteStream,
         isConnected: true,
         isConnecting: false,
+        connectionStatus: 'connected',
+        streamSurfaceType: detectedSurfaceType || prev.streamSurfaceType,
+        iceState: 'connected',
       }));
       toast.success('Forbindelse oprettet!');
     });
@@ -509,22 +632,30 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       if (!isMountedRef.current) return;
       console.log('[PeerConnection] Admin: Call ended');
       hasCalledRef.current = false;
+      clearConnectionTimeout();
       setState(prev => ({ 
         ...prev, 
         isConnected: false,
         remoteStream: null,
+        connectionStatus: 'idle',
+        iceState: 'closed',
       }));
     });
     
     call.on('error', (err) => {
       console.error('[PeerConnection] Admin: Call error:', err);
       hasCalledRef.current = false;
+      clearConnectionTimeout();
       if (isMountedRef.current) {
-        toast.error('Opkaldsfejl');
-        setState(prev => ({ ...prev, isConnecting: false }));
+        toast.error('Opkaldsfejl: ' + err.message);
+        setState(prev => ({ 
+          ...prev, 
+          isConnecting: false,
+          connectionStatus: 'failed',
+        }));
       }
     });
-  }, []);
+  }, [setupIceMonitoring, clearConnectionTimeout, state.isConnected, state.isConnecting]);
 
   // Start call to user - admin only sends audio, receives user's screen share
   const startScreenShareCall = useCallback(async () => {
@@ -639,6 +770,9 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       screenShareReady: false,
       screenShareError: null,
       bookingStatus: null,
+      streamSurfaceType: null,
+      iceState: null,
+      connectionStatus: 'idle',
     });
     
     // Reinitialize after a short delay
@@ -697,17 +831,42 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       setState({
         peerId: null,
         remotePeerId: null,
-        isConnected: false,
-        isConnecting: false,
-        localStream: null,
-        remoteStream: null,
-        peerIdSavedToDb: false,
-        screenShareReady: false,
-        screenShareError: null,
-        bookingStatus: null,
-      });
+      isConnected: false,
+      isConnecting: false,
+      localStream: null,
+      remoteStream: null,
+      peerIdSavedToDb: false,
+      screenShareReady: false,
+      screenShareError: null,
+      bookingStatus: null,
+      streamSurfaceType: null,
+      iceState: null,
+      connectionStatus: 'idle',
+    });
     }
   }, [endCall, bookingId, isAdmin]);
+
+  // Abort connection attempt - cancel ongoing call and reset state
+  const abortConnection = useCallback(() => {
+    console.log('[PeerConnection] Aborting connection attempt...');
+    clearConnectionTimeout();
+    hasCalledRef.current = false;
+    
+    if (callRef.current) {
+      callRef.current.close();
+      callRef.current = null;
+    }
+    
+    if (isMountedRef.current) {
+      setState(prev => ({
+        ...prev,
+        isConnecting: false,
+        connectionStatus: 'idle',
+        iceState: null,
+      }));
+      toast.info('Forbindelsesforsøg afbrudt');
+    }
+  }, [clearConnectionTimeout]);
 
   // CRITICAL: StrictMode-safe mount/unmount handling.
   // Debounce cleanup to the next tick and cancel if we remount immediately.
@@ -747,5 +906,6 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     cleanup: cleanupNow,
     forceFetchRemotePeerId,
     stopPolling,
+    abortConnection,
   };
 }

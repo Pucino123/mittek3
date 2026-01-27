@@ -81,6 +81,9 @@ const RemoteSupport = () => {
     screenShareReady,
     screenShareError,
     bookingStatus,
+    streamSurfaceType,
+    iceState,
+    connectionStatus,
     initializePeer,
     startUserScreenShare,
     startScreenShareCall,
@@ -88,6 +91,7 @@ const RemoteSupport = () => {
     reconnect,
     cleanup: cleanupPeer,
     forceFetchRemotePeerId,
+    abortConnection,
   } = usePeerConnection(bookingId, isAdmin);
   
   // Media state
@@ -763,11 +767,58 @@ const RemoteSupport = () => {
                     Opret forbindelse manuelt
                   </Button>
                 )}
-                {/* Loading spinner when connecting */}
+                {/* Loading spinner when connecting - with detailed status */}
                 {peerConnecting && (
-                  <div className="flex items-center justify-center gap-2 text-primary">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Opretter forbindelse...</span>
+                  <div className="flex flex-col items-center justify-center gap-3 text-primary">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>
+                        {connectionStatus === 'calling' && 'Ringer til bruger...'}
+                        {connectionStatus === 'ice_checking' && 'Forhandler netværk...'}
+                        {connectionStatus === 'waiting_for_stream' && 'Venter på skærmdeling...'}
+                        {!['calling', 'ice_checking', 'waiting_for_stream'].includes(connectionStatus) && 'Opretter forbindelse...'}
+                      </span>
+                    </div>
+                    {/* ICE state indicator */}
+                    {iceState && (
+                      <span className="text-xs text-muted-foreground">
+                        ICE: {iceState}
+                      </span>
+                    )}
+                    {/* Abort button */}
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={(e) => { e.preventDefault(); abortConnection(); }}
+                      className="mt-2 gap-1.5"
+                    >
+                      <X className="h-4 w-4" />
+                      Afbryd forsøg
+                    </Button>
+                  </div>
+                )}
+                {/* Timeout/failed state */}
+                {!peerConnecting && (connectionStatus === 'timeout' || connectionStatus === 'failed') && (
+                  <div className="flex flex-col items-center justify-center gap-3 text-destructive">
+                    <div className="flex items-center gap-2">
+                      <WifiOff className="h-5 w-5" />
+                      <span>
+                        {connectionStatus === 'timeout' 
+                          ? 'Forbindelse timeout - brugerens stream modtages ikke'
+                          : 'Forbindelse fejlede'}
+                      </span>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="hero" 
+                      size="sm"
+                      onClick={(e) => { e.preventDefault(); reconnect(); }}
+                      className="gap-1.5"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Prøv igen
+                    </Button>
                   </div>
                 )}
               </div>
@@ -974,6 +1025,9 @@ const RemoteSupport = () => {
         isConnecting={peerConnecting}
         screenShareReady={screenShareReady}
         bookingStatus={bookingStatus}
+        streamSurfaceType={streamSurfaceType}
+        iceState={iceState}
+        connectionStatus={connectionStatus}
         onForceFetch={forceFetchRemotePeerId}
       />
     </div>
