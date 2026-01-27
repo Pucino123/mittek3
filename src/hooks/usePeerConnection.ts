@@ -419,22 +419,49 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       
       // Handle incoming calls (user side receives call from admin)
       peer.on('call', (call) => {
-        console.log('[PeerConnection] Incoming call from:', call.peer);
+        console.log('[PeerConnection] ========================================');
+        console.log('[PeerConnection] INCOMING CALL RECEIVED from:', call.peer);
+        console.log('[PeerConnection] ========================================');
         
         // CRITICAL FIX: Use the pre-acquired stream from localStreamRef
         const stream = localStreamRef.current;
         
         if (!stream) {
           console.error('[PeerConnection] No local stream available to answer call!');
+          console.error('[PeerConnection] localStreamRef.current is:', localStreamRef.current);
           toast.error('Skærmdeling ikke klar - kunne ikke besvare opkald');
           return;
         }
         
-        console.log('[PeerConnection] Answering call with stream tracks:', stream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
+        // Validate stream has active tracks
+        const tracks = stream.getTracks();
+        const activeTracks = tracks.filter(t => t.readyState === 'live');
+        console.log('[PeerConnection] Stream tracks:', tracks.length, 'Active tracks:', activeTracks.length);
+        console.log('[PeerConnection] Track details:', tracks.map(t => `${t.kind}:${t.label}:${t.readyState}`));
+        
+        if (activeTracks.length === 0) {
+          console.error('[PeerConnection] All tracks are ended/stopped! Stream is invalid.');
+          toast.error('Skærmdeling er stoppet - del din skærm igen');
+          return;
+        }
+        
+        console.log('[PeerConnection] Answering call with', activeTracks.length, 'active tracks...');
         
         // Answer the call with the pre-acquired stream
         call.answer(stream);
         callRef.current = call;
+        
+        // Setup ICE monitoring on user side too
+        const peerConnection = (call as { peerConnection?: RTCPeerConnection }).peerConnection;
+        if (peerConnection) {
+          console.log('[PeerConnection] User: Setting up ICE monitoring for answered call');
+          peerConnection.oniceconnectionstatechange = () => {
+            console.log('[PeerConnection] User: ICE state changed to:', peerConnection.iceConnectionState);
+            if (isMountedRef.current) {
+              setState(prev => ({ ...prev, iceState: peerConnection.iceConnectionState as IceConnectionState }));
+            }
+          };
+        }
         
         call.on('stream', (remoteStream) => {
           if (!isMountedRef.current) return;
@@ -447,6 +474,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
             remoteStream,
             isConnected: true,
             isConnecting: false,
+            connectionStatus: 'connected',
           }));
           toast.success('Forbindelse oprettet!');
         });
@@ -546,6 +574,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   // Call remote peer (admin calls user)
   const callRemotePeer = useCallback(async (remotePeerId: string, stream: MediaStream) => {
     if (!peerRef.current) {
+      console.error('[PeerConnection] Admin: No peer reference available!');
       toast.error('Peer forbindelse ikke klar');
       return;
     }
@@ -556,8 +585,12 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }
     hasCalledRef.current = true;
     
-    console.log('[PeerConnection] Admin: Calling remote peer:', remotePeerId);
-    console.log('[PeerConnection] Admin: Sending stream with tracks:', stream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
+    console.log('[PeerConnection] ========================================');
+    console.log('[PeerConnection] Admin: INITIATING CALL to:', remotePeerId);
+    console.log('[PeerConnection] Admin: My peer ID:', peerRef.current.id);
+    console.log('[PeerConnection] Admin: Peer open:', !peerRef.current.disconnected);
+    console.log('[PeerConnection] Admin: Stream tracks:', stream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`));
+    console.log('[PeerConnection] ========================================');
     
     setState(prev => ({ 
       ...prev, 
@@ -567,16 +600,43 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     }));
     
     const call = peerRef.current.call(remotePeerId, stream);
+    
+    if (!call) {
+      console.error('[PeerConnection] Admin: call() returned null/undefined!');
+      hasCalledRef.current = false;
+      toast.error('Kunne ikke oprette opkald - prøv igen');
+      setState(prev => ({ ...prev, isConnecting: false, connectionStatus: 'failed' }));
+      return;
+    }
+    
+    console.log('[PeerConnection] Admin: Call object created successfully');
     callRef.current = call;
     
     // Setup ICE monitoring for debugging
     setupIceMonitoring(call);
     
+    // Listen for PeerJS-specific events on the call
+    call.on('willCloseOnRemote', () => {
+      console.log('[PeerConnection] Admin: Remote peer will close the call');
+    });
+    
+    // Log when call is actually established
+    console.log('[PeerConnection] Admin: Waiting for stream event...');
+    
     // Set connection timeout - if stream not received within 15 seconds, show error
+    // Use a ref-based check to avoid stale closure issues
     clearConnectionTimeout();
     connectionTimeoutRef.current = setTimeout(() => {
-      if (isMountedRef.current && !state.isConnected && state.isConnecting) {
-        console.error('[PeerConnection] Connection timeout - no stream received within', CONNECTION_TIMEOUT_MS, 'ms');
+      // Check current state via callRef instead of closure
+      const stillConnecting = callRef.current === call && !callRef.current?.open;
+      
+      if (isMountedRef.current && stillConnecting) {
+        console.error('[PeerConnection] ========================================');
+        console.error('[PeerConnection] CONNECTION TIMEOUT after', CONNECTION_TIMEOUT_MS, 'ms');
+        console.error('[PeerConnection] Call object:', call);
+        console.error('[PeerConnection] Call open:', call?.open);
+        console.error('[PeerConnection] ========================================');
+        
         toast.error('Forbindelse timeout - brugerens skærm modtages ikke. Prøv "Genopret forbindelse".');
         
         hasCalledRef.current = false;
@@ -695,10 +755,19 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   }, [state.remotePeerId, callRemotePeer]);
 
   // Auto-call when remote peer ID is available (admin only)
+  // Add a small delay to ensure user's peer is fully ready to receive calls
   useEffect(() => {
     if (isAdmin && state.remotePeerId && state.peerId && !state.isConnected && !state.isConnecting && !hasCalledRef.current) {
-      console.log('[PeerConnection] Auto-calling user...');
-      startScreenShareCall();
+      console.log('[PeerConnection] Admin: Remote peer ID detected, waiting 1.5s before calling...');
+      
+      const callDelayTimer = setTimeout(() => {
+        if (isMountedRef.current && !hasCalledRef.current && !state.isConnected) {
+          console.log('[PeerConnection] Admin: Delay complete, auto-calling user now...');
+          startScreenShareCall();
+        }
+      }, 1500); // 1.5 second delay to ensure user's peer is ready
+      
+      return () => clearTimeout(callDelayTimer);
     }
   }, [isAdmin, state.remotePeerId, state.peerId, state.isConnected, state.isConnecting, startScreenShareCall]);
 
