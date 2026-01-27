@@ -1,5 +1,6 @@
-import { Bug, Check, X, Loader2, ScreenShare, RefreshCw } from 'lucide-react';
+import { Bug, Check, X, Loader2, ScreenShare, RefreshCw, Monitor, AppWindow, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { StreamSurfaceType, IceConnectionState, ConnectionStatus } from '@/hooks/usePeerConnection';
 
 interface DebugInfoProps {
   isAdmin: boolean;
@@ -10,8 +11,45 @@ interface DebugInfoProps {
   isConnecting: boolean;
   screenShareReady?: boolean;
   bookingStatus?: string | null;
+  streamSurfaceType?: StreamSurfaceType;
+  iceState?: IceConnectionState;
+  connectionStatus?: ConnectionStatus;
   onForceFetch?: () => void;
 }
+
+// Helper to get surface type icon and label
+const getSurfaceTypeDisplay = (type: StreamSurfaceType) => {
+  switch (type) {
+    case 'browser':
+      return { icon: Globe, label: 'Fane' };
+    case 'window':
+      return { icon: AppWindow, label: 'Vindue' };
+    case 'monitor':
+      return { icon: Monitor, label: 'Skærm' };
+    case 'unknown':
+      return { icon: ScreenShare, label: 'Ukendt' };
+    default:
+      return null;
+  }
+};
+
+// Helper to get ICE state color
+const getIceStateColor = (state: IceConnectionState) => {
+  switch (state) {
+    case 'connected':
+    case 'completed':
+      return 'text-success';
+    case 'checking':
+    case 'new':
+      return 'text-warning';
+    case 'failed':
+    case 'disconnected':
+    case 'closed':
+      return 'text-destructive';
+    default:
+      return 'text-muted-foreground';
+  }
+};
 
 export function DebugInfo({ 
   isAdmin, 
@@ -22,8 +60,13 @@ export function DebugInfo({
   isConnecting,
   screenShareReady,
   bookingStatus,
+  streamSurfaceType,
+  iceState,
+  connectionStatus,
   onForceFetch,
 }: DebugInfoProps) {
+  const surfaceDisplay = streamSurfaceType ? getSurfaceTypeDisplay(streamSurfaceType) : null;
+  
   return (
     <div className="fixed bottom-4 left-4 z-50 bg-background/95 border border-border rounded-lg p-3 text-xs font-mono shadow-lg max-w-xs">
       <div className="flex items-center gap-2 mb-2 text-muted-foreground">
@@ -45,6 +88,17 @@ export function DebugInfo({
                 <X className="h-3 w-3" /> Not shared
               </span>
             )}
+          </div>
+        )}
+        
+        {/* Stream surface type */}
+        {surfaceDisplay && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Type:</span>
+            <span className="flex items-center gap-1 text-info">
+              <surfaceDisplay.icon className="h-3 w-3" />
+              {surfaceDisplay.label}
+            </span>
           </div>
         )}
         
@@ -93,6 +147,30 @@ export function DebugInfo({
               'text-muted-foreground'
             }`}>
               {bookingStatus}
+            </span>
+          </div>
+        )}
+        
+        {/* Connection status (more granular) */}
+        {connectionStatus && connectionStatus !== 'idle' && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Conn Status:</span>
+            <span className={`${
+              connectionStatus === 'connected' ? 'text-success' : 
+              connectionStatus === 'timeout' || connectionStatus === 'failed' ? 'text-destructive' : 
+              'text-warning'
+            }`}>
+              {connectionStatus}
+            </span>
+          </div>
+        )}
+        
+        {/* ICE state */}
+        {iceState && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">ICE:</span>
+            <span className={getIceStateColor(iceState)}>
+              {iceState}
             </span>
           </div>
         )}
