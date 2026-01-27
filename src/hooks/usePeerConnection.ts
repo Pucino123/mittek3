@@ -81,6 +81,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
   const isMountedRef = useRef(true); // Track if component is truly mounted
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout for connection
+  const hasReceivedRemoteStreamRef = useRef(false); // Track if stream was actually received (for robust timeout)
 
   const cleanupKey = `${bookingId ?? 'no-booking'}:${isAdmin ? 'admin' : 'user'}`;
 
@@ -251,13 +252,10 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     
     try {
       // Get screen share with system audio
-      // Note: We don't restrict displaySurface - let user choose tab/window/screen
-      console.log('[PeerConnection] User: Requesting getDisplayMedia...');
+      // Note: We don't restrict displaySurface - let user choose tab/window/screen freely
+      console.log('[PeerConnection] User: Requesting getDisplayMedia (no surface hint)...');
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          // Prefer screen share but allow any surface type
-          displaySurface: 'monitor',
-        },
+        video: true, // No displaySurface hint - allows tab/window/screen equally
         audio: true,
       });
       
@@ -312,15 +310,24 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       console.log('[PeerConnection] User: Stored stream in localStreamRef, tracks:', 
         localStreamRef.current.getTracks().map(t => `${t.kind}:${t.readyState}`));
       
-      // Handle stream end (user stops sharing)
-      videoTracks[0].onended = () => {
+      // Handle stream end (user stops sharing) - also clear peer ID from DB
+      videoTracks[0].onended = async () => {
         console.log('[PeerConnection] User: Screen share stopped by user');
         toast.info('Skærmdeling stoppet');
         if (micStream) {
           micStream.getTracks().forEach(track => track.stop());
         }
         localStreamRef.current = null;
-        setState(prev => ({ ...prev, localStream: null, screenShareReady: false, screenShareError: 'cancelled' }));
+        setState(prev => ({ ...prev, localStream: null, screenShareReady: false, screenShareError: 'cancelled', streamSurfaceType: null }));
+        
+        // Clear user_peer_id from DB so admin knows user is no longer sharing
+        if (bookingId) {
+          console.log('[PeerConnection] User: Clearing user_peer_id from DB after screen share ended');
+          await supabase
+            .from('support_bookings')
+            .update({ user_peer_id: null })
+            .eq('id', bookingId);
+        }
       };
       
       // Update state to reflect screen share is ready (clear any previous error)
@@ -353,7 +360,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       toast.error('Kunne ikke starte skærmdeling. Prøv igen.');
       return null;
     }
-  }, []);
+  }, [bookingId]);
 
   // Initialize peer connection (for User: call AFTER screen share is ready)
   const initializePeer = useCallback(async (requireScreenShare = false) => {
@@ -397,11 +404,17 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
         
         if (!isMountedRef.current) return;
         
+        // CRITICAL FIX: Reset isConnecting to false after peer is ready
+        // This allows auto-call to trigger and UI to show correct status
         setState(prev => ({ 
           ...prev, 
           peerId: id,
           peerIdSavedToDb: saved,
+          isConnecting: false, // Peer is ready, not actively connecting yet
+          connectionStatus: 'idle', // Ready but not in a call
         }));
+        
+        console.log('[PeerConnection] Peer ready, isConnecting reset to false');
         
         // Subscribe to realtime updates for remote peer
         subscribeToRemotePeerId();
@@ -584,6 +597,7 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
       return;
     }
     hasCalledRef.current = true;
+    hasReceivedRemoteStreamRef.current = false; // Reset stream received flag
     
     console.log('[PeerConnection] ========================================');
     console.log('[PeerConnection] Admin: INITIATING CALL to:', remotePeerId);
@@ -623,18 +637,19 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     // Log when call is actually established
     console.log('[PeerConnection] Admin: Waiting for stream event...');
     
-    // Set connection timeout - if stream not received within 15 seconds, show error
-    // Use a ref-based check to avoid stale closure issues
+    // ROBUST TIMEOUT FIX: Use hasReceivedRemoteStreamRef instead of call.open
+    // call.open can become true before stream event fires, causing false negatives
     clearConnectionTimeout();
     connectionTimeoutRef.current = setTimeout(() => {
-      // Check current state via callRef instead of closure
-      const stillConnecting = callRef.current === call && !callRef.current?.open;
+      // Check if we actually received a stream (not just call.open)
+      const stillWaitingForStream = callRef.current === call && !hasReceivedRemoteStreamRef.current;
       
-      if (isMountedRef.current && stillConnecting) {
+      if (isMountedRef.current && stillWaitingForStream) {
         console.error('[PeerConnection] ========================================');
         console.error('[PeerConnection] CONNECTION TIMEOUT after', CONNECTION_TIMEOUT_MS, 'ms');
         console.error('[PeerConnection] Call object:', call);
         console.error('[PeerConnection] Call open:', call?.open);
+        console.error('[PeerConnection] Stream received:', hasReceivedRemoteStreamRef.current);
         console.error('[PeerConnection] ========================================');
         
         toast.error('Forbindelse timeout - brugerens skærm modtages ikke. Prøv "Genopret forbindelse".');
@@ -650,6 +665,9 @@ export function usePeerConnection(bookingId: string | null, isAdmin: boolean) {
     
     call.on('stream', (remoteStream) => {
       if (!isMountedRef.current) return;
+      
+      // CRITICAL: Mark that we received the stream (for robust timeout)
+      hasReceivedRemoteStreamRef.current = true;
       
       // Clear timeout since we received the stream
       clearConnectionTimeout();
