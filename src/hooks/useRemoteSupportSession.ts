@@ -162,14 +162,31 @@ export function useRemoteSupportSession(bookingId?: string) {
   }, [generatePeerId, subscribeToDrawingEvents]);
 
   // Join a session (user side) - sets status to waiting_for_technician
+  // CRITICAL FIX: Only update status if not already in_progress (don't overwrite admin's status)
   const joinSession = useCallback(async (bookingId: string) => {
     const peerId = generatePeerId();
     
-    // Update booking status to waiting_for_technician
-    await supabase
+    // First check current status to avoid overwriting admin's in_progress
+    const { data: currentBooking } = await supabase
       .from('support_bookings')
-      .update({ status: 'waiting_for_technician' })
-      .eq('id', bookingId);
+      .select('status')
+      .eq('id', bookingId)
+      .single();
+    
+    const currentStatus = currentBooking?.status;
+    console.log('[RemoteSupportSession] joinSession: current status =', currentStatus);
+    
+    // Only set waiting_for_technician if status is pending or confirmed
+    // Don't overwrite if already in_progress or waiting_for_technician
+    if (currentStatus === 'pending' || currentStatus === 'confirmed') {
+      console.log('[RemoteSupportSession] Setting status to waiting_for_technician');
+      await supabase
+        .from('support_bookings')
+        .update({ status: 'waiting_for_technician' })
+        .eq('id', bookingId);
+    } else {
+      console.log('[RemoteSupportSession] Keeping existing status:', currentStatus);
+    }
     
     // Subscribe to channel for updates
     subscribeToDrawingEvents(bookingId);
