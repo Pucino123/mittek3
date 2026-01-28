@@ -63,18 +63,14 @@ const SupportHub = () => {
 
           {/* Pricing Cards */}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {/* Remote Control Option */}
+            {/* Remote Control Option - TEMPORARILY DISABLED */}
             <div 
-              className={`relative card-elevated p-6 cursor-pointer transition-all ${
-                selectedOption === 'remote' 
-                  ? 'ring-2 ring-primary border-primary' 
-                  : 'hover:border-primary/50'
-              }`}
-              onClick={() => setSelectedOption('remote')}
+              className="relative card-elevated p-6 cursor-not-allowed opacity-60 grayscale transition-all"
             >
+              {/* Coming Soon Badge */}
               <div className="absolute -top-3 left-4">
-                <span className="px-3 py-1 rounded-full bg-success text-success-foreground text-xs font-medium">
-                  Mest populær
+                <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                  Midlertidigt utilgængelig
                 </span>
               </div>
 
@@ -97,19 +93,16 @@ const SupportHub = () => {
 
               <ul className="space-y-2 mb-6">
                 {remoteFeatures.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-success shrink-0" />
+                  <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Check className="h-4 w-4 text-muted-foreground shrink-0" />
                     {feature}
                   </li>
                 ))}
               </ul>
 
-              <Link to="/support-hub/booking">
-                <Button variant="hero" className="w-full">
-                  Book fjernsupport
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
+              <Button variant="outline" className="w-full" disabled>
+                Kommer snart
+              </Button>
 
               <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
