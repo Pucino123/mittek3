@@ -199,6 +199,11 @@ serve(async (req) => {
       ],
       mode: "subscription",
       payment_method_collection: "always",
+      payment_method_options: {
+        card: {
+          request_three_d_secure: 'any',  // Kræv 3DS ved checkout for off-session mandate
+        },
+      },
       subscription_data: {
         trial_period_days: 14,
       },
