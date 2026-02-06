@@ -1,137 +1,118 @@
 
-## Hvad loggen fortæller (hvorfor den “hænger”)
-Du har nu en vigtig ledetråd i loggen:
 
-- Admin finder **user_peer_id** via realtime/polling: `9f0eb978-...`
-- Booking-status i DB “hopper” mellem `in_progress` og `waiting_for_technician`
-- UI bliver ved med **Status: Connecting...**
+# Plan: Håndter SCA/3D Secure "authentication_required" fejl
 
-Jeg har tjekket koden, og der er især to konkrete fejlmønstre, som passer præcist på det du ser:
+## Problem
+Stripe returnerer `authentication_required` decline code, når banken kræver ekstra autentificering (3D Secure / SCA). Dette sker typisk:
+- Ved abonnementsfornyelse efter 14-dages prøveperiode
+- Ved europæiske kort (PSD2-krav)
+- Når banken kræver verificering
 
-### A) `isConnecting` bliver aldrig sat tilbage til `false` efter PeerJS init
-I `usePeerConnection.initializePeer()` sættes `isConnecting=true` når PeerJS initialiseres, men når `peer.on('open')` sker (og admin_peer_id bliver gemt korrekt), bliver `isConnecting` ikke nulstillet igen.
+## Årsag
+Din nuværende webhook (`stripe-webhook`) håndterer kun:
+- `checkout.session.completed`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
 
-Konsekvens:
-- UI viser “Connecting…” konstant
-- Auto-call effekten kræver `!state.isConnecting`, så admin **kommer aldrig til at ringe op** selvom `remotePeerId` findes.
+Men den **mangler** håndtering af:
+- `invoice.payment_action_required` – når 3D Secure er påkrævet
+- `invoice.payment_failed` – når betaling fejler
 
-### B) Timeout-logikken kan fejle pga. forkert betingelse (`call.open`)
-Hvis et kald faktisk bliver startet, bruger timeout’en dette check:
-`callRef.current === call && !callRef.current?.open`
+## Løsning
 
-Men `open` kan blive `true` før `stream` eventet kommer (eller hvis `stream` aldrig kommer), hvilket kan betyde at timeout aldrig “slår igennem”, og admin kan hænge i connecting uden fejlbesked.
+### 1. Udvid stripe-webhook til at håndtere payment-events
+**Fil:** `supabase/functions/stripe-webhook/index.ts`
 
-### C) Booking-status bliver overskrevet af user-flow
-`useRemoteSupportSession.joinSession()` skriver altid `status='waiting_for_technician'`.
-Hvis admin allerede har sat `in_progress`, kan brugerens “join” (eller reload) overskrive den tilbage, så DB-status bliver forvirrende og kan trigge forkert UI/tilstand.
+Tilføj håndtering af disse events:
 
----
+```text
+case "invoice.payment_action_required":
+  // Kunden skal gennemføre 3D Secure
+  // Send email med link til Stripe Hosted Invoice page
+  
+case "invoice.payment_failed":
+  // Betaling fejlede
+  // Marker subscription som "past_due"
+  // Send email til kunden med payment link
+```
 
-## Mål
-1) Admin skal **altid** enten:
-- modtage stream (success), eller
-- få en tydelig fejl/timeout (fail) – aldrig hænge uendeligt.
+### 2. Send email med betalingslink når SCA kræves
+Når `invoice.payment_action_required` modtages:
+- Hent `invoice.hosted_invoice_url` fra Stripe
+- Send email til kunden via Resend med link
+- Kunden klikker på linket og gennemfører 3D Secure i Stripe's UI
 
-2) Tab/Vindue/Skærm skal være “Alt OK”, men vi skal:
-- detektere typen (browser/window/monitor)
-- vise det i debug/UI
-- give klar besked hvis stream er tom/stoppet
+### 3. Registrer webhooks i Stripe Dashboard
+Du skal tilføje disse events til din webhook i Stripe:
+- `invoice.payment_action_required`
+- `invoice.payment_failed`
+- `invoice.paid` (bekræft succesfuld betaling)
 
----
+### 4. Marker abonnement som "past_due" ved fejl
+Når betaling fejler, opdater `subscriptions` tabellen:
+```sql
+status = 'past_due'
+```
+Dette giver dig mulighed for at vise en besked i UI til brugeren.
 
-## Ændringer vi implementerer
+## Tekniske ændringer
 
-### 1) Fix `isConnecting` state-maskinen (kritisk)
-**Fil:** `src/hooks/usePeerConnection.ts`
+### stripe-webhook/index.ts
+```text
+Tilføj nye cases:
 
-- Efter `peer.on('open')` og efter vi har sat `peerId`/subscribet:
-  - sæt `isConnecting: false`
-  - sæt en mere korrekt “klar men ikke i call” status (fx `connectionStatus: 'idle'` eller en ny status hvis vi vælger det)
+case "invoice.payment_action_required": {
+  const invoice = event.data.object as Stripe.Invoice;
+  // Hent kundens email
+  // Send email med invoice.hosted_invoice_url
+}
 
-Så auto-call effekten kan trigge, og UI stopper med at vise “Connecting…” når PeerJS bare er klar.
+case "invoice.payment_failed": {
+  const invoice = event.data.object as Stripe.Invoice;
+  // Opdater subscription status til "past_due"
+  // Send email om fejlet betaling
+}
 
-### 2) Gør timeout robust (uafhængig af `call.open`)
-**Fil:** `src/hooks/usePeerConnection.ts`
+case "invoice.paid": {
+  const invoice = event.data.object as Stripe.Invoice;
+  // Hvis status var "past_due", sæt tilbage til "active"
+}
+```
 
-- Indfør en ref fx `hasReceivedRemoteStreamRef`
-  - `false` når call starter
-  - `true` når `call.on('stream')` fires
-- Timeout betingelse bliver:
-  - “hvis vi stadig er i samme call og endnu ikke har modtaget stream”  
-  i stedet for at kigge på `call.open`.
+### Ny email-funktion
+```text
+async function sendPaymentRequiredEmail(email: string, hostedInvoiceUrl: string) {
+  // Send email med:
+  // - Besked om at betaling kræver godkendelse
+  // - Direkte link til Stripe's betalingsside
+}
+```
 
-Resultat: hvis stream aldrig kommer (uanset ICE/call open), får admin en timeout + “Prøv igen”.
+## Handlinger i Stripe Dashboard
+Efter kodeændringerne skal du:
 
-### 3) Vis korrekt fase: calling vs ICE vs waiting_for_stream
-**Fil:** `src/hooks/usePeerConnection.ts` + (små) `src/pages/RemoteSupport.tsx`
+1. Gå til Stripe Dashboard → Developers → Webhooks
+2. Vælg din webhook endpoint
+3. Tilføj disse events:
+   - `invoice.payment_action_required`
+   - `invoice.payment_failed`
+   - `invoice.paid`
 
-- Når admin starter call: `connectionStatus='calling'`
-- Når ICE state går til `checking`: sæt `connectionStatus='ice_checking'`
-- Hvis ICE bliver `connected` men vi stadig mangler stream: sæt `connectionStatus='waiting_for_stream'` (valgfrit, men giver bedre UI)
+## Forventet resultat
+1. Når prøveperiode udløber og betaling kræver SCA:
+   - Kunden modtager email med betalingslink
+   - Kunden klikker og gennemfører 3D Secure
+   - Stripe sender `invoice.paid` webhook
+   - Abonnement forbliver aktivt
 
-Resultat: UI-teksten (“Ringer… / Forhandler netværk… / Venter på skærmdeling…”) bliver reelt meningsfuld.
+2. Hvis betaling fejler:
+   - Kunden modtager email med forklaring
+   - Abonnement markeres som `past_due`
+   - UI kan vise besked om at opdatere betalingsmetode
 
-### 4) Gør getDisplayMedia “Alt OK” og mere stabilt
-**Fil:** `src/hooks/usePeerConnection.ts`
+## Test
+Efter implementation:
+1. Brug Stripe test-kort der kræver 3D Secure: `4000002500003155`
+2. Verificer at email sendes med betalingslink
+3. Gennemfør betaling og bekræft at abonnement forbliver aktivt
 
-I dag står der en kommentar om at vi “ikke begrænser displaySurface”, men koden sender stadig `displaySurface: 'monitor'`.
-
-Vi ændrer til mere neutral og stabil tilgang:
-- `getDisplayMedia({ video: true, audio: true })` (evt. med frameRate “nice-to-have”)
-- Efter capture:
-  - valider at der findes video track og at den er `readyState='live'`
-  - log + gem `displaySurface` (browser/window/monitor/unknown)
-
-Resultat: Tab- eller vinduesdeling skal fungere lige så godt som skærm, og vi undgår unødvendige hints der kan give mærkelige chooser-resultater.
-
-### 5) Ryd op hvis brugeren stopper deling (undgå “stale” peer id)
-**Fil:** `src/hooks/usePeerConnection.ts`
-
-Når brugeren stopper skærmdeling (`track.onended`):
-- vi sætter allerede `screenShareReady=false` lokalt
-- vi tilføjer også: nulstil `user_peer_id` i DB (og evt. status tilbage til “waiting”-agtig)  
-  så admin ikke står og forsøger at ringe til en peer der ikke kan svare med stream.
-
-Resultat: færre “ghost connects” og tydeligere state.
-
-### 6) Stop status-flip i booking (forvirrer debugging og flow)
-**Fil:** `src/hooks/useRemoteSupportSession.ts`
-
-Opdater `joinSession()` så den **ikke** overskriver adminens `in_progress`.
-Eksempel-tilgang:
-- kun sæt `waiting_for_technician` hvis status er `pending/confirmed`
-- hvis den allerede er `in_progress`, lad DB-status være i fred (men UI kan stadig vise “del din skærm”)
-
-Resultat: DB-status bliver stabil, og admin-side kan stole mere på den.
-
----
-
-## Testplan (det du kan gøre bagefter)
-1) Åbn booking som bruger (ikke admin):
-   - klik “Del skærm”
-   - vælg “vindue” eller “fane”
-   - i debug skal du se: `Type: Vindue` eller `Type: Fane` og “Screen Share: Active”
-
-2) Åbn samme booking som admin:
-   - du skal nu se:
-     - kort: “Bruger klar – forbindelse oprettes automatisk”
-     - derefter: “Ringer til bruger…”
-     - derefter enten video, eller en tydelig timeout efter 15 sek.
-
-3) Hvis det fejler:
-   - debug-panelet skal vise ICE state + connectionStatus, så vi kan se om det er “ICE failed” vs “stream aldrig kom”.
-
----
-
-## Leverance (hvilke filer vi ændrer)
-- `src/hooks/usePeerConnection.ts` (hovedfix: state-machine, timeout, getDisplayMedia, onended cleanup, bedre status)
-- `src/hooks/useRemoteSupportSession.ts` (joinSession status-guard)
-- (evt. små justeringer) `src/pages/RemoteSupport.tsx` hvis vi vil mappe flere status-tekster eller håndtere “peer init vs call” skarpere
-
----
-
-## Hvorfor dette også adresserer Tab vs Vindue spørgsmålet
-Tab/vindue/skærm er normalt ikke årsagen til at PeerJS ikke leverer `stream`-eventet. Det er mere et “connection lifecycle”-problem.  
-Når ovenstående fixes er på plads:
-- hvis tab/vindue-streamen er valid, vil den blive sendt og modtaget
-- hvis streamen er tom/stoppet/ikke live, får du en tydelig fejl/timeout i stedet for “evig connecting”.
