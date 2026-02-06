@@ -1,118 +1,82 @@
 
 
-# Plan: Håndter SCA/3D Secure "authentication_required" fejl
+# Plan: Aktiver automatisk off-session 3D Secure ved trial-tilmelding
 
-## Problem
-Stripe returnerer `authentication_required` decline code, når banken kræver ekstra autentificering (3D Secure / SCA). Dette sker typisk:
-- Ved abonnementsfornyelse efter 14-dages prøveperiode
-- Ved europæiske kort (PSD2-krav)
-- Når banken kræver verificering
+## Baggrund
+Stripe understøtter "off-session" betalinger, hvor 3D Secure kun kræves ved første tilmelding. Når kunden har godkendt betalingsmetoden under checkout, kan Stripe trække fremtidige betalinger automatisk – uden ny autentificering.
 
-## Årsag
-Din nuværende webhook (`stripe-webhook`) håndterer kun:
-- `checkout.session.completed`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
+## Hvad der skal ændres
 
-Men den **mangler** håndtering af:
-- `invoice.payment_action_required` – når 3D Secure er påkrævet
-- `invoice.payment_failed` – når betaling fejler
+### Fil: `supabase/functions/create-checkout/index.ts`
 
-## Løsning
+Tilføj disse parametre til `sessionParams`:
 
-### 1. Udvid stripe-webhook til at håndtere payment-events
-**Fil:** `supabase/functions/stripe-webhook/index.ts`
-
-Tilføj håndtering af disse events:
-
-```text
-case "invoice.payment_action_required":
-  // Kunden skal gennemføre 3D Secure
-  // Send email med link til Stripe Hosted Invoice page
-  
-case "invoice.payment_failed":
-  // Betaling fejlede
-  // Marker subscription som "past_due"
-  // Send email til kunden med payment link
+```typescript
+payment_method_options: {
+  card: {
+    request_three_d_secure: 'any',
+  },
+},
 ```
 
-### 2. Send email med betalingslink når SCA kræves
-Når `invoice.payment_action_required` modtages:
-- Hent `invoice.hosted_invoice_url` fra Stripe
-- Send email til kunden via Resend med link
-- Kunden klikker på linket og gennemfører 3D Secure i Stripe's UI
+Denne indstilling sikrer at 3D Secure altid køres ved checkout, hvilket giver Stripe den nødvendige tilladelse til at trække fremtidige betalinger uden ny autentificering.
 
-### 3. Registrer webhooks i Stripe Dashboard
-Du skal tilføje disse events til din webhook i Stripe:
-- `invoice.payment_action_required`
-- `invoice.payment_failed`
-- `invoice.paid` (bekræft succesfuld betaling)
+### Fuldt opdateret sessionParams objekt
 
-### 4. Marker abonnement som "past_due" ved fejl
-Når betaling fejler, opdater `subscriptions` tabellen:
-```sql
-status = 'past_due'
-```
-Dette giver dig mulighed for at vise en besked i UI til brugeren.
-
-## Tekniske ændringer
-
-### stripe-webhook/index.ts
-```text
-Tilføj nye cases:
-
-case "invoice.payment_action_required": {
-  const invoice = event.data.object as Stripe.Invoice;
-  // Hent kundens email
-  // Send email med invoice.hosted_invoice_url
-}
-
-case "invoice.payment_failed": {
-  const invoice = event.data.object as Stripe.Invoice;
-  // Opdater subscription status til "past_due"
-  // Send email om fejlet betaling
-}
-
-case "invoice.paid": {
-  const invoice = event.data.object as Stripe.Invoice;
-  // Hvis status var "past_due", sæt tilbage til "active"
-}
+```typescript
+const sessionParams: Stripe.Checkout.SessionCreateParams = {
+  customer: customerId,
+  customer_email: customerId ? undefined : sanitizedEmail,
+  locale: "da",
+  line_items: [
+    {
+      price: priceId,
+      quantity: 1,
+    },
+  ],
+  mode: "subscription",
+  payment_method_collection: "always",
+  payment_method_options: {
+    card: {
+      request_three_d_secure: 'any',  // Kræv 3DS ved checkout
+    },
+  },
+  subscription_data: {
+    trial_period_days: 14,
+  },
+  success_url: `${origin}/finish-signup?session_id={CHECKOUT_SESSION_ID}`,
+  cancel_url: `${origin}/pricing`,
+  allow_promotion_codes: true,
+  tax_id_collection: { enabled: true },
+  custom_text: {
+    submit: {
+      message: "Alle priser er inkl. 25% dansk moms. Du modtager en kvittering på email efter køb.",
+    },
+  },
+  metadata: {
+    plan_tier: sanitizedPlanTier,
+  },
+};
 ```
 
-### Ny email-funktion
-```text
-async function sendPaymentRequiredEmail(email: string, hostedInvoiceUrl: string) {
-  // Send email med:
-  // - Besked om at betaling kræver godkendelse
-  // - Direkte link til Stripe's betalingsside
-}
-```
+## Teknisk forklaring
 
-## Handlinger i Stripe Dashboard
-Efter kodeændringerne skal du:
+- **`request_three_d_secure: 'any'`** – Stripe vil altid køre 3D Secure under checkout (også ved trial), selvom der ikke trækkes penge endnu
+- Dette giver Stripe et "mandate" (en godkendelse) til at trække fremtidige betalinger off-session
+- Når trial udløber, kan Stripe derefter trække pengene automatisk – uden at kunden skal gøre noget
 
-1. Gå til Stripe Dashboard → Developers → Webhooks
-2. Vælg din webhook endpoint
-3. Tilføj disse events:
-   - `invoice.payment_action_required`
-   - `invoice.payment_failed`
-   - `invoice.paid`
+## Vigtig bemærkning
 
-## Forventet resultat
-1. Når prøveperiode udløber og betaling kræver SCA:
-   - Kunden modtager email med betalingslink
-   - Kunden klikker og gennemfører 3D Secure
-   - Stripe sender `invoice.paid` webhook
-   - Abonnement forbliver aktivt
+Selvom dette reducerer antallet af afviste betalinger markant, er der stadig edge cases hvor banken kan kræve ny autentificering:
+- Hvis kundens kort udløber og de tilføjer et nyt
+- Hvis banken har særlige sikkerhedsregler
+- Hvis kunden ændrer betalingsmetode
 
-2. Hvis betaling fejler:
-   - Kunden modtager email med forklaring
-   - Abonnement markeres som `past_due`
-   - UI kan vise besked om at opdatere betalingsmetode
+Derfor er det stadig en god idé at beholde den planlagte `invoice.payment_action_required` webhook-håndtering som fallback.
 
-## Test
-Efter implementation:
-1. Brug Stripe test-kort der kræver 3D Secure: `4000002500003155`
-2. Verificer at email sendes med betalingslink
-3. Gennemfør betaling og bekræft at abonnement forbliver aktivt
+## Resultat efter implementation
+
+1. Kunde tilmelder sig trial og gennemfører 3D Secure ved checkout
+2. 14 dage senere trækker Stripe automatisk første betaling – uden ny 3D Secure
+3. Efterfølgende månedlige betalinger kører også automatisk
 
